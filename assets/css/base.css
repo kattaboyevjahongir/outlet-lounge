@@ -20,9 +20,9 @@
 /* ---------- Dark (default) ---------- */
 :root,
 :root[data-theme="dark"] {
-  --bg: #0B0A09;
-  --bg-2: #110F0D;
-  --surface: #171512;
+  --bg: #0A0A0A;
+  --bg-2: #111110;
+  --surface: #151513;
   --surface-2: #201D19;
   --line: rgba(232, 211, 170, .13);
   --line-strong: rgba(232, 211, 170, .28);
@@ -44,8 +44,8 @@
 
 /* ---------- Light ---------- */
 :root[data-theme="light"] {
-  --bg: #F7F2E9;
-  --bg-2: #F0E9DC;
+  --bg: #F6F2EA;
+  --bg-2: #EEE8DC;
   --surface: #FFFDF9;
   --surface-2: #EDE5D6;
   --line: rgba(64, 46, 18, .12);
@@ -340,7 +340,7 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 }
 .mobile-menu a:last-child { color: var(--gold-ink); font-style: italic; }
 
-/* ---------- Product card (shared base; concepts restyle) ---------- */
+/* ---------- Product card (base; home.css restyles) ---------- */
 .pcard { position: relative; display: flex; flex-direction: column; gap: 18px; transform-style: preserve-3d; }
 .pcard-media {
   position: relative;
@@ -534,7 +534,7 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 .news-form.is-done .news-ok { opacity: 1; }
 
 /* ---------- Footer ---------- */
-.site-footer { position: relative; border-top: 1px solid var(--line); padding: clamp(60px, 8vw, 100px) 0 130px; overflow: hidden; }
+.site-footer { position: relative; border-top: 1px solid var(--line); padding: clamp(60px, 8vw, 100px) 0 48px; overflow: hidden; }
 .footer-top { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 40px; }
 .footer-brand .ol-mark { width: 150px; }
 .footer-word { margin-top: 18px; font: 500 14px var(--font-display); letter-spacing: .36em; color: var(--gold-ink); }
@@ -601,44 +601,6 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 .cf-note { font-size: 12.5px; color: var(--text-3); }
 .cart-foot .btn { width: 100%; margin-top: 8px; }
 
-/* ---------- Design dock ---------- */
-.design-dock {
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  z-index: 850;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 6px 6px 18px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: var(--glass);
-  backdrop-filter: blur(18px) saturate(1.3);
-  -webkit-backdrop-filter: blur(18px) saturate(1.3);
-  box-shadow: var(--shadow-sm);
-}
-.dock-label { font: 500 10.5px var(--font-display); letter-spacing: .26em; text-transform: uppercase; color: var(--text-3); }
-.dock-btns { position: relative; display: flex; }
-.dock-btns button {
-  position: relative;
-  z-index: 1;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 999px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font: 500 12.5px var(--font-display);
-  letter-spacing: .08em;
-  color: var(--text-2);
-  transition: color .35s;
-}
-.dock-btns button b { font-weight: 600; font-size: 11px; opacity: .6; }
-.dock-btns button.is-on { color: var(--on-gold); }
-.dock-pill { position: absolute; top: 0; left: 0; height: 40px; border-radius: 999px; background: var(--gold-grad); transition: transform .6s var(--ease-out), width .6s var(--ease-out); }
-
 /* ---------- Curtain ---------- */
 .curtain { position: fixed; inset: 0; z-index: 10000; pointer-events: none; overflow: hidden; visibility: hidden; }
 .curtain.is-active { visibility: visible; pointer-events: auto; }
@@ -694,7 +656,7 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 84px;
+  bottom: 24px;
   z-index: 950;
   transform: translate(-50%, 20px);
   padding: 12px 20px;
@@ -762,19 +724,11 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
   .lang-pill { width: 32px; height: 32px; }
   .news-box { grid-template-columns: minmax(0, 1fr); }
   .news-form .btn { padding: 0 18px; }
-  .dock-label { display: none; }
-  .design-dock { padding: 5px; }
-  .dock-btns button { padding: 0 13px; }
   .scroll-cue { display: none; }
   .pcard-name { font-size: 19px; }
 }
-@media (max-width: 420px) {
-  .dock-btns button span { display: none; }
-  .dock-btns button b { opacity: 1; font-size: 13px; }
-  .dock-btns button { padding: 0 16px; }
-}
 
-/* ---------- Phones: compact 2-up product cards (all designs) ---------- */
+/* ---------- Phones: compact 2-up product cards ---------- */
 @media (max-width: 600px) {
   .pgrid.pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 12px; }
   .pgrid .pcard { gap: 12px; }

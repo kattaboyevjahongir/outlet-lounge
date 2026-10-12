@@ -1,9 +1,9 @@
-/* Concept 2 — "Flight Path": energetic, the logo's arrow drives everything */
+/* Homepage — "Flight Path": energetic, the logo's arrow drives the motion */
 (function () {
   const OL = window.OL;
   const t = (k) => OL.t(k);
 
-  OL.concepts.flight = {
+  OL.page = {
     render() {
       const P = OL.P, L = OL.LISTS;
       const [r1, r2, r3] = t('f.title');
@@ -65,13 +65,13 @@
               <p class="f-drops-text">${t('f.dropsText')}</p>
               <span class="f-side">${t('f.side')} ${OL.ICON.arrow}</span>
             </div>
-            ${L.flightDrops.map((id, i) => `<div class="f-drop">${OL.ui.card(P[id], { index: i + 1 })}</div>`).join('')}
+            ${L.drops.map((id, i) => `<div class="f-drop">${OL.ui.card(P[id], { index: i + 1 })}</div>`).join('')}
             <a href="#best" class="f-drops-end">
               <span>${t('ui.viewAll')}</span>
               <i>${OL.ICON.arrowUR}</i>
             </a>
           </div>
-          <div class="f-drops-bar container"><div><i></i></div><span class="f-drops-count">01 / 0${L.flightDrops.length}</span></div>
+          <div class="f-drops-bar container"><div><i></i></div><span class="f-drops-count">01 / 0${L.drops.length}</span></div>
         </div>
       </section>
 
@@ -117,7 +117,7 @@
             <p class="eyebrow">04 / ${t('sec.bestEyebrow')}</p>
             <h2 class="f-h2" data-reveal="up">${t('sec.best')}</h2>
           </div>
-          <div class="f-grid pgrid" data-stagger>${L.flightBest.map((id, i) => OL.ui.card(P[id], { index: i + 1 })).join('')}</div>
+          <div class="f-grid pgrid" data-stagger>${L.best.map((id, i) => OL.ui.card(P[id], { index: i + 1 })).join('')}</div>
         </div>
       </section>
 
@@ -185,7 +185,7 @@
         const track = q('.f-drops-track');
         const bar = q('.f-drops-bar i');
         const count = q('.f-drops-count');
-        const n = OL.LISTS.flightDrops.length;
+        const n = OL.LISTS.drops.length;
         const dist = () => track.scrollWidth - innerWidth;
         const tween = gsap.to(track, {
           x: () => -dist(),

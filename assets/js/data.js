@@ -66,7 +66,6 @@
     { id: 'p15', brand: 'adidas', name: 'Prophere “Aqua Pulse”', cat: 'running', price: 990000, was: 1790000, img: 28, alt: 23, tag: 'new', sizes: S([40, 41, 42, 43, 44]) },
     { id: 'p16', brand: 'Nike', name: 'AF1 Shadow “Pastel”', cat: 'lifestyle', price: 1190000, was: 1890000, img: 4, alt: 35, tag: null, sizes: S([36, 37, 38, 39, 40], [36]) },
     { id: 'p17', brand: 'Puma', name: 'Court Classic “Pure White”', cat: 'lifestyle', price: 690000, was: 1090000, img: 5, alt: 31, tag: null, sizes: S([40, 41, 42, 43, 44]) },
-    { id: 'p19', brand: 'Nike', name: 'Air Force 1 Low “Wolf Grey”', cat: 'lifestyle', price: 1290000, was: 1990000, img: 25, alt: 17, tag: 'last', sizes: S([40, 41, 42, 43, 44], [43]) },
     { id: 'p18', brand: 'Nike', name: 'Dunk High “Coral Cream”', cat: 'lifestyle', price: 1390000, was: 2190000, img: 14, alt: 18, tag: 'hot', sizes: S([39, 40, 41, 42, 43]) },
   ];
   OL.P = Object.fromEntries(products.map((p) => [p.id, p]));
@@ -78,12 +77,8 @@
   OL.CAT_COUNT = { running: 48, lifestyle: 86, basketball: 37, men: 124, women: 92, kids: 41 };
 
   OL.LISTS = {
-    gildedNew: ['p1', 'p11', 'p6', 'p15'],
-    gildedBest: ['p2', 'p4', 'p7', 'p18'],
-    flightDrops: ['p11', 'p3', 'p14', 'p16', 'p15', 'p9'],
-    flightBest: ['p2', 'p4', 'p7', 'p10', 'p5', 'p12', 'p8', 'p18'],
-    vaultExhibits: ['p11', 'p9', 'p14', 'p3'],
-    vaultArchive: ['p2', 'p4', 'p5', 'p7', 'p8', 'p10', 'p16', 'p18'],
+    drops: ['p11', 'p3', 'p14', 'p16', 'p15', 'p9'],
+    best: ['p2', 'p4', 'p7', 'p10', 'p5', 'p12', 'p8', 'p18'],
   };
 
   OL.I18N = {
@@ -91,21 +86,11 @@
       currency: 'UZS',
       nav: { new: 'New arrivals', men: 'Men', women: 'Women', kids: 'Kids', deals: 'Outlet' },
       ui: {
-        design: 'Design', view: 'View', add: 'Add', added: 'Added', viewAll: 'View all', scroll: 'Scroll',
-        models: 'models', off: 'off', fav: 'Save to wishlist', shopNow: 'Shop now', was: 'Was', now: 'Now',
+        view: 'View', add: 'Add', added: 'Added', viewAll: 'View all', scroll: 'Scroll',
+        models: 'models', off: 'off', fav: 'Save to wishlist', shopNow: 'Shop now',
       },
-      conceptShort: { gilded: 'Gilded', flight: 'Flight', vault: 'Vault' },
-      concept: { gilded: 'Gilded Lounge', flight: 'Flight Path', vault: 'The Vault' },
       tag: { new: 'New', hot: 'Hot', last: 'Last pairs' },
       cat: { running: 'Running', lifestyle: 'Lifestyle', basketball: 'Basketball', men: 'Men', women: 'Women', kids: 'Kids' },
-      g: {
-        eyebrow: 'Original sneakers · Outlet prices',
-        title: ['Luxury', 'in every', 'step.'],
-        lead: 'Authentic pairs from the world’s leading brands — hand-picked, verified and priced up to 60% below retail.',
-        cta1: 'Shop the collection', cta2: 'Explore outlet',
-        stat1: 'Original, verified', stat2: 'Below retail', stat3: 'Global brands',
-        seal: 'OUTLET LOUNGE · ORIGINAL ONLY · ', badge: 'outlet',
-      },
       f: {
         live: 'Drop live now', title: ['Step', 'into', 'flight'],
         lead: 'Fresh drops land every week. Catch them before they take off.',
@@ -113,14 +98,6 @@
         dropsText: 'Six fresh pairs just touched down. Scroll through before they fly.',
         side: 'Keep scrolling', words: ['Original only', 'Outlet prices', 'New drops weekly', 'Fast delivery'],
         dealBig: 'Up to −60%',
-      },
-      v: {
-        eyebrow: 'The private collection', title: 'The Vault',
-        lead: 'Rare pairs, honest prices. Step inside and take a closer look at every exhibit.',
-        cta: 'Enter the vault', exhibit: 'Exhibit',
-        archive: 'The archive', archiveText: 'Every pair is checked by hand before it joins the collection.',
-        wings: 'Collection wings', deal: 'Night sale',
-        dealText: 'After hours, the vault opens its last sizes at the season’s lowest prices.',
       },
       sec: {
         newEyebrow: 'Just landed', new: 'New arrivals',
@@ -131,16 +108,6 @@
         reviewsEyebrow: 'Reviews', reviews: 'Loved in the lounge',
       },
       cd: { d: 'days', h: 'hours', m: 'min', s: 'sec', ends: 'Ends in' },
-      story: {
-        eyebrow: 'Our story',
-        text: 'We believe great sneakers should not cost a fortune. Every pair in the lounge is original, inspected by hand and priced like an outlet — so you can step out in luxury, every day.',
-        sign: 'The Outlet Lounge team',
-      },
-      desc: {
-        running: 'Responsive cushioning and a breathable upper for everyday miles.',
-        lifestyle: 'A street icon with clean lines and all-day comfort.',
-        basketball: 'Court-ready support with a bold, locked-in fit.',
-      },
       reviews: [
         { t: 'Got my Jordans in two days — original box, perfect condition and half the mall price.', n: 'Aziz R.', c: 'Tashkent' },
         { t: 'Feels like a boutique, but the prices are pure outlet. My new favourite sneaker store.', n: 'Malika T.', c: 'Samarkand' },
@@ -168,21 +135,11 @@
       currency: 'сум',
       nav: { new: 'Новинки', men: 'Мужчинам', women: 'Женщинам', kids: 'Детям', deals: 'Аутлет' },
       ui: {
-        design: 'Дизайн', view: 'Смотреть', add: 'В корзину', added: 'Добавлено', viewAll: 'Смотреть все', scroll: 'Листайте',
-        models: 'моделей', off: 'скидка', fav: 'В избранное', shopNow: 'Купить', was: 'Было', now: 'Сейчас',
+        view: 'Смотреть', add: 'В корзину', added: 'Добавлено', viewAll: 'Смотреть все', scroll: 'Листайте',
+        models: 'моделей', off: 'скидка', fav: 'В избранное', shopNow: 'Купить',
       },
-      conceptShort: { gilded: 'Золото', flight: 'Полёт', vault: 'Хранилище' },
-      concept: { gilded: 'Золотой лаунж', flight: 'Траектория полёта', vault: 'Хранилище' },
       tag: { new: 'Новинка', hot: 'Хит', last: 'Последние пары' },
       cat: { running: 'Бег', lifestyle: 'Повседневные', basketball: 'Баскетбол', men: 'Мужчинам', women: 'Женщинам', kids: 'Детям' },
-      g: {
-        eyebrow: 'Оригинальные кроссовки · Цены аутлета',
-        title: ['Роскошь', 'в каждом', 'шаге.'],
-        lead: 'Оригинальные пары ведущих мировых брендов — отобранные вручную, проверенные и до 60% дешевле розницы.',
-        cta1: 'Смотреть коллекцию', cta2: 'В аутлет',
-        stat1: 'Оригинал, проверено', stat2: 'Ниже розницы', stat3: 'Мировых брендов',
-        seal: 'OUTLET LOUNGE · ТОЛЬКО ОРИГИНАЛ · ', badge: 'аутлет',
-      },
       f: {
         live: 'Релиз уже в продаже', title: ['Шаг', 'в', 'полёт'],
         lead: 'Новые релизы каждую неделю. Успейте, пока они не улетели.',
@@ -190,14 +147,6 @@
         dropsText: 'Шесть свежих пар только что приземлились. Листайте, пока они не улетели.',
         side: 'Листайте дальше', words: ['Только оригинал', 'Цены аутлета', 'Новинки каждую неделю', 'Быстрая доставка'],
         dealBig: 'До −60%',
-      },
-      v: {
-        eyebrow: 'Частная коллекция', title: 'Хранилище',
-        lead: 'Редкие пары, честные цены. Заходите и рассмотрите каждый экспонат поближе.',
-        cta: 'Войти в хранилище', exhibit: 'Экспонат',
-        archive: 'Архив', archiveText: 'Каждая пара проверяется вручную, прежде чем попасть в коллекцию.',
-        wings: 'Залы коллекции', deal: 'Ночная распродажа',
-        dealText: 'После закрытия хранилище открывает последние размеры по самым низким ценам сезона.',
       },
       sec: {
         newEyebrow: 'Только что прибыли', new: 'Новинки',
@@ -208,16 +157,6 @@
         reviewsEyebrow: 'Отзывы', reviews: 'Нас любят',
       },
       cd: { d: 'дней', h: 'часов', m: 'мин', s: 'сек', ends: 'До конца' },
-      story: {
-        eyebrow: 'Наша история',
-        text: 'Мы уверены: отличные кроссовки не должны стоить целое состояние. Каждая пара в лаунже — оригинал, проверенный вручную, по цене аутлета. Чтобы роскошь была в каждом вашем шаге.',
-        sign: 'Команда Outlet Lounge',
-      },
-      desc: {
-        running: 'Отзывчивая амортизация и дышащий верх для ежедневных километров.',
-        lifestyle: 'Уличная икона с чистыми линиями и комфортом на весь день.',
-        basketball: 'Надёжная поддержка для площадки и плотная посадка.',
-      },
       reviews: [
         { t: 'Джорданы пришли за два дня — оригинальная коробка, идеальное состояние и полцены от ТЦ.', n: 'Азиз Р.', c: 'Ташкент' },
         { t: 'Ощущение бутика, а цены — настоящий аутлет. Теперь мой любимый магазин кроссовок.', n: 'Малика Т.', c: 'Самарканд' },
@@ -245,21 +184,11 @@
       currency: 'so‘m',
       nav: { new: 'Yangi kelganlar', men: 'Erkaklar', women: 'Ayollar', kids: 'Bolalar', deals: 'Autlet' },
       ui: {
-        design: 'Dizayn', view: 'Ko‘rish', add: 'Savatga', added: 'Qo‘shildi', viewAll: 'Barchasi', scroll: 'Pastga',
-        models: 'model', off: 'chegirma', fav: 'Sevimlilarga', shopNow: 'Xarid qilish', was: 'Avval', now: 'Hozir',
+        view: 'Ko‘rish', add: 'Savatga', added: 'Qo‘shildi', viewAll: 'Barchasi', scroll: 'Pastga',
+        models: 'model', off: 'chegirma', fav: 'Sevimlilarga', shopNow: 'Xarid qilish',
       },
-      conceptShort: { gilded: 'Oltin', flight: 'Parvoz', vault: 'Xazina' },
-      concept: { gilded: 'Oltin lounge', flight: 'Parvoz yo‘li', vault: 'Xazina' },
       tag: { new: 'Yangi', hot: 'Xit', last: 'Oxirgi juftlar' },
       cat: { running: 'Yugurish', lifestyle: 'Kundalik', basketball: 'Basketbol', men: 'Erkaklar', women: 'Ayollar', kids: 'Bolalar' },
-      g: {
-        eyebrow: 'Original krossovkalar · Autlet narxlari',
-        title: ['Har bir', 'qadamda', 'hashamat.'],
-        lead: 'Dunyoning yetakchi brendlaridan original juftlar — qo‘lda saralangan, tekshirilgan va chakana narxdan 60% gacha arzon.',
-        cta1: 'Kolleksiyani ko‘rish', cta2: 'Autletga o‘tish',
-        stat1: 'Original, tekshirilgan', stat2: 'Chakanadan arzon', stat3: 'Jahon brendlari',
-        seal: 'OUTLET LOUNGE · FAQAT ORIGINAL · ', badge: 'autlet',
-      },
       f: {
         live: 'Yangi drop sotuvda', title: ['Parvoz', 'sari', 'qadam'],
         lead: 'Har hafta yangi modellar keladi. Ular uchib ketmasidan oldin ulguring.',
@@ -267,14 +196,6 @@
         dropsText: 'Oltita yangi juft hozirgina qo‘ndi. Uchib ketmasidan oldin ko‘rib chiqing.',
         side: 'Davom eting', words: ['Faqat original', 'Autlet narxlari', 'Har hafta yangiliklar', 'Tez yetkazib berish'],
         dealBig: '−60% gacha',
-      },
-      v: {
-        eyebrow: 'Shaxsiy kolleksiya', title: 'Xazina',
-        lead: 'Noyob juftlar, halol narxlar. Ichkariga kiring va har bir eksponatni yaqindan ko‘ring.',
-        cta: 'Xazinaga kirish', exhibit: 'Eksponat',
-        archive: 'Arxiv', archiveText: 'Har bir juft kolleksiyaga qo‘shilishdan oldin qo‘lda tekshiriladi.',
-        wings: 'Kolleksiya zallari', deal: 'Tungi chegirma',
-        dealText: 'Yopilgandan keyin xazina oxirgi o‘lchamlarni mavsumning eng past narxlarida ochadi.',
       },
       sec: {
         newEyebrow: 'Hozirgina keldi', new: 'Yangi kelganlar',
@@ -285,16 +206,6 @@
         reviewsEyebrow: 'Sharhlar', reviews: 'Mijozlarimiz fikri',
       },
       cd: { d: 'kun', h: 'soat', m: 'daq', s: 'son', ends: 'Tugashiga' },
-      story: {
-        eyebrow: 'Bizning tariximiz',
-        text: 'Biz ishonamizki, ajoyib krossovkalar boylik turmasligi kerak. Lounge’dagi har bir juft — original, qo‘lda tekshirilgan va autlet narxida. Toki har kuni hashamat bilan qadam tashlang.',
-        sign: 'Outlet Lounge jamoasi',
-      },
-      desc: {
-        running: 'Har kungi kilometrlar uchun yumshoq amortizatsiya va havo o‘tkazuvchan ustki qism.',
-        lifestyle: 'Toza chiziqlar va kun bo‘yi qulaylikka ega ko‘cha ikonasi.',
-        basketball: 'Maydon uchun ishonchli tayanch va mahkam o‘tirish.',
-      },
       reviews: [
         { t: 'Jordanlar ikki kunda keldi — original quti, mukammal holat va savdo markazidan ikki baravar arzon.', n: 'Aziz R.', c: 'Toshkent' },
         { t: 'Butikdek his, narxlari esa haqiqiy autlet. Endi sevimli krossovka do‘konim.', n: 'Malika T.', c: 'Samarqand' },

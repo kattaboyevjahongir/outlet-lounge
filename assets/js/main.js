@@ -8,7 +8,7 @@
   addEventListener('load', () => { if (scrollY > 0 && document.getElementById('loader')) window.scrollTo(0, 0); });
 
   OL.initShell();
-  const api = OL.mount(OL.state.concept);
+  const api = OL.mount();
   OL.runLoader().then(() => {
     if (api.intro) api.intro.play();
   });

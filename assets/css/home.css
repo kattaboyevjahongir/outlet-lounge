@@ -1,10 +1,7 @@
 /* =========================================================
-   Concept 2 — Flight Path
+   Homepage — Flight Path
    Energetic · oversized type · the arrow drives the motion
    ========================================================= */
-
-[data-concept="flight"][data-theme="dark"] { --bg: #0A0A0A; --bg-2: #111110; --surface: #151513; }
-[data-concept="flight"][data-theme="light"] { --bg: #F6F2EA; --bg-2: #EEE8DC; }
 
 .f-h2 {
   font-family: var(--font-display);
@@ -14,7 +11,7 @@
   letter-spacing: -.02em;
   text-transform: uppercase;
 }
-[data-concept="flight"] .eyebrow { letter-spacing: .22em; }
+.eyebrow { letter-spacing: .22em; }
 
 /* ---------- Progress arrow ---------- */
 .f-progress {
@@ -196,13 +193,13 @@
 .f-drops-count { font: 600 12px var(--font-display); letter-spacing: .12em; color: var(--gold-ink); font-variant-numeric: tabular-nums; }
 
 /* Flight product cards: sharp, sporty */
-[data-concept="flight"] .pcard-media { border-radius: 14px; }
-[data-concept="flight"] .pcard-name { font-family: var(--font-display); font-weight: 600; font-size: 19px; text-transform: uppercase; letter-spacing: -.005em; line-height: 1.15; }
-[data-concept="flight"] .pcard-index { font-size: 54px; font-weight: 700; letter-spacing: -.04em; bottom: 4px; right: 14px; color: #fff; mix-blend-mode: overlay; opacity: .9; }
-[data-concept="flight"] .pcard { transition: transform .6s var(--ease-out); }
-[data-concept="flight"] .pcard:hover { transform: translateY(-8px); }
-[data-concept="flight"] .pcard-add { border-radius: 10px; }
-[data-concept="flight"] .size { border-radius: 7px; }
+.pcard-media { border-radius: 14px; }
+.pcard-name { font-family: var(--font-display); font-weight: 600; font-size: 19px; text-transform: uppercase; letter-spacing: -.005em; line-height: 1.15; }
+.pcard-index { font-size: 54px; font-weight: 700; letter-spacing: -.04em; bottom: 4px; right: 14px; color: #fff; mix-blend-mode: overlay; opacity: .9; }
+.pcard { transition: transform .6s var(--ease-out); }
+.pcard:hover { transform: translateY(-8px); }
+.pcard-add { border-radius: 10px; }
+.size { border-radius: 7px; }
 
 /* ---------- Categories (hover list) ---------- */
 .f-cats { position: relative; padding-block: clamp(90px, 12vw, 160px); }
@@ -312,7 +309,7 @@
 .f-reviews .review:nth-child(2) .review-text, .f-reviews .review:nth-child(2) .review-who, .f-reviews .review:nth-child(2) b, .f-reviews .review:nth-child(2) .review-stars { color: var(--on-gold); }
 .f-reviews .review:nth-child(2) .review-avatar { background: var(--on-gold); color: var(--gold-1); }
 .f-news .news-box { border-radius: 20px; border-color: var(--gold-2); }
-[data-concept="flight"] .site-footer .footer-big { font-weight: 700; letter-spacing: -.02em; }
+.site-footer .footer-big { font-weight: 700; letter-spacing: -.02em; }
 
 /* ---------- Responsive ---------- */
 @media (max-width: 1080px) {
@@ -344,7 +341,7 @@
   .f-cat-go { width: 44px; height: 44px; }
   .f-tape-2 { margin-top: -20px; }
 }
-/* Phones: compact 2-up cards come from base.css (.pgrid); Flight-only tweaks */
+/* Phones: compact 2-up cards come from base.css (.pgrid) */
 @media (max-width: 600px) {
   .f-grid .pcard-index { font-size: 30px; right: 8px; bottom: 2px; }
 }

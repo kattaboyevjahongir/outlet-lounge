@@ -1,4 +1,4 @@
-/* Outlet Lounge — core: helpers, logo, shell (header, theme, language, cart, dock), motion utilities */
+/* Outlet Lounge — core: helpers, logo, shell (header, theme, language, cart), motion utilities */
 (function () {
   const OL = (window.OL = window.OL || {});
   const html = document.documentElement;
@@ -22,7 +22,6 @@
   OL.state = {
     lang: ['en', 'ru', 'uz'].includes(html.lang) ? html.lang : 'en',
     theme: html.dataset.theme,
-    concept: html.dataset.concept,
     cart: store.get('cart', []).filter((i) => OL.P[i.id]),
   };
   const state = OL.state;
@@ -34,7 +33,7 @@
   OL.num = (n) => Math.round(n).toLocaleString('ru-RU');
   OL.price = (n) => `${OL.num(n)} ${t('currency')}`;
 
-  /* ---------- cleanup registry (per concept mount) ---------- */
+  /* ---------- cleanup registry (per page mount) ---------- */
   let cleanups = [];
   OL.onCleanup = (fn) => cleanups.push(fn);
   OL.cleanup = () => { cleanups.forEach((fn) => { try { fn(); } catch (e) { /* noop */ } }); cleanups = []; };
@@ -252,54 +251,6 @@
     });
   };
 
-  // Particle field of soft gold dust (used by Gilded + Vault)
-  OL.dust = (canvas, { count = 70, rise = 0.25 } = {}) => {
-    if (!canvas || OL.reduced) return;
-    const ctx = canvas.getContext('2d');
-    let w = 0, h = 0, raf = 0, visible = true;
-    const dpr = Math.min(devicePixelRatio || 1, 2);
-    const parts = Array.from({ length: count }, () => ({
-      x: Math.random(), y: Math.random(), r: Math.random() * 1.8 + .4,
-      s: Math.random() * rise + .08, a: Math.random() * Math.PI * 2, tw: Math.random() * .03 + .01,
-    }));
-    let scaled = false;
-    const resize = () => {
-      const r = canvas.getBoundingClientRect();
-      if (!r.width || !r.height) return;
-      const ow = w, oh = h;
-      w = r.width; h = r.height;
-      canvas.width = w * dpr; canvas.height = h * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      // particles start as 0–1 fractions; map them to pixels on first real size, then rescale
-      parts.forEach((p) => {
-        if (!scaled) { p.x *= w; p.y *= h; } else { p.x *= w / ow; p.y *= h / oh; }
-      });
-      scaled = true;
-    };
-    resize();
-    const color = () => getComputedStyle(html).getPropertyValue('--gold-1').trim() || '#F4E2B8';
-    let c = color();
-    const loop = () => {
-      raf = requestAnimationFrame(loop);
-      if (!scaled) resize();
-      if (!visible || !scaled) return;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = c;
-      for (const p of parts) {
-        p.y -= p.s; p.a += p.tw; p.x += Math.sin(p.a) * .25;
-        if (p.y < -5) { p.y = h + 5; p.x = Math.random() * w; }
-        ctx.globalAlpha = (Math.sin(p.a * 2) + 1) / 2 * .7 + .1;
-        ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
-      }
-    };
-    loop();
-    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; });
-    io.observe(canvas);
-    const mo = new MutationObserver(() => { c = color(); });
-    mo.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
-    addEventListener('resize', resize);
-    OL.onCleanup(() => { cancelAnimationFrame(raf); io.disconnect(); mo.disconnect(); removeEventListener('resize', resize); });
-  };
 
   /* ---------- Toast ---------- */
   let toastTimer;
@@ -312,9 +263,8 @@
   };
 
   /* ---------- Curtain transition ---------- */
-  const BG = { dark: '#0B0A09', light: '#F7F2E9' };
-  const BG_CONCEPT = { vault: { dark: '#060504', light: '#F3EEE5' }, flight: { dark: '#0A0A0A', light: '#F6F2EA' } };
-  OL.bgFor = (theme, concept) => (BG_CONCEPT[concept] && BG_CONCEPT[concept][theme]) || BG[theme];
+  const BG = { dark: '#0A0A0A', light: '#F6F2EA' };
+  OL.bgFor = (theme) => BG[theme];
 
   OL.curtain = ({ bg, ink, label = '' }, onCover, onReveal) => new Promise((resolve) => {
     const c = $('#curtain');
@@ -343,13 +293,13 @@
     state.theme = theme;
     store.set('theme', theme);
     const meta = $('meta[name="theme-color"]');
-    if (meta) meta.content = OL.bgFor(theme, state.concept);
+    if (meta) meta.content = OL.bgFor(theme);
     if (hasGsap && window.ScrollTrigger) ScrollTrigger.refresh();
   };
   OL.toggleTheme = () => {
     const next = state.theme === 'dark' ? 'light' : 'dark';
     if (!OL.anim) { applyTheme(next); OL.toast(t('toast.' + next)); return; }
-    OL.curtain({ bg: OL.bgFor(next, state.concept), ink: next === 'dark' ? '#D4B078' : '#86622A', label: t('toast.' + next) }, () => applyTheme(next));
+    OL.curtain({ bg: OL.bgFor(next), ink: next === 'dark' ? '#D4B078' : '#86622A', label: t('toast.' + next) }, () => applyTheme(next));
   };
 
   /* ---------- Language ---------- */
@@ -366,11 +316,11 @@
     applyI18n();
     renderFooter();
     renderCart();
-    // re-render the current design in place, keeping the scroll position
+    // re-render the page in place, keeping the scroll position
     const y = scrollY;
     const app = $('#app');
     const swap = () => {
-      const api = OL.mount(state.concept, { keepScroll: y });
+      const api = OL.mount({ keepScroll: y });
       api.intro && api.intro.progress(1);
       if (hasGsap) gsap.fromTo(app, { autoAlpha: 0 }, { autoAlpha: 1, duration: .45, ease: 'power2.out' });
     };
@@ -378,31 +328,20 @@
     else swap();
   };
 
-  /* ---------- Pills (language + dock) ---------- */
+  /* ---------- Language pill ---------- */
   function placePills() {
     const on = $('.lang-switch button.is-on');
     if (on) $('.lang-pill').style.transform = `translateX(${on.offsetLeft - 3}px)`;
-    const btn = $(`[data-concept-btn="${state.concept}"]`);
-    const pill = $('.dock-pill');
-    $$('[data-concept-btn]').forEach((b) => b.classList.toggle('is-on', b === btn));
-    if (btn && pill) { pill.style.width = btn.offsetWidth + 'px'; pill.style.transform = `translateX(${btn.offsetLeft}px)`; }
   }
   OL.placePills = placePills;
 
-  /* ---------- Concept switching ---------- */
-  OL.concepts = OL.concepts || {};
+  /* ---------- Page mount (render + animations) ---------- */
   OL.ctx = null;
-  OL.mount = (name, opts = {}) => {
-    const C = OL.concepts[name] || OL.concepts.gilded;
+  OL.mount = (opts = {}) => {
+    const C = OL.page;
     OL.cleanup();
     if (OL.ctx) { OL.ctx.revert(); OL.ctx = null; }
     if (hasGsap && window.ScrollTrigger) ScrollTrigger.getAll().forEach((s) => s.kill());
-
-    state.concept = name;
-    html.dataset.concept = name;
-    store.set('concept', name);
-    const meta = $('meta[name="theme-color"]');
-    if (meta) meta.content = OL.bgFor(state.theme, name);
 
     const app = $('#app');
     app.innerHTML = C.render();
@@ -422,20 +361,6 @@
     return api;
   };
 
-  OL.switchConcept = (name) => {
-    if (name === state.concept || OL.switching) return;
-    OL.switching = true;
-    history.replaceState(null, '', '#' + name);
-    let api = {};
-    // move the pill immediately for feedback
-    const prev = state.concept;
-    state.concept = name; placePills(); state.concept = prev;
-    OL.curtain(
-      { bg: OL.bgFor(state.theme, name), ink: state.theme === 'dark' ? '#D4B078' : '#86622A', label: t('concept.' + name) },
-      () => { api = OL.mount(name); },
-      () => { api.intro && api.intro.play(); },
-    ).then(() => { OL.switching = false; });
-  };
 
   /* ---------- Cart ---------- */
   const saveCart = () => store.set('cart', state.cart);
@@ -496,9 +421,9 @@
     const cx = sx + (ex - sx) * .25, cy = Math.min(sy, ey) - Math.max(160, Math.abs(ex - sx) * .35);
     const pt = (p) => { const q = 1 - p; return [q * q * sx + 2 * q * p * cx + p * p * ex, q * q * sy + 2 * q * p * cy + p * p * ey]; };
 
-    // Flight Path draws the arrow trail behind the flying shoe
+    // draw the logo's arrow trail behind the flying shoe
     let trail = null, len = 0;
-    if (state.concept === 'flight') {
+    {
       trail = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       trail.setAttribute('class', 'fly-trail');
       trail.innerHTML = `<path d="M${sx} ${sy}Q${cx} ${cy} ${ex} ${ey}"/>`;
@@ -703,8 +628,6 @@
       if (e.target.closest('[data-theme-toggle]')) return OL.toggleTheme();
       const lang = e.target.closest('[data-lang]');
       if (lang) return OL.setLang(lang.dataset.lang);
-      const cb = e.target.closest('[data-concept-btn]');
-      if (cb) return OL.switchConcept(cb.dataset.conceptBtn);
       if (e.target.closest('[data-open-cart]')) return openCart(true);
       if (e.target.closest('[data-close-cart]')) return openCart(false);
       if (e.target.closest('[data-menu-toggle]')) return html.classList.toggle('menu-open');
@@ -740,9 +663,6 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { openCart(false); html.classList.remove('menu-open'); }
-      if (e.target.closest('input, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
-      const map = { 1: 'gilded', 2: 'flight', 3: 'vault' };
-      if (map[e.key]) OL.switchConcept(map[e.key]);
     });
 
     // keep scroll measurements honest while images stream in

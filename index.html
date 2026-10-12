@@ -1,22 +1,18 @@
 <!doctype html>
-<html lang="en" data-theme="dark" data-concept="gilded">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Outlet Lounge — Original Sneakers</title>
   <meta name="description" content="Original sneakers from the world's leading brands at outlet prices." />
-  <meta name="theme-color" content="#0B0A09" />
+  <meta name="theme-color" content="#0A0A0A" />
 
-  <!-- Set theme / concept / language before first paint to avoid a flash -->
+  <!-- Set theme / language before first paint to avoid a flash -->
   <script>
     (function () {
       var d = document.documentElement, get = function (k) { try { return JSON.parse(localStorage.getItem('ol:' + k)); } catch (e) { return null; } };
-      var hash = (location.hash || '').replace('#', '');
-      var concepts = ['gilded', 'flight', 'vault'];
       var theme = get('theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-      var concept = concepts.indexOf(hash) > -1 ? hash : (get('concept') || 'gilded');
       d.dataset.theme = theme;
-      d.dataset.concept = concept;
       d.lang = get('lang') || 'en';
       d.classList.add('js');
     })();
@@ -27,10 +23,8 @@
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="assets/css/base.css?v=8" />
-  <link rel="stylesheet" href="assets/css/gilded.css?v=8" />
-  <link rel="stylesheet" href="assets/css/flight.css?v=8" />
-  <link rel="stylesheet" href="assets/css/vault.css?v=8" />
+  <link rel="stylesheet" href="assets/css/base.css?v=9" />
+  <link rel="stylesheet" href="assets/css/home.css?v=9" />
 </head>
 <body>
   <!-- Shared SVG gradients for the logo -->
@@ -120,18 +114,7 @@
     <div class="cart-foot" id="cartFoot"></div>
   </aside>
 
-  <!-- Design direction switcher -->
-  <div class="design-dock" id="dock" role="group" aria-label="Design direction">
-    <span class="dock-label" data-i18n="ui.design">Design</span>
-    <div class="dock-btns">
-      <span class="dock-pill"></span>
-      <button type="button" data-concept-btn="gilded"><b>1</b><span data-i18n="conceptShort.gilded">Gilded</span></button>
-      <button type="button" data-concept-btn="flight"><b>2</b><span data-i18n="conceptShort.flight">Flight</span></button>
-      <button type="button" data-concept-btn="vault"><b>3</b><span data-i18n="conceptShort.vault">Vault</span></button>
-    </div>
-  </div>
-
-  <!-- Transition curtain (theme + design switching) -->
+  <!-- Transition curtain (theme switching) -->
   <div class="curtain" id="curtain" aria-hidden="true">
     <div class="curtain-panel">
       <div class="curtain-content">
@@ -148,11 +131,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 
-  <script src="assets/js/data.js?v=8"></script>
-  <script src="assets/js/core.js?v=8"></script>
-  <script src="assets/js/concept-gilded.js?v=8"></script>
-  <script src="assets/js/concept-flight.js?v=8"></script>
-  <script src="assets/js/concept-vault.js?v=8"></script>
-  <script src="assets/js/main.js?v=8"></script>
+  <script src="assets/js/data.js?v=9"></script>
+  <script src="assets/js/core.js?v=9"></script>
+  <script src="assets/js/home.js?v=9"></script>
+  <script src="assets/js/main.js?v=9"></script>
 </body>
 </html>
