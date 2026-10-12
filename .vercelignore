@@ -1,0 +1,7 @@
+# not part of the website — keep out of the deployment
+supabase
+docs
+scripts
+tests
+README.md
+.env.example
