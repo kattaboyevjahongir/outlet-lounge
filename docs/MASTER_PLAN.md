@@ -16,8 +16,8 @@
 | Vercel project (manual deploys) | ✅ Done; auto-deploy on push needs Vercel's GitHub access |
 | Catalog, product pages, checkout, orders | ❌ Not built |
 | Admin panel (products, stock, orders, reports, content, staff) | ❌ Planned (§5) |
-| Database (Supabase) | 🟡 Schema, security rules, order functions, seed and tests written and verified locally; **project not created yet** (owner step, see `supabase/README.md`) |
-| Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Built; runs on placeholder data until Supabase is connected |
+| Database (Supabase) | ✅ Live: project `outlet-lounge` (Frankfurt), schema + security rules applied, placeholder products seeded, verified as a visitor (reads products only) |
+| Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Live on https://outlet-lounge.vercel.app (source: database) |
 | Real products/photos | ❌ Placeholders (Unsplash, made-up prices) |
 
 ---

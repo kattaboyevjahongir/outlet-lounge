@@ -11,7 +11,14 @@ supabase/
 └─ tests/                               database tests (in-memory Postgres): `npm run test:db`
 ```
 
-## One-time setup (owner)
+## Current project
+
+- Project: `outlet-lounge`, ref `wtuzvultdyyviohxsbez`, region eu-central-1 (Frankfurt)
+- Applied: `20261012000000_init.sql` + `seed.sql`
+- Vercel (production) has `SUPABASE_URL` and `SUPABASE_ANON_KEY`. The `service_role` key is added in phase 3 (orders), not before.
+- The generated database password is in the git-ignored `.env.local` (`SUPABASE_DB_PASSWORD`); it can be reset in Dashboard → Project Settings → Database.
+
+## Setting up from scratch (for a new project)
 
 1. **Create the project** at <https://supabase.com> → New project.
    Name `outlet-lounge`, region **Frankfurt (eu-central-1)**, a strong database password
