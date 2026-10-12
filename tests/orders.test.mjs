@@ -6,6 +6,7 @@ import { orderMessage, keyboard, esc } from '../api/_lib/format.js';
 import orderHandler from '../api/order.js';
 import quoteHandler from '../api/quote.js';
 import webhook from '../api/telegram.js';
+import { resetTelegramChatCache } from '../api/_lib/services.js';
 
 /* ------------------------------------------------------------ harness */
 const ENV_KEYS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'TELEGRAM_WEBHOOK_SECRET'];
@@ -436,4 +437,58 @@ test('webhook: /start <order no> in a private chat replies with the status only'
     await webhook(hook({ message: { text: '/start OL-261013-0042', chat: { id: -1001, type: 'supergroup' } } }), res());
     assert.equal(m.calls.length, before);
   } finally { m.restore(); unconfigure(); }
+});
+
+test('webhook: GET runs only a setup step requested in the database, and returns nothing', async () => {
+  configure({ TELEGRAM_CHAT_ID: '' });
+  resetTelegramChatCache();
+  let pending = { action: 'discover' };
+  const m = mockFetch({
+    'settings?key=eq.telegram_setup': ({ init }) => {
+      if (init.method === 'PATCH') { pending = JSON.parse(init.body).value; return { status: 204, json: null }; }
+      return { status: 200, json: [{ value: pending }] };
+    },
+    getMe: () => ({ status: 200, json: { ok: true, result: { username: 'shop_bot' } } }),
+    getWebhookInfo: () => ({ status: 200, json: { ok: true, result: { url: '' } } }),
+    getUpdates: () => ({ status: 200, json: { ok: true, result: [{ my_chat_member: { chat: { id: -1002, type: 'supergroup', title: 'Managers' } } }] } }),
+    setWebhook: () => ({ status: 200, json: { ok: true } }),
+  });
+  const get = () => ({ method: 'GET', url: '/api/telegram', headers: { host: 'evil.test', 'x-forwarded-for': `10.9.0.${++ipCounter}` } });
+  try {
+    let r = res(); await webhook(get(), r);
+    assert.deepEqual(r.body, { ok: true }, 'the response never carries data');
+    assert.equal(pending.done, true);
+    assert.deepEqual(pending.result.chats, [{ id: -1002, type: 'supergroup', title: 'Managers' }]);
+    assert.ok(!JSON.stringify(pending).includes('123:token'), 'the token is never stored');
+
+    // nothing pending → no Telegram calls at all
+    const before = m.calls.filter((c) => c.url.includes('api.telegram.org')).length;
+    await webhook(get(), res());
+    assert.equal(m.calls.filter((c) => c.url.includes('api.telegram.org')).length, before);
+
+    // the webhook always points at this shop, whatever Host the caller sends
+    pending = { action: 'webhook' };
+    await webhook(get(), res());
+    const hookCall = m.calls.find((c) => c.url.includes('setWebhook'));
+    assert.equal(hookCall.body.url, 'https://outlet-lounge.vercel.app/api/telegram');
+    assert.equal(hookCall.body.secret_token, 'hook-secret');
+    assert.equal(pending.result.ok, true);
+  } finally { m.restore(); unconfigure(); resetTelegramChatCache(); }
+});
+
+test('order alerts go to the chat saved in settings when TELEGRAM_CHAT_ID is not set', async () => {
+  configure({ TELEGRAM_CHAT_ID: '' });
+  resetTelegramChatCache();
+  const m = mockFetch({
+    'settings?key=eq.telegram': () => ({ status: 200, json: [{ value: { chat_id: -100777 } }] }),
+    'rpc/place_order': () => ({ status: 200, json: PLACED }),
+    sendMessage: () => ({ status: 200, json: { ok: true, result: { chat: { id: -100777 }, message_id: 5 } } }),
+  });
+  try {
+    const r = res();
+    await orderHandler(req(goodOrder()), r);
+    assert.equal(r.code, 200);
+    assert.equal(r.body.notified, true);
+    assert.equal(m.calls.find((c) => c.url.includes('sendMessage')).body.chat_id, '-100777');
+  } finally { m.restore(); unconfigure(); resetTelegramChatCache(); }
 });

@@ -54,7 +54,7 @@ assets/js/home.js | shop.js | product.js | checkout.js | pages.js    the pages
 assets/js/order-logic.js   phone mask, form validation, local totals (pure, unit-tested)
 assets/js/main.js          boot
 supabase/                  database: migrations, seed, tests, setup guide (see supabase/README.md)
-scripts/                   build-seed.mjs, dev-server.mjs, telegram-setup.mjs
+scripts/                   build-seed.mjs, dev-server.mjs
 tests/                     API + catalog-logic + router tests
 docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Telegram, roadmap
 ```
@@ -70,17 +70,25 @@ npm run test:db   # database: stock safety, pricing, promo rules, who can do wha
 
 See `.env.example`. Real values live only in Vercel — never in git.
 
-### Telegram order alerts (one-time setup)
+### Telegram order alerts
 
-1. In Telegram, open **@BotFather → /mybots → your bot → API Token**. If the token was ever shared
-   anywhere, press **Revoke current token** to get a fresh one.
-2. Put the token in Vercel (it prompts for the value, nothing is echoed):
-   `vercel env add TELEGRAM_BOT_TOKEN production`
-3. Add the bot to the managers' group and send a message there.
-4. `vercel env pull .env.production.local --environment=production`, then
-   `node scripts/telegram-setup.mjs discover` → copy the group's id.
-5. `vercel env add TELEGRAM_CHAT_ID production` (paste the id), redeploy: `vercel --prod`.
-6. `node scripts/telegram-setup.mjs webhook` then `node scripts/telegram-setup.mjs test`.
+**Connected:** bot **@outlet_lounge_bot** → managers' group **Outlet_requests**; webhook
+`https://outlet-lounge.vercel.app/api/telegram` (status buttons + `/start <order no>` for customers).
+
+- The token lives only in Vercel (`TELEGRAM_BOT_TOKEN`, sensitive, so it can't be pulled to a laptop).
+- The managers' chat is the private `telegram` setting (`{"chat_id": …}`); `TELEGRAM_CHAT_ID` overrides it if set.
+- Setup steps run **on the server**: write the step into the private `telegram_setup` setting, open
+  `https://outlet-lounge.vercel.app/api/telegram` once, then read the result back from the same setting.
+  Steps: `status`, `discover` (chats the bot can see — send `/id@outlet_lounge_bot` in a group first;
+  only works while no webhook is set), `webhook`, `test`.
+  ```bash
+  npx supabase db query --linked "update public.settings set value = '{\"action\":\"status\"}' where key = 'telegram_setup'"
+  curl https://outlet-lounge.vercel.app/api/telegram
+  npx supabase db query --linked "select value from public.settings where key = 'telegram_setup'"
+  ```
+- New token (after a revoke): replace it in Vercel → redeploy → run the `webhook` step.
+- Different group: add the bot, send `/id@outlet_lounge_bot` there (the bot replies with the id), update
+  `chat_id` in the `telegram` setting.
 
 ## Notes
 

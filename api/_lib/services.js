@@ -41,7 +41,23 @@ export const insert = (table, row) => call('POST', table, row, { Prefer: 'return
 export const patch = (path, row) => call('PATCH', path, row, { Prefer: 'return=minimal' });
 
 /* ------------------------------------------------------------ Telegram */
-export const telegramConfigured = () => !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+// The managers' chat: TELEGRAM_CHAT_ID, or else `chat_id` in the private `telegram` setting
+// (picked during setup, editable in admin later). null = alerts are off. Cached for a minute.
+let chatCache = { at: 0, id: null };
+export async function telegramChat() {
+  if (!process.env.TELEGRAM_BOT_TOKEN) return null;
+  if (process.env.TELEGRAM_CHAT_ID) return String(process.env.TELEGRAM_CHAT_ID);
+  if (Date.now() - chatCache.at < 60000) return chatCache.id;
+  let id = null;
+  try {
+    const r = await select('settings?key=eq.telegram&select=value');
+    const v = r.ok && Array.isArray(r.data) && r.data[0] && r.data[0].value;
+    if (v && /^-?\d{5,20}$/.test(String(v.chat_id))) id = String(v.chat_id);
+  } catch { /* database not configured */ }
+  chatCache = { at: Date.now(), id };
+  return id;
+}
+export const resetTelegramChatCache = () => { chatCache = { at: 0, id: null }; };
 
 export async function tg(method, payload) {
   const token = process.env.TELEGRAM_BOT_TOKEN;

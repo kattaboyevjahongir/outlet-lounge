@@ -6,18 +6,18 @@
 //                 once the order is saved the customer always gets their number.
 // notify        → "tell me when it's back in stock": saved + Telegram alert.
 //
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN (+ the managers' chat: TELEGRAM_CHAT_ID or the `telegram` setting)
 
 import { parseOrder, parseNotify, parseDbError } from './_lib/validate.js';
 import { orderMessage, keyboard, notifyMessage } from './_lib/format.js';
-import { supabaseConfig, rpc, select, insert, patch, tg, telegramConfigured, limited, clientIp, sameSite } from './_lib/services.js';
+import { supabaseConfig, rpc, select, insert, patch, tg, telegramChat, limited, clientIp, sameSite } from './_lib/services.js';
 
 const send = (res, code, body) => {
   res.setHeader('Cache-Control', 'no-store');
   return res.status(code).json(body);
 };
 
-async function sendOrderToTelegram(placed, payload) {
+async function sendOrderToTelegram(placed, payload, chatId) {
   const order = {
     number: placed.number,
     status: 'new',
@@ -43,7 +43,6 @@ async function sendOrderToTelegram(placed, payload) {
       brand_snapshot: l.brand, name_snapshot: l.name, size_eu: l.size_eu, qty: l.qty, unit_price: l.unit_price,
     })),
   };
-  const chatId = process.env.TELEGRAM_CHAT_ID;
   const sent = await tg('sendMessage', {
     chat_id: chatId,
     text: orderMessage(order),
@@ -79,9 +78,10 @@ async function handleNotify(body, res) {
     console.error('notify save failed', saved.status);
     return send(res, 502, { error: 'upstream' });
   }
-  if (telegramConfigured()) {
+  const chatId = await telegramChat();
+  if (chatId) {
     await tg('sendMessage', {
-      chat_id: process.env.TELEGRAM_CHAT_ID,
+      chat_id: chatId,
       text: notifyMessage({ name: prod.data[0].name, slug: n.slug, size: n.size, phone: n.phone, telegram: n.telegram }),
       parse_mode: 'HTML',
     });
@@ -119,9 +119,10 @@ export default async function handler(req, res) {
   }
 
   let notified = false;
-  if (telegramConfigured()) {
+  const chatId = await telegramChat();
+  if (chatId) {
     try {
-      notified = await sendOrderToTelegram(placed.data, parsed.payload);
+      notified = await sendOrderToTelegram(placed.data, parsed.payload, chatId);
     } catch (e) {
       console.error('telegram step failed:', e.message);
     }
