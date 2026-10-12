@@ -1,0 +1,10 @@
+# local Claude preview config
+.claude/
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Vercel CLI link
+.vercel

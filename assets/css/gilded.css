@@ -1,0 +1,335 @@
+/* =========================================================
+   Concept 1 — The Gilded Lounge
+   Quiet luxury · serif editorial · arched frames · gold dust
+   ========================================================= */
+
+/* ---------- Hero ---------- */
+.g-hero {
+  position: relative;
+  min-height: 100svh;
+  padding: calc(var(--header-h) + 30px) 0 120px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.g-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 70% at 78% 40%, color-mix(in srgb, var(--gold-2) 16%, transparent), transparent 70%),
+    radial-gradient(40% 50% at 10% 90%, color-mix(in srgb, var(--gold-3) 10%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.g-dust { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.g-hero-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.05fr .95fr;
+  gap: clamp(30px, 5vw, 80px);
+  align-items: center;
+}
+.g-hero-copy { position: relative; z-index: 2; }
+.g-title {
+  margin: 26px 0 28px;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(60px, 8.6vw, 148px);
+  line-height: .92;
+  letter-spacing: -.02em;
+}
+.g-title em { font-style: italic; font-weight: 400; padding-right: .08em; }
+.g-lead { max-width: 470px; font-size: 17px; color: var(--text-2); }
+.g-ctas { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 38px; }
+.g-stats { display: flex; gap: clamp(22px, 4vw, 54px); margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--line); max-width: 560px; }
+.g-stats li { display: flex; flex-direction: column; gap: 4px; }
+.g-stats b { font-family: var(--font-serif); font-weight: 500; font-size: clamp(30px, 3vw, 42px); line-height: 1; color: var(--gold-ink); font-variant-numeric: tabular-nums; }
+.g-stats span { font-size: 13px; color: var(--text-3); letter-spacing: .02em; }
+
+.g-hero-visual { position: relative; justify-self: center; width: min(100%, 520px); aspect-ratio: 5 / 6.2; }
+.g-arch, .g-ring { position: absolute; inset: 0; border-radius: 999px 999px 26px 26px; }
+.g-ring { border: 1px solid var(--line-strong); transform: translate(22px, 22px); }
+.g-ring::after {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: inherit;
+  border: 1px dashed color-mix(in srgb, var(--gold-2) 30%, transparent);
+  opacity: .5;
+}
+.g-arch-clip { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; background: var(--img-bg); box-shadow: var(--shadow); }
+.g-arch-inner { position: absolute; inset: -8% 0; }
+.g-slide { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.g-orbit { position: absolute; left: -22%; top: -6%; width: 128%; height: 112%; overflow: visible; pointer-events: none; z-index: 2; }
+.g-orbit-path { fill: none; stroke: var(--gold-2); stroke-width: 1.6; stroke-linecap: round; }
+.g-orbit-head { fill: var(--gold-1); }
+.g-seal {
+  position: absolute;
+  top: 6%;
+  right: -9%;
+  z-index: 3;
+  width: clamp(118px, 12vw, 160px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong);
+  display: grid;
+  place-items: center;
+}
+.g-seal svg { position: absolute; inset: 6%; width: 88%; height: 88%; overflow: visible; }
+.g-seal text { font: 500 13px var(--font-display); letter-spacing: .2em; fill: var(--gold-ink); }
+.g-seal-center { text-align: center; line-height: 1; }
+.g-seal-center b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: clamp(26px, 2.6vw, 36px); color: var(--text); }
+.g-seal-center span { font: 500 10px var(--font-display); letter-spacing: .3em; text-transform: uppercase; color: var(--text-3); }
+.g-mini {
+  position: absolute;
+  left: -14%;
+  bottom: 9%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px 10px 10px;
+  border-radius: 20px;
+  background: var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  max-width: 290px;
+}
+.g-mini img { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; }
+.g-mini small { display: block; font: 500 10px var(--font-display); letter-spacing: .24em; text-transform: uppercase; color: var(--gold-ink); }
+.g-mini b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: 17px; line-height: 1.15; }
+.g-mini em { font-style: normal; font: 500 13px var(--font-display); color: var(--text-2); }
+
+/* ---------- Brand marquee ---------- */
+.g-brands { border-block: 1px solid var(--line); padding: 26px 0; }
+.g-marquee .marquee-item { font-family: var(--font-serif); font-style: italic; font-size: clamp(28px, 3.4vw, 46px); color: var(--text-2); }
+
+/* ---------- Sections ---------- */
+.g-sec { padding-block: clamp(90px, 12vw, 160px); }
+.g-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: clamp(40px, 5vw, 70px); }
+.g-num { font-family: var(--font-serif); font-style: italic; font-size: 18px; letter-spacing: 0; text-transform: none; }
+.g-h2 { margin-top: 16px; font-family: var(--font-serif); font-weight: 400; font-size: clamp(44px, 6vw, 92px); line-height: .98; letter-spacing: -.015em; }
+.g-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line-strong);
+  font: 500 12.5px var(--font-display);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: border-color .3s, color .3s;
+}
+.g-link svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; transition: transform .5s var(--ease-out); }
+.g-link:hover { color: var(--gold-ink); border-color: var(--gold-2); }
+.g-link:hover svg { transform: translateX(5px); }
+
+/* Gilded product cards: arched windows */
+.g-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(16px, 2vw, 28px); }
+[data-concept="gilded"] .pcard-media { border-radius: 999px 999px 20px 20px; border: 1px solid var(--line); }
+[data-concept="gilded"] .pcard-flags { top: auto; bottom: 14px; }
+[data-concept="gilded"] .pcard-fav { top: auto; bottom: 10px; }
+[data-concept="gilded"] .pcard-name { font-size: 23px; }
+[data-concept="gilded"] .pcard-body { align-items: center; text-align: center; }
+[data-concept="gilded"] .pcard-meta { justify-content: center; gap: 14px; }
+[data-concept="gilded"] .pcard-meta span + span::before { content: '·'; margin-right: 14px; color: var(--text-3); }
+[data-concept="gilded"] .pcard-price { justify-content: center; }
+[data-concept="gilded"] .pcard-buy { flex-direction: column; gap: 12px; }
+[data-concept="gilded"] .pcard-sizes { justify-content: center; }
+
+/* ---------- Categories ---------- */
+.g-cats { background: var(--bg-2); }
+.g-cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(16px, 2vw, 28px); }
+.g-cat { position: relative; display: block; }
+.g-cat:nth-child(2) { margin-top: 70px; }
+.g-cat-media { position: relative; aspect-ratio: 3 / 4.1; border-radius: 999px 999px 24px 24px; overflow: hidden; background: var(--img-bg); }
+.g-cat-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(8, 7, 6, .78)); }
+.g-cat-media img { width: 100%; height: 115%; object-fit: cover; transition: transform 1.4s var(--ease-out); }
+.g-cat:hover .g-cat-media img { transform: scale(1.07); }
+.g-cat-info { position: absolute; left: 0; right: 0; bottom: 30px; text-align: center; color: #F6F0E4; z-index: 2; }
+.g-cat-num { font-family: var(--font-serif); font-style: italic; font-size: 18px; color: #E3C58C; }
+.g-cat-info h3 { font-family: var(--font-serif); font-weight: 400; font-size: clamp(34px, 3.4vw, 50px); line-height: 1.05; }
+.g-cat-count { font: 500 11px var(--font-display); letter-spacing: .26em; text-transform: uppercase; opacity: .75; }
+.g-cat-go {
+  position: absolute;
+  top: 26%;
+  left: 50%;
+  z-index: 2;
+  width: 64px; height: 64px;
+  margin-left: -32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gold-grad);
+  color: var(--on-gold);
+  transform: scale(0) rotate(-45deg);
+  transition: transform .6s var(--ease-out);
+}
+.g-cat-go svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.g-cat:hover .g-cat-go { transform: scale(1) rotate(0); }
+.has-cursor .g-cat-go { display: none; }
+.g-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 60px; }
+.g-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 26px 8px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  transition: border-color .4s, transform .5s var(--ease-out);
+}
+.g-pill:hover { border-color: var(--gold-2); transform: translateY(-3px); }
+.g-pill img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+.g-pill span { font-family: var(--font-serif); font-size: 24px; }
+.g-pill small { font: 500 11px var(--font-display); color: var(--gold-ink); letter-spacing: .1em; }
+
+/* ---------- Deal panel (always dark, both modes) ---------- */
+.g-deal { padding-block: clamp(70px, 10vw, 130px); }
+.g-deal-panel {
+  --bg: #0E0C0A;
+  --surface: #191612;
+  --text: #F3EDE2;
+  --text-2: #B8AE9E;
+  --text-3: #85796A;
+  --line: rgba(232, 211, 170, .14);
+  --line-strong: rgba(232, 211, 170, .3);
+  --gold-1: #F4E2B8;
+  --gold-2: #D4B078;
+  --gold-3: #A4804C;
+  --gold-ink: #E3C58C;
+  --on-gold: #15110B;
+  --img-bg: #1A1714;
+  position: relative;
+  overflow: hidden;
+  border-radius: 40px;
+  background:
+    radial-gradient(70% 90% at 15% 30%, rgba(212, 176, 120, .18), transparent 60%),
+    #0E0C0A;
+  color: var(--text);
+  padding: clamp(36px, 6vw, 90px);
+  display: grid;
+  grid-template-columns: .9fr 1.1fr;
+  gap: clamp(30px, 6vw, 90px);
+  align-items: center;
+}
+.g-deal-visual { position: relative; }
+.g-deal-arch { aspect-ratio: 4 / 5; border-radius: 999px 999px 24px 24px; overflow: hidden; border: 1px solid var(--line-strong); }
+.g-deal-arch img { width: 100%; height: 118%; object-fit: cover; }
+.g-deal-stamp {
+  position: absolute;
+  right: -18px;
+  bottom: 12%;
+  width: 116px; height: 116px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--gold-grad);
+  color: var(--on-gold);
+  box-shadow: 0 20px 50px -14px rgba(212, 176, 120, .6);
+}
+.g-deal-stamp b { font-family: var(--font-serif); font-size: 36px; font-weight: 500; }
+.g-deal-copy { position: relative; z-index: 1; }
+.g-deal-text { margin-top: 18px; max-width: 460px; color: var(--text-2); }
+.g-deal-ends { margin: 34px 0 14px; font: 500 11px var(--font-display); letter-spacing: .3em; text-transform: uppercase; color: var(--text-3); }
+.g-deal .cd-num { font-family: var(--font-serif); font-weight: 500; font-size: clamp(32px, 3.4vw, 44px); background: rgba(255, 255, 255, .03); }
+.g-deal-product {
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.g-deal-product small { font: 500 11px var(--font-display); letter-spacing: .26em; text-transform: uppercase; color: var(--gold-ink); }
+.g-deal-product h3 { font-family: var(--font-serif); font-weight: 500; font-size: clamp(24px, 2.4vw, 32px); line-height: 1.15; }
+.g-deal-product .pcard-sizes { margin-top: 14px; }
+.g-deal-price { display: flex; align-items: baseline; gap: 16px; margin-top: 8px; flex-wrap: wrap; }
+.g-deal-now { font: 500 26px var(--font-display); color: var(--gold-ink); font-variant-numeric: tabular-nums; }
+.g-strike { position: relative; color: var(--text-3); font-size: 15px; }
+.g-strike::after {
+  content: '';
+  position: absolute;
+  left: -2px; right: -2px; top: 52%;
+  height: 1.5px;
+  background: var(--gold-2);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1s var(--ease-out) .3s;
+}
+.g-strike.is-struck::after { transform: scaleX(1); }
+
+/* ---------- Story ---------- */
+.g-story { padding-block: clamp(90px, 12vw, 170px); }
+.g-story-grid { display: grid; grid-template-columns: .85fr 1.15fr; gap: clamp(40px, 7vw, 120px); align-items: center; }
+.g-story-media { position: relative; }
+.g-story-arch { aspect-ratio: 3 / 4; border-radius: 999px 999px 24px 24px; overflow: hidden; background: var(--img-bg); }
+.g-story-arch img { width: 100%; height: 125%; object-fit: cover; margin-top: -12%; }
+.g-story-small {
+  position: absolute;
+  right: -16%;
+  bottom: -6%;
+  width: 46%;
+  aspect-ratio: 4 / 5;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 6px solid var(--bg);
+  box-shadow: var(--shadow);
+}
+.g-story-small img { width: 100%; height: 100%; object-fit: cover; }
+.g-story-text {
+  margin-top: 30px;
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 3.3vw, 50px);
+  line-height: 1.22;
+  letter-spacing: -.005em;
+}
+.g-sign { margin-top: 34px; font-family: var(--font-serif); font-style: italic; font-size: 22px; color: var(--gold-ink); }
+
+/* ---------- Reviews + newsletter flavour ---------- */
+.g-reviews .reviews-head { align-items: center; text-align: center; }
+.g-reviews .review { border-radius: 999px 999px 22px 22px; padding-top: 70px; text-align: center; align-items: center; }
+.g-reviews .review-who { flex-direction: column; text-align: center; gap: 8px; }
+.g-news .news-box { border-radius: 999px 999px 40px 40px; text-align: left; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1080px) {
+  .g-hero-grid { grid-template-columns: 1fr; }
+  .g-hero-visual { width: min(84%, 460px); margin-top: 20px; }
+  .g-grid { grid-template-columns: repeat(2, 1fr); }
+  .g-deal-panel { grid-template-columns: 1fr; }
+  .g-deal-visual { max-width: 420px; }
+  .g-story-grid { grid-template-columns: 1fr; }
+  .g-story-media { max-width: 460px; }
+}
+@media (max-width: 720px) {
+  .g-hero { padding-bottom: 90px; }
+  .g-stats { gap: 18px; }
+  .g-stats span { font-size: 12px; }
+  .g-mini { left: -6%; bottom: 4%; max-width: 230px; }
+  .g-seal { right: -4%; }
+  .g-cat-grid { grid-template-columns: 1fr; }
+  .g-cat:nth-child(2) { margin-top: 0; }
+  .g-cat-media { aspect-ratio: 4 / 4.4; }
+  .g-head { flex-direction: column; align-items: flex-start; }
+  .g-deal-panel { border-radius: 28px; }
+  .g-deal-stamp { width: 90px; height: 90px; right: -6px; }
+  .g-deal-stamp b { font-size: 28px; }
+  .g-story-small { right: -4%; }
+  .g-reviews .review { border-radius: 26px; padding-top: 34px; }
+  .g-news .news-box { border-radius: 30px; }
+}
+@media (max-width: 600px) {
+  /* keep Gilded's labels at the bottom of the arch */
+  [data-concept="gilded"] .pgrid .pcard .pcard-flags { top: auto; bottom: 8px; }
+  [data-concept="gilded"] .pgrid .pcard .pcard-fav { top: auto; bottom: 6px; }
+  [data-concept="gilded"] .pgrid .pcard .pcard-media { border-radius: 999px 999px 14px 14px; }
+}

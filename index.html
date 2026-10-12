@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-concept="gilded">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Outlet Lounge — Original Sneakers</title>
+  <meta name="description" content="Original sneakers from the world's leading brands at outlet prices." />
+  <meta name="theme-color" content="#0B0A09" />
+
+  <!-- Set theme / concept / language before first paint to avoid a flash -->
+  <script>
+    (function () {
+      var d = document.documentElement, get = function (k) { try { return JSON.parse(localStorage.getItem('ol:' + k)); } catch (e) { return null; } };
+      var hash = (location.hash || '').replace('#', '');
+      var concepts = ['gilded', 'flight', 'vault'];
+      var theme = get('theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+      var concept = concepts.indexOf(hash) > -1 ? hash : (get('concept') || 'gilded');
+      d.dataset.theme = theme;
+      d.dataset.concept = concept;
+      d.lang = get('lang') || 'en';
+      d.classList.add('js');
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="assets/css/base.css?v=8" />
+  <link rel="stylesheet" href="assets/css/gilded.css?v=8" />
+  <link rel="stylesheet" href="assets/css/flight.css?v=8" />
+  <link rel="stylesheet" href="assets/css/vault.css?v=8" />
+</head>
+<body>
+  <!-- Shared SVG gradients for the logo -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="olGold" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="262" y2="104">
+        <stop offset="0" style="stop-color:var(--gold-3)" />
+        <stop offset=".35" style="stop-color:var(--gold-1)" />
+        <stop offset=".6" style="stop-color:var(--gold-2)" />
+        <stop offset="1" style="stop-color:var(--gold-3)" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <!-- Intro loader -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader-inner">
+      <div class="loader-mark" id="loaderMark"></div>
+      <p class="loader-word"><span>OUTLET LOUNGE</span></p>
+      <div class="loader-bar"><i></i></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="site-header" id="header">
+    <div class="header-inner">
+      <a href="#top" class="brand" aria-label="Outlet Lounge — home">
+        <span class="brand-mark" id="brandMark"></span>
+        <span class="brand-word">OUTLET LOUNGE</span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main">
+        <a href="#new" data-i18n="nav.new">New arrivals</a>
+        <a href="#cats" data-i18n="nav.men">Men</a>
+        <a href="#cats" data-i18n="nav.women">Women</a>
+        <a href="#cats" data-i18n="nav.kids">Kids</a>
+        <a href="#deals" class="nav-deal" data-i18n="nav.deals">Outlet</a>
+      </nav>
+
+      <div class="header-actions">
+        <div class="lang-switch" role="group" aria-label="Language">
+          <span class="lang-pill"></span>
+          <button type="button" data-lang="en">EN</button>
+          <button type="button" data-lang="ru">RU</button>
+          <button type="button" data-lang="uz">UZ</button>
+        </div>
+        <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Toggle theme">
+          <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+          <svg class="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"/></svg>
+        </button>
+        <button type="button" class="icon-btn cart-btn" data-open-cart aria-label="Cart">
+          <svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+          <span class="cart-count" id="cartCount">0</span>
+        </button>
+        <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile menu -->
+  <div class="mobile-menu" id="mobileMenu">
+    <nav>
+      <a href="#new" data-i18n="nav.new">New arrivals</a>
+      <a href="#cats" data-i18n="nav.men">Men</a>
+      <a href="#cats" data-i18n="nav.women">Women</a>
+      <a href="#cats" data-i18n="nav.kids">Kids</a>
+      <a href="#deals" data-i18n="nav.deals">Outlet</a>
+    </nav>
+  </div>
+
+  <main id="app"></main>
+
+  <footer class="site-footer" id="footer"></footer>
+
+  <!-- Cart drawer -->
+  <div class="drawer-overlay" data-close-cart></div>
+  <aside class="cart-drawer" id="cart" aria-label="Cart" aria-hidden="true">
+    <div class="cart-head">
+      <h2 data-i18n="cart.title">Your cart</h2>
+      <button type="button" class="icon-btn" data-close-cart aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-foot" id="cartFoot"></div>
+  </aside>
+
+  <!-- Design direction switcher -->
+  <div class="design-dock" id="dock" role="group" aria-label="Design direction">
+    <span class="dock-label" data-i18n="ui.design">Design</span>
+    <div class="dock-btns">
+      <span class="dock-pill"></span>
+      <button type="button" data-concept-btn="gilded"><b>1</b><span data-i18n="conceptShort.gilded">Gilded</span></button>
+      <button type="button" data-concept-btn="flight"><b>2</b><span data-i18n="conceptShort.flight">Flight</span></button>
+      <button type="button" data-concept-btn="vault"><b>3</b><span data-i18n="conceptShort.vault">Vault</span></button>
+    </div>
+  </div>
+
+  <!-- Transition curtain (theme + design switching) -->
+  <div class="curtain" id="curtain" aria-hidden="true">
+    <div class="curtain-panel">
+      <div class="curtain-content">
+        <div class="curtain-mark"></div>
+        <p class="curtain-label"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="cursor" aria-hidden="true"><div class="cursor-ring"><span class="cursor-label"></span></div><div class="cursor-dot"></div></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+
+  <script src="assets/js/data.js?v=8"></script>
+  <script src="assets/js/core.js?v=8"></script>
+  <script src="assets/js/concept-gilded.js?v=8"></script>
+  <script src="assets/js/concept-flight.js?v=8"></script>
+  <script src="assets/js/concept-vault.js?v=8"></script>
+  <script src="assets/js/main.js?v=8"></script>
+</body>
+</html>
