@@ -10,36 +10,53 @@ Live: <https://outlet-lounge.vercel.app>
 
 ## Run locally
 
-Plain HTML/CSS/JS, no build step. Serve the folder with any static server:
+Plain HTML/CSS/JS, no build step. The dev server behaves like production (clean URLs such as
+`/shop` and `/product/<slug>` all serve the same shell; `/api/catalog` runs the real handler):
 
 ```bash
-python -m http.server 5173
+npm run dev          # http://localhost:5173
 ```
 
-Then open <http://localhost:5173>. Without the API the page uses its built-in
-placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/data.js`).
+It reads `SUPABASE_URL` / `SUPABASE_ANON_KEY` from a git-ignored `.env.local`; without them the
+page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/data.js`).
+
+## Pages
+
+| URL | What |
+|---|---|
+| `/` | Home |
+| `/shop` | All sneakers — filters, sort, search (`?q=`), URL-synced state |
+| `/new` `/sale` `/men` `/women` `/kids` `/brands/<brand>` | Pre-filtered catalog |
+| `/product/<slug>` | Product page: gallery + zoom, sizes (EU/US/cm), size guide, related, recently viewed |
+| `/wishlist` | Saved items |
+| anything else | 404 |
+
+All of them are one HTML shell (`index.html`); `vercel.json` rewrites every non-file path to it and
+`assets/js/router.js` picks the page.
 
 ## Structure
 
 ```
-index.html               page shell (header, cart/wishlist drawers, search, loader, theme curtain)
-api/catalog.js           GET /api/catalog — live products + public settings from Supabase
-assets/css/base.css      theme tokens (light/dark), shared components, phone card layout
-assets/css/home.css      homepage sections
-assets/js/data.js        placeholder catalog + settings, EN/RU/UZ translations
-assets/js/core.js        logo, theme/language, cart, wishlist, search, transitions, live catalog loader
-assets/js/home.js        homepage markup + GSAP animations
-assets/js/main.js        boot
-supabase/                database: migrations, seed, tests, setup guide (see supabase/README.md)
-scripts/build-seed.mjs   generates supabase/seed.sql from data.js
-tests/                   API tests
-docs/MASTER_PLAN.md      the full plan: storefront, admin panel, orders → Telegram, roadmap
+index.html                 page shell (header + mega-menu, drawers, search, loader, theme curtain)
+api/catalog.js             GET /api/catalog — live products + public settings from Supabase
+assets/css/base.css        theme tokens, shared components, phone card layout
+assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
+assets/js/data.js          placeholder catalog + settings, EN/RU/UZ translations
+assets/js/catalog-logic.js collections, filters, sort, URL state (pure, unit-tested)
+assets/js/core.js          logo, theme/language, cart, wishlist, search, mega-menu, live catalog loader
+assets/js/router.js        URL → page, history, transitions, per-page meta
+assets/js/home.js | shop.js | product.js | pages.js    the pages
+assets/js/main.js          boot
+supabase/                  database: migrations, seed, tests, setup guide (see supabase/README.md)
+scripts/                   build-seed.mjs, dev-server.mjs
+tests/                     API + catalog-logic + router tests
+docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Telegram, roadmap
 ```
 
 ## Tests
 
 ```bash
-npm test          # API: shaping, caching, error handling
+npm test          # API shaping/caching, filters/sort/URL state, router
 npm run test:db   # database: stock safety, pricing, promo rules, who can do what
 ```
 

@@ -6,6 +6,8 @@
   <title>Outlet Lounge — Original Sneakers</title>
   <meta name="description" content="Original sneakers from the world's leading brands at outlet prices." />
   <meta name="theme-color" content="#0A0A0A" />
+  <meta property="og:site_name" content="Outlet Lounge" />
+  <meta name="twitter:card" content="summary_large_image" />
 
   <!-- Set theme / language before first paint to avoid a flash -->
   <script>
@@ -24,8 +26,10 @@
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="assets/css/base.css?v=11" />
-  <link rel="stylesheet" href="assets/css/home.css?v=11" />
+  <link rel="stylesheet" href="/assets/css/base.css?v=15" />
+  <link rel="stylesheet" href="/assets/css/home.css?v=15" />
+  <link rel="stylesheet" href="/assets/css/shop.css?v=15" />
+  <link rel="stylesheet" href="/assets/css/product.css?v=15" />
 </head>
 <body>
   <!-- Shared SVG gradients for the logo -->
@@ -52,17 +56,17 @@
   <!-- Header -->
   <header class="site-header" id="header">
     <div class="header-inner">
-      <a href="#top" class="brand" aria-label="Outlet Lounge — home">
+      <a href="/" class="brand" aria-label="Outlet Lounge — home">
         <span class="brand-mark" id="brandMark"></span>
         <span class="brand-word">OUTLET LOUNGE</span>
       </a>
 
       <nav class="main-nav" aria-label="Main">
-        <a href="#new" data-i18n="nav.new">New arrivals</a>
-        <a href="#cats" data-i18n="nav.men">Men</a>
-        <a href="#cats" data-i18n="nav.women">Women</a>
-        <a href="#cats" data-i18n="nav.kids">Kids</a>
-        <a href="#deals" class="nav-deal" data-i18n="nav.deals">Outlet</a>
+        <a href="/new" data-i18n="nav.new">New arrivals</a>
+        <a href="/men" data-mega="men" data-i18n="nav.men">Men</a>
+        <a href="/women" data-mega="women" data-i18n="nav.women">Women</a>
+        <a href="/kids" data-mega="kids" data-i18n="nav.kids">Kids</a>
+        <a href="/sale" class="nav-deal" data-i18n="nav.deals">Outlet</a>
       </nav>
 
       <div class="header-actions">
@@ -92,16 +96,17 @@
         </button>
       </div>
     </div>
+    <div class="mega" id="mega"></div>
   </header>
 
   <!-- Mobile menu -->
   <div class="mobile-menu" id="mobileMenu">
     <nav>
-      <a href="#new" data-i18n="nav.new">New arrivals</a>
-      <a href="#cats" data-i18n="nav.men">Men</a>
-      <a href="#cats" data-i18n="nav.women">Women</a>
-      <a href="#cats" data-i18n="nav.kids">Kids</a>
-      <a href="#deals" data-i18n="nav.deals">Outlet</a>
+      <a href="/new" data-i18n="nav.new">New arrivals</a>
+      <a href="/men" data-i18n="nav.men">Men</a>
+      <a href="/women" data-i18n="nav.women">Women</a>
+      <a href="/kids" data-i18n="nav.kids">Kids</a>
+      <a href="/sale" data-i18n="nav.deals">Outlet</a>
     </nav>
     <div class="menu-tools">
       <div class="lang-switch" role="group" aria-label="Language">
@@ -178,9 +183,14 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 
-  <script src="assets/js/data.js?v=11"></script>
-  <script src="assets/js/core.js?v=11"></script>
-  <script src="assets/js/home.js?v=11"></script>
-  <script src="assets/js/main.js?v=11"></script>
+  <script src="/assets/js/data.js?v=15"></script>
+  <script src="/assets/js/catalog-logic.js?v=15"></script>
+  <script src="/assets/js/core.js?v=15"></script>
+  <script src="/assets/js/router.js?v=15"></script>
+  <script src="/assets/js/home.js?v=15"></script>
+  <script src="/assets/js/shop.js?v=15"></script>
+  <script src="/assets/js/product.js?v=15"></script>
+  <script src="/assets/js/pages.js?v=15"></script>
+  <script src="/assets/js/main.js?v=15"></script>
 </body>
 </html>

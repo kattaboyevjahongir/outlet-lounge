@@ -9,7 +9,7 @@
 // built-in placeholder catalog.
 
 const PRODUCT_COLUMNS = [
-  'slug', 'name', 'colorway', 'category', 'gender', 'price', 'old_price',
+  'slug', 'name', 'colorway', 'sku', 'category', 'gender', 'price', 'old_price',
   'description_ru', 'description_uz', 'description_en', 'tags',
   'is_new', 'is_featured', 'created_at',
   'brands(name)',
@@ -45,6 +45,7 @@ export function shapeProduct(row, supabaseUrl) {
     brand: row.brands ? row.brands.name : '',
     name: row.name,
     colorway: row.colorway || null,
+    sku: row.sku || null,
     cat: row.category,
     gender: row.gender,
     price: row.price,

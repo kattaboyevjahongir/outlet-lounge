@@ -3,7 +3,11 @@
   const OL = window.OL;
   const t = (k) => OL.t(k);
 
-  OL.page = {
+  const catUrl = (c) => (['men', 'women', 'kids'].includes(c) ? `/${c}` : `/shop?cat=${c}`);
+
+  OL.pages.home = {
+    meta: () => ({ path: '/' }),
+
     render() {
       const L = OL.lists();
       const hero = OL.hero();
@@ -70,7 +74,7 @@
               <span class="f-side">${t('f.side')} ${OL.ICON.arrow}</span>
             </div>
             ${L.drops.map((p, i) => `<div class="f-drop">${OL.ui.card(p, { index: i + 1 })}</div>`).join('')}
-            <a href="#best" class="f-drops-end">
+            <a href="/new" class="f-drops-end">
               <span>${t('ui.viewAll')}</span>
               <i>${OL.ICON.arrowUR}</i>
             </a>
@@ -85,7 +89,7 @@
           <ul class="f-cat-list">
             ${catRows.map((c, i) => `
               <li>
-                <a href="#best" class="f-cat" data-img="${OL.img(OL.CAT_IMG[c], 640, 800)}">
+                <a href="${catUrl(c)}" class="f-cat" data-img="${OL.img(OL.CAT_IMG[c], 640, 800)}">
                   <span class="f-cat-i">0${i + 1}</span>
                   <span class="f-cat-name"><span>${t('cat.' + c)}</span><span class="f-cat-dup" aria-hidden="true">${t('cat.' + c)}</span></span>
                   <span class="f-cat-n">${counts[c]} ${t('ui.models')}</span>
@@ -109,7 +113,7 @@
             <div class="f-deal-right">
               <p class="f-deal-ends">${t('cd.ends')}</p>
               ${OL.ui.countdown()}
-              <a href="#best" class="btn f-btn-dark magnetic"><span>${t('ui.shopNow')}</span>${OL.ICON.arrow}</a>
+              <a href="/sale" class="btn f-btn-dark magnetic"><span>${t('ui.shopNow')}</span>${OL.ICON.arrow}</a>
             </div>
           </div>
         </div>
@@ -120,6 +124,7 @@
           <div class="f-head">
             <p class="eyebrow">04 / ${t('sec.bestEyebrow')}</p>
             <h2 class="f-h2" data-reveal="up">${t('sec.best')}</h2>
+            <a class="f-viewall" href="/shop"><span>${t('ui.viewAll')}</span>${OL.ICON.arrow}</a>
           </div>
           <div class="f-grid pgrid" data-stagger>${L.best.map((p, i) => OL.ui.card(p, { index: i + 1 })).join('')}</div>
         </div>

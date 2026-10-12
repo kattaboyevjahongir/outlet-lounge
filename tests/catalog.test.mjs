@@ -6,7 +6,7 @@ import handler, { shapeCatalog, imageUrl } from '../api/catalog.js';
 const BASE = 'https://abc.supabase.co';
 
 const row = (over = {}) => ({
-  slug: 'air-max-1-sunset', name: 'Air Max 1 “Sunset”', colorway: null,
+  slug: 'air-max-1-sunset', name: 'Air Max 1 “Sunset”', colorway: null, sku: 'AM1-001',
   category: 'running', gender: 'unisex', price: 1390000, old_price: 2190000,
   description_ru: 'Описание', description_uz: null, description_en: null, tags: ['найк'],
   is_new: false, is_featured: false, created_at: '2026-10-12T10:00:00Z',
@@ -42,6 +42,7 @@ test('shapeCatalog: shapes products like the storefront expects', () => {
   assert.equal(p.id, 'air-max-1-sunset');
   assert.equal(p.brand, 'Nike');
   assert.equal(p.cat, 'running');
+  assert.equal(p.sku, 'AM1-001');
   assert.equal(p.was, 2190000);
   assert.deepEqual(p.images, [
     `${BASE}/storage/v1/object/public/product-images/a.webp`,

@@ -29,7 +29,14 @@
 
   /* ---------- i18n + formatting ---------- */
   const lookup = (lang, key) => key.split('.').reduce((o, k) => (o == null ? o : o[k]), OL.I18N[lang]);
-  OL.t = (key) => { const v = lookup(state.lang, key); return v == null ? (lookup('en', key) ?? key) : v; };
+  OL.t = (key, vars) => {
+    let v = lookup(state.lang, key);
+    if (v == null) v = lookup('en', key);
+    if (v == null) return key;
+    if (vars && typeof v === 'string') v = v.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+    return v;
+  };
+  OL.productUrl = (p) => `/product/${encodeURIComponent(p.slug)}`;
   const t = OL.t;
   OL.num = (n) => Math.round(n).toLocaleString('ru-RU');
   OL.price = (n) => `${OL.num(n)} ${t('currency')}`;
@@ -90,6 +97,7 @@
         <img class="pcard-img is-main" src="${OL.pimg(img0, 720, 900)}" alt="${esc(p.brand)} ${esc(p.name)}" loading="lazy" data-fly>
         <img class="pcard-img is-alt" src="${OL.pimg(img1, 720, 900)}" alt="" loading="lazy">
         <span class="pcard-sheen"></span>
+        <a class="pcard-link" href="${OL.productUrl(p)}" aria-label="${esc(p.brand)} ${esc(p.name)}" tabindex="-1"></a>
         <div class="pcard-flags">
           ${off ? `<span class="pcard-badge">−${off}%</span>` : ''}
           ${p.tag ? `<span class="pcard-tag">${t('tag.' + p.tag)}</span>` : ''}
@@ -99,7 +107,7 @@
       </div>
       <div class="pcard-body">
         <div class="pcard-meta"><span class="pcard-brand">${esc(p.brand)}</span><span>${t('cat.' + p.cat)}</span></div>
-        <h3 class="pcard-name">${esc(p.name)}</h3>
+        <h3 class="pcard-name"><a href="${OL.productUrl(p)}">${esc(p.name)}</a></h3>
         <div class="pcard-price"><span class="pcard-now">${OL.price(p.price)}</span>${p.was > p.price ? `<s class="pcard-was">${OL.price(p.was)}</s>` : ''}</div>
         <div class="pcard-buy">
           <div class="pcard-sizes" role="group" aria-label="Size">
@@ -334,16 +342,8 @@
     renderWish();
     searchIndex = null;
     renderSearch();
-    // re-render the page in place, keeping the scroll position
-    const y = scrollY;
-    const app = $('#app');
-    const swap = () => {
-      const api = OL.mount({ keepScroll: y });
-      api.intro && api.intro.progress(1);
-      if (hasGsap) gsap.fromTo(app, { autoAlpha: 0 }, { autoAlpha: 1, duration: .45, ease: 'power2.out' });
-    };
-    if (hasGsap) gsap.to(app, { autoAlpha: 0, duration: .2, onComplete: swap });
-    else swap();
+    buildMega();
+    OL.refreshRoute();
   };
 
   /* ---------- Language pill (header + mobile menu) ---------- */
@@ -359,23 +359,28 @@
   /* ---------- Page mount (render + animations) ---------- */
   OL.ctx = null;
   OL.mount = (opts = {}) => {
-    const C = OL.page;
+    const C = OL.pages[opts.page] || OL.pages.notfound;
+    const ctx = opts.ctx || {};
     OL.cleanup();
     if (OL.ctx) { OL.ctx.revert(); OL.ctx = null; }
     if (hasGsap && window.ScrollTrigger) ScrollTrigger.getAll().forEach((s) => s.kill());
 
     const app = $('#app');
     OL.mounted = true;
-    app.innerHTML = C.render();
+    app.innerHTML = C.render(ctx);
     const y = opts.keepScroll || 0;
     if (OL.lenis) OL.lenis.scrollTo(y, { immediate: true, force: true });
     else window.scrollTo(0, y);
 
-    let api = {};
+    // bind() = behaviour (always); init() = animation (only when motion is allowed)
+    let api = (C.bind && C.bind(app, ctx)) || {};
     if (OL.anim) {
-      OL.ctx = gsap.context(() => { api = C.init(app) || {}; OL.reveal(app); }, app);
+      OL.ctx = gsap.context(() => {
+        if (C.init) Object.assign(api, C.init(app, ctx) || {});
+        OL.reveal(app);
+      }, app);
     } else if (C.initStatic) {
-      C.initStatic(app);
+      C.initStatic(app, ctx);
     }
     OL.runCountdown(app);
     placePills();
@@ -421,9 +426,10 @@
 
   /* ---------- Drawers (cart / wishlist) + scroll lock ---------- */
   const lockScroll = () => {
-    const locked = ['cart-open', 'wish-open', 'search-open', 'menu-open'].some((c) => html.classList.contains(c));
+    const locked = ['cart-open', 'wish-open', 'search-open', 'menu-open', 'filters-open', 'modal-open'].some((c) => html.classList.contains(c));
     if (OL.lenis) locked ? OL.lenis.stop() : OL.lenis.start();
   };
+  OL.lockScroll = lockScroll;
   const setDrawer = (name) => {
     html.classList.toggle('cart-open', name === 'cart');
     html.classList.toggle('wish-open', name === 'wish');
@@ -434,9 +440,59 @@
   const closeAll = () => {
     setDrawer(null);
     setSearch(false);
-    html.classList.remove('menu-open');
+    html.classList.remove('menu-open', 'filters-open');
+    closeMega();
     lockScroll();
   };
+  OL.closeAll = closeAll;
+
+  /* ---------- Mega-menu (desktop: Men / Women / Kids) ---------- */
+  let megaTimer;
+  function closeMega() {
+    clearTimeout(megaTimer);
+    html.classList.remove('mega-open');
+    $$('.mega-panel.is-on').forEach((el) => el.classList.remove('is-on'));
+    $$('[data-mega].is-open').forEach((el) => el.classList.remove('is-open'));
+  }
+  function openMega(key) {
+    clearTimeout(megaTimer);
+    const panel = $(`.mega-panel[data-mega-panel="${key}"]`);
+    if (!panel) return closeMega();
+    $$('.mega-panel').forEach((el) => el.classList.toggle('is-on', el === panel));
+    $$('[data-mega]').forEach((el) => el.classList.toggle('is-open', el.dataset.mega === key));
+    html.classList.add('mega-open');
+  }
+  function buildMega() {
+    const box = $('#mega');
+    if (!box) return;
+    box.innerHTML = ['men', 'women', 'kids'].map((g) => {
+      const list = OL.catalog.base(OL.PRODUCTS, g);
+      if (!list.length) return '';
+      const cats = ['running', 'lifestyle', 'basketball']
+        .map((c) => [c, list.filter((p) => p.cat === c).length]).filter((x) => x[1] > 0);
+      const brands = [...list.reduce((m, p) => m.set(p.brand, (m.get(p.brand) || 0) + 1), new Map())]
+        .sort((x, y) => y[1] - x[1]).slice(0, 6);
+      const feat = list.find((p) => p.featured) || list[0];
+      return `<div class="mega-panel" data-mega-panel="${g}">
+        <div class="mega-cols container">
+          <div class="mega-col">
+            <h4>${t('mega.cats')}</h4>
+            ${cats.map(([c, n]) => `<a href="/shop?gender=${g}&cat=${c}">${t('cat.' + c)}<small>${n}</small></a>`).join('')}
+            <a class="mega-all" href="/${g}">${t('mega.all')} ${ICON.arrow}</a>
+          </div>
+          <div class="mega-col">
+            <h4>${t('mega.brands')}</h4>
+            ${brands.map(([b, n]) => `<a href="/shop?gender=${g}&brand=${OL.slug(b)}">${esc(b)}<small>${n}</small></a>`).join('')}
+          </div>
+          <a class="mega-feature" href="${OL.productUrl(feat)}">
+            <img src="${OL.pimg(feat.images[0], 360, 420)}" alt="" loading="lazy">
+            <span><small>${t('mega.featured')}</small><b>${esc(feat.name)}</b><em>${OL.price(feat.price)}</em></span>
+          </a>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  OL.buildMega = buildMega;
 
   /* ---------- Wishlist ---------- */
   const saveWish = () => store.set('wish', state.wish);
@@ -461,6 +517,7 @@
         </div>`;
       }).join('')
       : `<div class="cart-empty">${ICON.heart}<h3>${t('wish.empty')}</h3><p>${t('wish.emptyText')}</p></div>`;
+    if (ids.length) $('#wishItems').insertAdjacentHTML('beforeend', `<a class="btn btn-ghost wish-all" href="/wishlist"><span>${t('ui.viewAll')}</span></a>`);
   }
   OL.renderWish = renderWish;
 
@@ -469,9 +526,10 @@
     const on = i === -1;
     if (on) state.wish.push(id); else state.wish.splice(i, 1);
     saveWish();
-    $$('.pcard').forEach((c) => {
+    $$('[data-id]').forEach((c) => {
       if (c.dataset.id !== id) return;
       const f = $('.pcard-fav', c);
+      if (!f) return;
       f.classList.toggle('is-on', on);
       f.setAttribute('aria-pressed', String(on));
     });
@@ -530,6 +588,8 @@
       .map((r) => r.p);
   };
 
+  OL.search = (q) => runSearch(q) || [];
+
   const RESULTS_SHOWN = 8;
   function renderSearch() {
     const body = $('#searchBody');
@@ -557,10 +617,10 @@
       ${shown.map((p) => {
     const firstOk = p.sizes.find((z) => z.ok);
     return `<article class="sr" data-id="${esc(p.id)}">
-          <img class="sr-img" data-fly src="${OL.pimg(p.images[0], 160, 200)}" alt="" loading="lazy">
+          <a href="${OL.productUrl(p)}" tabindex="-1"><img class="sr-img" data-fly src="${OL.pimg(p.images[0], 160, 200)}" alt="" loading="lazy"></a>
           <div class="sr-info">
             <small>${esc(p.brand)}</small>
-            <b>${esc(p.name)}</b>
+            <b><a href="${OL.productUrl(p)}">${esc(p.name)}</a></b>
             <span>${OL.price(p.price)}${p.was > p.price ? ` <s>${OL.price(p.was)}</s>` : ''}</span>
           </div>
           <div class="sr-buy">
@@ -569,7 +629,8 @@
     : `<span class="wish-sold">${t('ui.soldOut')}</span>`}
           </div>
         </article>`;
-  }).join('')}`;
+  }).join('')}
+      ${found.length > RESULTS_SHOWN ? `<a class="s-all" href="/shop?q=${encodeURIComponent(q.trim())}">${t('search.viewAll', { n: found.length })} ${ICON.arrow}</a>` : ''}`;
   }
   const remember = (q) => {
     const text = String(q || '').trim();
@@ -689,7 +750,7 @@
       <div class="container">
         <div class="footer-top">
           <div class="footer-brand">${OL.logoMark()}<p class="footer-word">OUTLET LOUNGE</p><p class="footer-tag">${t('footer.tagline')}</p></div>
-          <div class="footer-col"><h4>${t('footer.shop')}</h4><a href="#new">${t('nav.new')}</a><a href="#cats">${t('nav.men')}</a><a href="#cats">${t('nav.women')}</a><a href="#cats">${t('nav.kids')}</a><a href="#deals">${t('nav.deals')}</a></div>
+          <div class="footer-col"><h4>${t('footer.shop')}</h4><a href="/new">${t('nav.new')}</a><a href="/men">${t('nav.men')}</a><a href="/women">${t('nav.women')}</a><a href="/kids">${t('nav.kids')}</a><a href="/sale">${t('nav.deals')}</a></div>
           <div class="footer-col"><h4>${t('footer.help')}</h4><a href="#">${t('footer.delivery')}</a><a href="#">${t('footer.returns')}</a><a href="#">${t('footer.sizes')}</a><a href="#">${t('footer.contact')}</a></div>
           <div class="footer-col"><h4>${t('footer.about')}</h4><a href="#">${t('footer.story')}</a><a href="#">${t('footer.auth')}</a><a href="#">${t('footer.stores')}</a></div>
         </div>
@@ -813,14 +874,25 @@
   /* ---------- Global events ---------- */
   function initEvents() {
     document.addEventListener('click', (e) => {
-      const a = e.target.closest('a[href^="#"]');
-      if (a) {
-        e.preventDefault();
-        const href = a.getAttribute('href');
-        html.classList.remove('menu-open');
-        lockScroll();
-        if (href.length > 1) OL.scrollTo(href);
-        return;
+      const link = e.target.closest('a[href]');
+      if (link && e.button === 0 && !(e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) &&
+          !link.target && !link.hasAttribute('download') && !link.hasAttribute('data-native')) {
+        const href = link.getAttribute('href');
+        if (href.startsWith('/') && !href.startsWith('//') && !/^\/(api|assets)\//.test(href)) {
+          e.preventDefault();
+          html.classList.remove('menu-open');
+          lockScroll();
+          if (OL.navigate) OL.navigate(href);
+          return;
+        }
+        if (href.startsWith('#')) {
+          e.preventDefault();
+          html.classList.remove('menu-open');
+          lockScroll();
+          const route = OL.route && OL.route();
+          if (href.length > 1 && route && route.name === 'home') OL.scrollTo(href);
+          return;
+        }
       }
       const sizeBtn = e.target.closest('[data-size]');
       if (sizeBtn && !sizeBtn.disabled) {
@@ -880,6 +952,17 @@
       }
     });
 
+    // mega-menu: hover / keyboard focus on the nav, closes when the pointer leaves the header
+    const header = $('#header');
+    $$('.main-nav a').forEach((a) => {
+      const key = a.dataset.mega;
+      a.addEventListener('mouseenter', () => (key ? openMega(key) : closeMega()));
+      a.addEventListener('focus', () => (key ? openMega(key) : closeMega()));
+    });
+    header.addEventListener('mouseleave', () => { clearTimeout(megaTimer); megaTimer = setTimeout(closeMega, 160); });
+    header.addEventListener('mouseenter', () => clearTimeout(megaTimer));
+    addEventListener('scroll', () => { if (html.classList.contains('mega-open')) closeMega(); }, { passive: true });
+
     const sInput = $('#searchInput');
     let st;
     sInput.addEventListener('input', () => { clearTimeout(st); st = setTimeout(renderSearch, 70); });
@@ -906,7 +989,11 @@
         setDrawer(null);
         setSearch(true);
       }
-      if (e.key === 'Enter' && e.target.id === 'searchInput') remember(e.target.value);
+      if (e.key === 'Enter' && e.target.id === 'searchInput') {
+        const value = e.target.value.trim();
+        remember(value);
+        if (value) { closeAll(); OL.navigate('/shop?q=' + encodeURIComponent(value)); }
+      }
     });
 
     // keep scroll measurements honest while images stream in
@@ -938,6 +1025,7 @@
     renderFooter();
     renderCart();
     renderWish();
+    buildMega();
     initLenis();
     initHeader();
     initCursor();
