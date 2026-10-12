@@ -42,13 +42,37 @@
     '1511556532299-8f662fc26c06', // 35 air max pink
   ];
 
-  OL.img = (i, w = 800, h) =>
-    `https://images.unsplash.com/photo-${OL.IMG[i]}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ''}&q=80`;
+  const UNSPLASH = (i) => `https://images.unsplash.com/photo-${OL.IMG[i]}`;
 
-  const S = (list, out = []) => list.map((s) => ({ s, ok: !out.includes(s) }));
+  // Resize helper: placeholder (Unsplash) photos are resized on the fly;
+  // uploaded product photos are served exactly as stored.
+  OL.pimg = (url, w = 800, h) => {
+    if (!url) return '';
+    if (url.includes('images.unsplash.com')) {
+      return `${url.split('?')[0]}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ''}&q=80`;
+    }
+    return url;
+  };
+  OL.img = (i, w = 800, h) => OL.pimg(UNSPLASH(i), w, h); // category / hero placeholders
+
+  // ----------------------------------------------------------------------
+  // Placeholder catalog. This is (a) the offline fallback when /api/catalog is
+  // unavailable and (b) the source of supabase/seed.sql (see scripts/build-seed.mjs).
+  // Once real products live in the database, turn the fallback off with
+  // OL.CONFIG.staticFallback = false so placeholder prices are never shown.
+  // ----------------------------------------------------------------------
+  OL.CONFIG = { staticFallback: true };
+
+  const S = (list, out = []) => list.map((s) => ({ s, ok: !out.includes(s), stock: out.includes(s) ? 0 : 3 }));
+  const slugify = (str) =>
+    str.toLowerCase().replace(/[“”"’']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const NEW_IDS = ['p11', 'p3', 'p14', 'p16', 'p15', 'p9'];
+  const FEATURED_IDS = ['p2', 'p4', 'p7', 'p10', 'p5', 'p12', 'p8', 'p18'];
+  const GENDER = { p6: 'women', p16: 'women', p7: 'women', p17: 'kids' };
 
   // Prices in UZS (placeholder)
-  const products = [
+  const RAW = [
     { id: 'p1', brand: 'Nike', name: 'Air Max 1 “Sunset”', cat: 'running', price: 1390000, was: 2190000, img: 2, alt: 21, tag: 'new', sizes: S([40, 41, 42, 43, 44], [44]) },
     { id: 'p2', brand: 'Nike', name: 'Air Force 1 ’07 “Triple White”', cat: 'lifestyle', price: 1190000, was: 1790000, img: 10, alt: 31, tag: 'hot', sizes: S([39, 40, 41, 42, 43]) },
     { id: 'p3', brand: 'Jordan', name: 'Air Jordan 1 Mid “Chicago Toe”', cat: 'basketball', price: 1590000, was: 2490000, img: 11, alt: 13, tag: 'hot', sizes: S([40, 41, 42, 43, 44], [40]) },
@@ -68,17 +92,76 @@
     { id: 'p17', brand: 'Puma', name: 'Court Classic “Pure White”', cat: 'lifestyle', price: 690000, was: 1090000, img: 5, alt: 31, tag: null, sizes: S([40, 41, 42, 43, 44]) },
     { id: 'p18', brand: 'Nike', name: 'Dunk High “Coral Cream”', cat: 'lifestyle', price: 1390000, was: 2190000, img: 14, alt: 18, tag: 'hot', sizes: S([39, 40, 41, 42, 43]) },
   ];
-  OL.P = Object.fromEntries(products.map((p) => [p.id, p]));
-  OL.PRODUCTS = products;
-  OL.off = (p) => Math.round((1 - p.price / p.was) * 100);
+
+  // Same shape the API returns (see api/catalog.js). `id` is the slug.
+  OL.STATIC_PRODUCTS = RAW.map((r) => {
+    const slug = slugify(r.name);
+    return {
+      id: slug, slug, brand: r.brand, name: r.name, colorway: null, cat: r.cat,
+      gender: GENDER[r.id] || 'unisex', price: r.price, was: r.was,
+      images: [UNSPLASH(r.img), UNSPLASH(r.alt)], tag: r.tag,
+      isNew: NEW_IDS.includes(r.id), featured: FEATURED_IDS.includes(r.id),
+      sizes: r.sizes, tags: [], desc: null,
+    };
+  });
+
+  OL.STATIC_SETTINGS = {
+    home: { hero: { product: slugify('Kyrie 7 “Onyx”'), image: UNSPLASH(9) }, deal_ends: null },
+    delivery: {
+      methods: [
+        { id: 'courier_tashkent', fee: 30000 },
+        { id: 'regions', fee: 50000 },
+        { id: 'pickup', fee: 0 },
+      ],
+      free_threshold: 1500000,
+    },
+  };
+
+  // Active catalog (replaced by live data from /api/catalog when available)
+  OL.source = 'static';
+  OL.setCatalog = (products, settings, source) => {
+    OL.PRODUCTS = products;
+    OL.P = Object.fromEntries(products.map((p) => [p.id, p]));
+    OL.SETTINGS = settings || {};
+    OL.source = source;
+  };
+  OL.setCatalog(OL.STATIC_PRODUCTS, OL.STATIC_SETTINGS, 'static');
+
+  OL.off = (p) => (p.was && p.was > p.price ? Math.round((1 - p.price / p.was) * 100) : 0);
 
   OL.BRANDS = ['Nike', 'Jordan', 'adidas', 'New Balance', 'Converse', 'Vans', 'Puma', 'Asics', 'Reebok', 'Saucony'];
   OL.CAT_IMG = { running: 27, lifestyle: 8, basketball: 16, men: 6, women: 4, kids: 34 };
-  OL.CAT_COUNT = { running: 48, lifestyle: 86, basketball: 37, men: 124, women: 92, kids: 41 };
 
-  OL.LISTS = {
-    drops: ['p11', 'p3', 'p14', 'p16', 'p15', 'p9'],
-    best: ['p2', 'p4', 'p7', 'p10', 'p5', 'p12', 'p8', 'p18'],
+  // Home page lists, derived from product flags (set in the admin panel)
+  OL.lists = () => {
+    const all = OL.PRODUCTS;
+    const fill = (picked, want) => {
+      const out = picked.slice(0, want);
+      for (const p of all) {
+        if (out.length >= Math.min(want, all.length)) break;
+        if (!out.includes(p)) out.push(p);
+      }
+      return out;
+    };
+    return {
+      drops: fill(all.filter((p) => p.isNew), 6),
+      best: fill(all.filter((p) => p.featured), 8),
+    };
+  };
+  OL.hero = () => {
+    const cfg = (OL.SETTINGS.home && OL.SETTINGS.home.hero) || {};
+    const product = OL.P[cfg.product] || OL.PRODUCTS[0] || null;
+    return { product, image: cfg.image || (product && product.images[0]) || '' };
+  };
+  OL.counts = () => {
+    const c = { running: 0, lifestyle: 0, basketball: 0, men: 0, women: 0, kids: 0 };
+    for (const p of OL.PRODUCTS) {
+      if (p.cat in c) c[p.cat] += 1;
+      if (p.gender === 'men' || p.gender === 'unisex') c.men += 1;
+      if (p.gender === 'women' || p.gender === 'unisex') c.women += 1;
+      if (p.gender === 'kids') c.kids += 1;
+    }
+    return c;
   };
 
   OL.I18N = {
@@ -86,9 +169,15 @@
       currency: 'UZS',
       nav: { new: 'New arrivals', men: 'Men', women: 'Women', kids: 'Kids', deals: 'Outlet' },
       ui: {
+        search: 'Search', close: 'Close', wishlist: 'Wishlist', soldOut: 'Sold out', menu: 'Menu',
         view: 'View', add: 'Add', added: 'Added', viewAll: 'View all', scroll: 'Scroll',
         models: 'models', off: 'off', fav: 'Save to wishlist', shopNow: 'Shop now',
       },
+      search: {
+        ph: 'Search sneakers, brands…', popular: 'Popular brands', recent: 'Recent searches', clear: 'Clear',
+        none: 'Nothing found', noneText: 'Try another spelling or a brand name.', results: 'results',
+      },
+      wish: { title: 'Wishlist', empty: 'No saved sneakers yet', emptyText: 'Tap the heart on a pair you like — it will wait for you here.' },
       tag: { new: 'New', hot: 'Hot', last: 'Last pairs' },
       cat: { running: 'Running', lifestyle: 'Lifestyle', basketball: 'Basketball', men: 'Men', women: 'Women', kids: 'Kids' },
       f: {
@@ -135,9 +224,15 @@
       currency: 'сум',
       nav: { new: 'Новинки', men: 'Мужчинам', women: 'Женщинам', kids: 'Детям', deals: 'Аутлет' },
       ui: {
+        search: 'Поиск', close: 'Закрыть', wishlist: 'Избранное', soldOut: 'Нет в наличии', menu: 'Меню',
         view: 'Смотреть', add: 'В корзину', added: 'Добавлено', viewAll: 'Смотреть все', scroll: 'Листайте',
         models: 'моделей', off: 'скидка', fav: 'В избранное', shopNow: 'Купить',
       },
+      search: {
+        ph: 'Поиск кроссовок и брендов…', popular: 'Популярные бренды', recent: 'Недавние запросы', clear: 'Очистить',
+        none: 'Ничего не найдено', noneText: 'Попробуйте другое написание или название бренда.', results: 'результатов',
+      },
+      wish: { title: 'Избранное', empty: 'Пока ничего не сохранено', emptyText: 'Нажмите на сердечко у понравившейся пары — она будет ждать вас здесь.' },
       tag: { new: 'Новинка', hot: 'Хит', last: 'Последние пары' },
       cat: { running: 'Бег', lifestyle: 'Повседневные', basketball: 'Баскетбол', men: 'Мужчинам', women: 'Женщинам', kids: 'Детям' },
       f: {
@@ -184,9 +279,15 @@
       currency: 'so‘m',
       nav: { new: 'Yangi kelganlar', men: 'Erkaklar', women: 'Ayollar', kids: 'Bolalar', deals: 'Autlet' },
       ui: {
+        search: 'Qidiruv', close: 'Yopish', wishlist: 'Sevimlilar', soldOut: 'Qolmagan', menu: 'Menyu',
         view: 'Ko‘rish', add: 'Savatga', added: 'Qo‘shildi', viewAll: 'Barchasi', scroll: 'Pastga',
         models: 'model', off: 'chegirma', fav: 'Sevimlilarga', shopNow: 'Xarid qilish',
       },
+      search: {
+        ph: 'Krossovka va brendlarni qidiring…', popular: 'Mashhur brendlar', recent: 'Oxirgi qidiruvlar', clear: 'Tozalash',
+        none: 'Hech narsa topilmadi', noneText: 'Boshqacha yozib ko‘ring yoki brend nomini kiriting.', results: 'natija',
+      },
+      wish: { title: 'Sevimlilar', empty: 'Hali hech narsa saqlanmagan', emptyText: 'Yoqqan juftdagi yurakchani bosing — u sizni shu yerda kutadi.' },
       tag: { new: 'Yangi', hot: 'Xit', last: 'Oxirgi juftlar' },
       cat: { running: 'Yugurish', lifestyle: 'Kundalik', basketball: 'Basketbol', men: 'Erkaklar', women: 'Ayollar', kids: 'Bolalar' },
       f: {

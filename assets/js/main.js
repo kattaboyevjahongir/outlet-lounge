@@ -8,8 +8,16 @@
   addEventListener('load', () => { if (scrollY > 0 && document.getElementById('loader')) window.scrollTo(0, 0); });
 
   OL.initShell();
-  const api = OL.mount();
-  OL.runLoader().then(() => {
-    if (api.intro) api.intro.play();
-  });
+  const loader = OL.runLoader();          // brand intro (first visit of the session only)
+
+  // wait for the live catalog — but never longer than 2.5 s; the intro covers the wait
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  Promise.race([OL.loadCatalog(), wait(2500)])
+    .then(() => {
+      const api = OL.mount();
+      OL.renderCart();
+      OL.renderWish();
+      return loader.then(() => api);
+    })
+    .then((api) => { if (api && api.intro) api.intro.play(); });
 })();

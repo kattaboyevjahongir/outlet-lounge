@@ -15,6 +15,7 @@
       d.dataset.theme = theme;
       d.lang = get('lang') || 'en';
       d.classList.add('js');
+      try { if (sessionStorage.getItem('ol:seen') === '1') d.classList.add('no-loader'); } catch (e) { /* private mode */ }
     })();
   </script>
 
@@ -23,8 +24,8 @@
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="assets/css/base.css?v=9" />
-  <link rel="stylesheet" href="assets/css/home.css?v=9" />
+  <link rel="stylesheet" href="assets/css/base.css?v=11" />
+  <link rel="stylesheet" href="assets/css/home.css?v=11" />
 </head>
 <body>
   <!-- Shared SVG gradients for the logo -->
@@ -75,11 +76,18 @@
           <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
           <svg class="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"/></svg>
         </button>
+        <button type="button" class="icon-btn" data-open-search data-i18n-label="ui.search" aria-label="Search">
+          <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.6 15.6 5 5"/></svg>
+        </button>
+        <button type="button" class="icon-btn wish-btn" data-open-wish data-i18n-label="ui.wishlist" aria-label="Wishlist">
+          <svg viewBox="0 0 24 24"><path d="M12 20.3s-7.8-4.6-7.8-10.4A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 7.8 2.6c0 5.8-7.8 10.4-7.8 10.4Z"/></svg>
+          <span class="cart-count" id="wishCount">0</span>
+        </button>
         <button type="button" class="icon-btn cart-btn" data-open-cart aria-label="Cart">
           <svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
           <span class="cart-count" id="cartCount">0</span>
         </button>
-        <button type="button" class="icon-btn menu-btn" data-menu-toggle aria-label="Menu">
+        <button type="button" class="icon-btn menu-btn" data-menu-toggle data-i18n-label="ui.menu" aria-label="Menu">
           <span></span><span></span>
         </button>
       </div>
@@ -95,6 +103,18 @@
       <a href="#cats" data-i18n="nav.kids">Kids</a>
       <a href="#deals" data-i18n="nav.deals">Outlet</a>
     </nav>
+    <div class="menu-tools">
+      <div class="lang-switch" role="group" aria-label="Language">
+        <span class="lang-pill"></span>
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="ru">RU</button>
+        <button type="button" data-lang="uz">UZ</button>
+      </div>
+      <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Toggle theme">
+        <svg class="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z"/></svg>
+      </button>
+    </div>
   </div>
 
   <main id="app"></main>
@@ -106,13 +126,40 @@
   <aside class="cart-drawer" id="cart" aria-label="Cart" aria-hidden="true">
     <div class="cart-head">
       <h2 data-i18n="cart.title">Your cart</h2>
-      <button type="button" class="icon-btn" data-close-cart aria-label="Close">
+      <button type="button" class="icon-btn" data-close-cart data-i18n-label="ui.close" aria-label="Close">
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
     <div class="cart-items" id="cartItems"></div>
     <div class="cart-foot" id="cartFoot"></div>
   </aside>
+
+  <!-- Wishlist drawer -->
+  <aside class="cart-drawer" id="wish" aria-label="Wishlist" aria-hidden="true">
+    <div class="cart-head">
+      <h2 data-i18n="wish.title">Wishlist</h2>
+      <button type="button" class="icon-btn" data-close-cart data-i18n-label="ui.close" aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="cart-items" id="wishItems"></div>
+  </aside>
+
+  <!-- Search overlay -->
+  <div class="search" id="search" role="dialog" aria-modal="true" aria-label="Search" aria-hidden="true">
+    <div class="search-backdrop" data-close-search></div>
+    <div class="search-panel">
+      <form class="search-bar" role="search" action="#" novalidate>
+        <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.6 15.6 5 5"/></svg>
+        <input id="searchInput" type="search" autocomplete="off" autocapitalize="off" spellcheck="false"
+               enterkeyhint="search" data-i18n-ph="search.ph" data-i18n-label="ui.search" placeholder="Search sneakers, brands…" aria-label="Search" />
+        <button type="button" class="icon-btn" data-close-search data-i18n-label="ui.close" aria-label="Close">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </form>
+      <div class="search-body" id="searchBody"></div>
+    </div>
+  </div>
 
   <!-- Transition curtain (theme switching) -->
   <div class="curtain" id="curtain" aria-hidden="true">
@@ -131,9 +178,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 
-  <script src="assets/js/data.js?v=9"></script>
-  <script src="assets/js/core.js?v=9"></script>
-  <script src="assets/js/home.js?v=9"></script>
-  <script src="assets/js/main.js?v=9"></script>
+  <script src="assets/js/data.js?v=11"></script>
+  <script src="assets/js/core.js?v=11"></script>
+  <script src="assets/js/home.js?v=11"></script>
+  <script src="assets/js/main.js?v=11"></script>
 </body>
 </html>

@@ -1,0 +1,10 @@
+{
+  "name": "outlet-lounge",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:db": "cd supabase/tests && npm install && npm test",
+    "seed": "node scripts/build-seed.mjs"
+  }
+}

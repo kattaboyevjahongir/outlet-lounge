@@ -22,7 +22,8 @@
   OL.state = {
     lang: ['en', 'ru', 'uz'].includes(html.lang) ? html.lang : 'en',
     theme: html.dataset.theme,
-    cart: store.get('cart', []).filter((i) => OL.P[i.id]),
+    cart: store.get('cart', []).filter((i) => i && OL.P[i.id]),
+    wish: store.get('wish', []).filter((id) => OL.P[id]),
   };
   const state = OL.state;
 
@@ -32,6 +33,10 @@
   const t = OL.t;
   OL.num = (n) => Math.round(n).toLocaleString('ru-RU');
   OL.price = (n) => `${OL.num(n)} ${t('currency')}`;
+  // product text can come from the admin panel: never inject it as raw HTML
+  OL.esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const esc = OL.esc;
 
   /* ---------- cleanup registry (per page mount) ---------- */
   let cleanups = [];
@@ -76,23 +81,26 @@
   ui.card = (p, o = {}) => {
     const sizes = p.sizes;
     const firstOk = sizes.find((s) => s.ok);
+    const off = OL.off(p);
+    const wished = state.wish.includes(p.id);
+    const img0 = p.images[0], img1 = p.images[1] || p.images[0];
     return `
-    <article class="pcard ${o.cls || ''}" data-id="${p.id}" ${o.tilt === false ? '' : 'data-tilt'}>
+    <article class="pcard ${o.cls || ''}" data-id="${esc(p.id)}" ${o.tilt === false ? '' : 'data-tilt'}>
       <div class="pcard-media" data-cursor="${t('ui.view')}">
-        <img class="pcard-img is-main" src="${OL.img(p.img, 720, 900)}" alt="${p.brand} ${p.name}" loading="lazy" data-fly>
-        <img class="pcard-img is-alt" src="${OL.img(p.alt, 720, 900)}" alt="" loading="lazy">
+        <img class="pcard-img is-main" src="${OL.pimg(img0, 720, 900)}" alt="${esc(p.brand)} ${esc(p.name)}" loading="lazy" data-fly>
+        <img class="pcard-img is-alt" src="${OL.pimg(img1, 720, 900)}" alt="" loading="lazy">
         <span class="pcard-sheen"></span>
         <div class="pcard-flags">
-          <span class="pcard-badge">−${OL.off(p)}%</span>
+          ${off ? `<span class="pcard-badge">−${off}%</span>` : ''}
           ${p.tag ? `<span class="pcard-tag">${t('tag.' + p.tag)}</span>` : ''}
         </div>
-        <button class="pcard-fav" type="button" aria-label="${t('ui.fav')}">${ICON.heart}</button>
+        <button class="pcard-fav${wished ? ' is-on' : ''}" type="button" aria-pressed="${wished}" aria-label="${t('ui.fav')}">${ICON.heart}</button>
         ${o.index ? `<span class="pcard-index">${OL.pad(o.index)}</span>` : ''}
       </div>
       <div class="pcard-body">
-        <div class="pcard-meta"><span class="pcard-brand">${p.brand}</span><span>${t('cat.' + p.cat)}</span></div>
-        <h3 class="pcard-name">${p.name}</h3>
-        <div class="pcard-price"><span class="pcard-now">${OL.price(p.price)}</span><s class="pcard-was">${OL.price(p.was)}</s></div>
+        <div class="pcard-meta"><span class="pcard-brand">${esc(p.brand)}</span><span>${t('cat.' + p.cat)}</span></div>
+        <h3 class="pcard-name">${esc(p.name)}</h3>
+        <div class="pcard-price"><span class="pcard-now">${OL.price(p.price)}</span>${p.was > p.price ? `<s class="pcard-was">${OL.price(p.was)}</s>` : ''}</div>
         <div class="pcard-buy">
           <div class="pcard-sizes" role="group" aria-label="Size">
             ${sizes.map((s) => `<button type="button" class="size${s.ok ? '' : ' is-out'}${s === firstOk ? ' is-on' : ''}" data-size="${s.s}" ${s.ok ? '' : 'disabled'}>${s.s}</button>`).join('')}
@@ -220,7 +228,12 @@
     return { boost: (v) => { boost = v; }, skew: (v) => { skewT = v; }, measure };
   };
 
-  // Countdown to the end of the current week (Sunday 23:59:59)
+  // Countdown: the deadline set in the admin panel, else the end of the week
+  const dealEnd = () => {
+    const cfg = OL.SETTINGS && OL.SETTINGS.home && OL.SETTINGS.home.deal_ends;
+    const at = cfg ? Date.parse(cfg) : NaN;
+    return at > Date.now() ? at : endOfWeek();
+  };
   const endOfWeek = () => {
     const d = new Date();
     const add = (7 - d.getDay()) % 7;
@@ -238,7 +251,7 @@
   };
   OL.runCountdown = (root) => {
     $$('[data-countdown]', root).forEach((el) => {
-      const end = endOfWeek();
+      const end = dealEnd();
       const boxes = Object.fromEntries($$('[data-cd]', el).map((b) => [b.dataset.cd, b]));
       const tick = () => {
         const diff = Math.max(0, end - Date.now());
@@ -305,6 +318,8 @@
   /* ---------- Language ---------- */
   const applyI18n = () => {
     $$('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+    $$('[data-i18n-ph]').forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+    $$('[data-i18n-label]').forEach((el) => el.setAttribute('aria-label', t(el.dataset.i18nLabel)));
     $$('[data-lang]').forEach((b) => b.classList.toggle('is-on', b.dataset.lang === state.lang));
     placePills();
   };
@@ -316,6 +331,9 @@
     applyI18n();
     renderFooter();
     renderCart();
+    renderWish();
+    searchIndex = null;
+    renderSearch();
     // re-render the page in place, keeping the scroll position
     const y = scrollY;
     const app = $('#app');
@@ -328,10 +346,13 @@
     else swap();
   };
 
-  /* ---------- Language pill ---------- */
+  /* ---------- Language pill (header + mobile menu) ---------- */
   function placePills() {
-    const on = $('.lang-switch button.is-on');
-    if (on) $('.lang-pill').style.transform = `translateX(${on.offsetLeft - 3}px)`;
+    $$('.lang-switch').forEach((sw) => {
+      const on = $('button.is-on', sw);
+      const pill = $('.lang-pill', sw);
+      if (on && pill) pill.style.transform = `translateX(${on.offsetLeft - 3}px)`;
+    });
   }
   OL.placePills = placePills;
 
@@ -344,6 +365,7 @@
     if (hasGsap && window.ScrollTrigger) ScrollTrigger.getAll().forEach((s) => s.kill());
 
     const app = $('#app');
+    OL.mounted = true;
     app.innerHTML = C.render();
     const y = opts.keepScroll || 0;
     if (OL.lenis) OL.lenis.scrollTo(y, { immediate: true, force: true });
@@ -379,8 +401,8 @@
     $('#cartItems').innerHTML = items.map((i, k) => {
       const p = OL.P[i.id];
       return `<div class="cart-item" data-key="${k}">
-        <img src="${OL.img(p.img, 200, 230)}" alt="">
-        <div><h4>${p.name}</h4><small>${p.brand} · ${t('cart.size')} ${i.size}</small><div class="ci-price">${OL.price(p.price * i.qty)}</div></div>
+        <img src="${OL.pimg(p.images[0], 200, 230)}" alt="">
+        <div><h4>${esc(p.name)}</h4><small>${esc(p.brand)} · ${t('cart.size')} ${i.size}</small><div class="ci-price">${OL.price(p.price * i.qty)}</div></div>
         <div class="ci-side">
           <div class="qty"><button type="button" data-qty="-1" aria-label="−">−</button><span>${i.qty}</span><button type="button" data-qty="1" aria-label="+">+</button></div>
           <button type="button" class="ci-remove" data-remove>${t('cart.remove')}</button>
@@ -388,7 +410,7 @@
       </div>`;
     }).join('');
     const sub = items.reduce((s, i) => s + OL.P[i.id].price * i.qty, 0);
-    const save = items.reduce((s, i) => s + (OL.P[i.id].was - OL.P[i.id].price) * i.qty, 0);
+    const save = items.reduce((s, i) => s + Math.max(0, OL.P[i.id].was - OL.P[i.id].price) * i.qty, 0);
     $('#cartFoot').innerHTML = `
       <div class="cf-row"><span>${t('cart.subtotal')}</span><b>${OL.price(sub)}</b></div>
       <div class="cf-row cf-save"><span>${t('cart.save')}</span><span>${OL.price(save)}</span></div>
@@ -397,11 +419,177 @@
   }
   OL.renderCart = renderCart;
 
-  const openCart = (open) => {
-    html.classList.toggle('cart-open', open);
-    $('#cart').setAttribute('aria-hidden', String(!open));
-    if (OL.lenis) open ? OL.lenis.stop() : OL.lenis.start();
+  /* ---------- Drawers (cart / wishlist) + scroll lock ---------- */
+  const lockScroll = () => {
+    const locked = ['cart-open', 'wish-open', 'search-open', 'menu-open'].some((c) => html.classList.contains(c));
+    if (OL.lenis) locked ? OL.lenis.stop() : OL.lenis.start();
   };
+  const setDrawer = (name) => {
+    html.classList.toggle('cart-open', name === 'cart');
+    html.classList.toggle('wish-open', name === 'wish');
+    $('#cart').setAttribute('aria-hidden', String(name !== 'cart'));
+    $('#wish').setAttribute('aria-hidden', String(name !== 'wish'));
+    lockScroll();
+  };
+  const closeAll = () => {
+    setDrawer(null);
+    setSearch(false);
+    html.classList.remove('menu-open');
+    lockScroll();
+  };
+
+  /* ---------- Wishlist ---------- */
+  const saveWish = () => store.set('wish', state.wish);
+  function renderWish() {
+    const ids = state.wish.filter((id) => OL.P[id]);
+    const badge = $('#wishCount');
+    badge.textContent = ids.length;
+    badge.classList.toggle('has-items', ids.length > 0);
+    $('#wishItems').innerHTML = ids.length
+      ? ids.map((id) => {
+        const p = OL.P[id];
+        const inStock = p.sizes.some((z) => z.ok);
+        return `<div class="wish-item" data-id="${esc(p.id)}">
+          <img data-fly src="${OL.pimg(p.images[0], 200, 230)}" alt="">
+          <div><h4>${esc(p.name)}</h4><small>${esc(p.brand)}</small><div class="ci-price">${OL.price(p.price)}</div></div>
+          <div class="ci-side">
+            ${inStock
+    ? `<button type="button" class="pcard-add" data-add>${ICON.plus}<span>${t('ui.add')}</span></button>`
+    : `<span class="wish-sold">${t('ui.soldOut')}</span>`}
+            <button type="button" class="ci-remove" data-unwish>${t('cart.remove')}</button>
+          </div>
+        </div>`;
+      }).join('')
+      : `<div class="cart-empty">${ICON.heart}<h3>${t('wish.empty')}</h3><p>${t('wish.emptyText')}</p></div>`;
+  }
+  OL.renderWish = renderWish;
+
+  OL.toggleWish = (id) => {
+    const i = state.wish.indexOf(id);
+    const on = i === -1;
+    if (on) state.wish.push(id); else state.wish.splice(i, 1);
+    saveWish();
+    $$('.pcard').forEach((c) => {
+      if (c.dataset.id !== id) return;
+      const f = $('.pcard-fav', c);
+      f.classList.toggle('is-on', on);
+      f.setAttribute('aria-pressed', String(on));
+    });
+    renderWish();
+    if (hasGsap && on) gsap.fromTo('.wish-btn', { scale: 1 }, { scale: 1.2, duration: .18, yoyo: true, repeat: 1, ease: 'power2.out' });
+    return on;
+  };
+
+  /* ---------- Search ---------- */
+  // brand spellings people actually type (Cyrillic, Latin variants)
+  const ALIASES = {
+    nike: ['найк', 'найки', 'nayk'],
+    jordan: ['джордан', 'джорданы', 'jordan', 'air jordan', 'aj'],
+    adidas: ['адидас', 'adidas', 'addidas'],
+    'new balance': ['нью баланс', 'ню баланс', 'нью беланс', 'nb', 'nyu balans'],
+    converse: ['конверс', 'конверсы', 'converse', 'all star', 'олл стар'],
+    vans: ['ванс', 'вансы', 'vans'],
+    puma: ['пума', 'puma'],
+    asics: ['асикс', 'asics'],
+    reebok: ['рибок', 'reebok'],
+    saucony: ['саукони', 'saucony'],
+  };
+  // words that describe every product — they don't narrow the search
+  const GENERIC = ['кроссовки', 'кроссовок', 'кросовки', 'кеды', 'обувь', 'krossovka', 'krossovki', 'sneakers', 'shoes', 'sneaker'];
+  const norm = (str) => String(str || '').toLowerCase().replace(/ё/g, 'е')
+    .replace(/[ʻʼ’‘'`´]/g, '').replace(/[^a-z0-9\u0400-\u04ff]+/g, ' ').trim();
+
+  let searchIndex = null;
+  const buildIndex = () => {
+    searchIndex = OL.PRODUCTS.map((p) => {
+      const brand = norm(p.brand);
+      const catNames = ['ru', 'uz', 'en'].map((l) => lookup(l, 'cat.' + p.cat) || '').join(' ');
+      const hay = norm([p.brand, p.name, p.colorway, (p.tags || []).join(' '), p.cat, catNames, p.gender,
+        (ALIASES[brand] || []).join(' ')].join(' '));
+      return { p, hay, brand, name: norm(p.name) };
+    });
+  };
+  const runSearch = (query) => {
+    const words = norm(query).split(' ').filter(Boolean);
+    if (!words.length) return null;
+    if (!searchIndex) buildIndex();
+    const tokens = words.filter((w) => !GENERIC.includes(w));
+    return searchIndex
+      .map((e, order) => {
+        if (!tokens.every((w) => e.hay.includes(w))) return null;
+        let score = 0;
+        tokens.forEach((w) => {
+          if (e.brand.startsWith(w) || (ALIASES[e.brand] || []).some((a) => a.startsWith(w))) score += 3;
+          if (e.name.startsWith(w) || e.name.includes(' ' + w)) score += 2;
+        });
+        if (e.p.isNew) score += 1;
+        return { p: e.p, score, order };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.order - b.order)
+      .map((r) => r.p);
+  };
+
+  const RESULTS_SHOWN = 8;
+  function renderSearch() {
+    const body = $('#searchBody');
+    if (!body) return;
+    const input = $('#searchInput');
+    const q = input.value;
+    const found = runSearch(q);
+    const recent = store.get('recent', []);
+    const chip = (text) => `<button type="button" class="s-chip" data-q="${esc(text)}">${esc(text)}</button>`;
+
+    if (found === null) {
+      body.innerHTML = `
+        ${recent.length ? `<div class="s-group"><div class="s-head"><span>${t('search.recent')}</span><button type="button" class="s-clear" data-clear-recent>${t('search.clear')}</button></div><div class="s-chips">${recent.map(chip).join('')}</div></div>` : ''}
+        <div class="s-group"><div class="s-head"><span>${t('search.popular')}</span></div><div class="s-chips">${OL.BRANDS.slice(0, 6).map(chip).join('')}</div></div>`;
+      return;
+    }
+    if (!found.length) {
+      body.innerHTML = `<div class="s-empty"><h3>${t('search.none')}</h3><p>${t('search.noneText')}</p>
+        <div class="s-chips">${OL.BRANDS.slice(0, 4).map(chip).join('')}</div></div>`;
+      return;
+    }
+    const shown = found.slice(0, RESULTS_SHOWN);
+    body.innerHTML = `
+      <div class="s-head"><span>${found.length} ${t('search.results')}</span></div>
+      ${shown.map((p) => {
+    const firstOk = p.sizes.find((z) => z.ok);
+    return `<article class="sr" data-id="${esc(p.id)}">
+          <img class="sr-img" data-fly src="${OL.pimg(p.images[0], 160, 200)}" alt="" loading="lazy">
+          <div class="sr-info">
+            <small>${esc(p.brand)}</small>
+            <b>${esc(p.name)}</b>
+            <span>${OL.price(p.price)}${p.was > p.price ? ` <s>${OL.price(p.was)}</s>` : ''}</span>
+          </div>
+          <div class="sr-buy">
+            ${firstOk ? `<div class="pcard-sizes">${p.sizes.map((z) => `<button type="button" class="size${z.ok ? '' : ' is-out'}${z === firstOk ? ' is-on' : ''}" data-size="${z.s}" ${z.ok ? '' : 'disabled'}>${z.s}</button>`).join('')}</div>
+            <button type="button" class="pcard-add" data-add data-remember>${ICON.plus}<span>${t('ui.add')}</span></button>`
+    : `<span class="wish-sold">${t('ui.soldOut')}</span>`}
+          </div>
+        </article>`;
+  }).join('')}`;
+  }
+  const remember = (q) => {
+    const text = String(q || '').trim();
+    if (text.length < 2) return;
+    const list = [text, ...store.get('recent', []).filter((x) => x.toLowerCase() !== text.toLowerCase())].slice(0, 5);
+    store.set('recent', list);
+  };
+  function setSearch(open) {
+    html.classList.toggle('search-open', open);
+    const box = $('#search');
+    if (!box) return;
+    box.setAttribute('aria-hidden', String(!open));
+    if (open) {
+      renderSearch();
+      $('#searchInput').focus({ preventScroll: true });
+    } else {
+      $('#searchInput').blur();
+    }
+    lockScroll();
+  }
 
   function flyToCart(img) {
     const btn = $('.cart-btn');
@@ -469,6 +657,32 @@
     }
   };
 
+  /* ---------- Live catalog ---------- */
+  // Fetches /api/catalog. Only applied before the page is first rendered, so
+  // the page never mixes two catalogs. Falls back to the built-in placeholders.
+  OL.loadCatalog = async () => {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch('/api/catalog', { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error('catalog ' + res.status);
+      const data = await res.json();
+      if (!data || !Array.isArray(data.products)) throw new Error('bad catalog payload');
+      if (!OL.mounted) OL.setCatalog(data.products, data.settings || {}, 'live');
+    } catch (e) {
+      if (!OL.CONFIG.staticFallback && !OL.mounted) OL.setCatalog([], {}, 'unavailable');
+      // otherwise keep the built-in placeholder catalog
+    }
+    // forget saved items that no longer exist
+    state.cart = state.cart.filter((i) => OL.P[i.id]);
+    state.wish = state.wish.filter((id) => OL.P[id]);
+    saveCart();
+    saveWish();
+    searchIndex = null;
+    return OL.source;
+  };
+
   /* ---------- Footer ---------- */
   function renderFooter() {
     $('#footer').innerHTML = `
@@ -491,7 +705,9 @@
   /* ---------- Loader (logo draws itself) ---------- */
   OL.runLoader = () => new Promise((resolve) => {
     const L = $('#loader');
-    if (!OL.anim) { L.remove(); resolve(); return; }
+    let seen = false;
+    try { seen = sessionStorage.getItem('ol:seen') === '1'; sessionStorage.setItem('ol:seen', '1'); } catch (e) { /* private mode */ }
+    if (!OL.anim || seen) { L.remove(); resolve(); return; }
     $('#loaderMark').innerHTML = OL.logoMark('is-loader', 'olLoaderClip');
     const svg = $('#loaderMark svg');
     const as = $$('.ol-a', svg);
@@ -602,6 +818,7 @@
         e.preventDefault();
         const href = a.getAttribute('href');
         html.classList.remove('menu-open');
+        lockScroll();
         if (href.length > 1) OL.scrollTo(href);
         return;
       }
@@ -616,21 +833,36 @@
         const card = add.closest('[data-id]');
         const on = $('[data-size].is-on', card) || $('[data-size]:not([disabled])', card);
         const fallback = (OL.P[card.dataset.id].sizes.find((z) => z.ok) || {}).s;
+        if (add.hasAttribute('data-remember')) remember($('#searchInput').value);
         OL.addToCart(card.dataset.id, on ? Number(on.dataset.size) : fallback, $('[data-fly]', card), add);
         return;
       }
       const fav = e.target.closest('.pcard-fav');
       if (fav) {
-        fav.classList.toggle('is-on');
-        if (hasGsap) gsap.fromTo(fav, { scale: .6 }, { scale: 1, duration: .7, ease: 'elastic.out(1, .35)' });
+        const on = OL.toggleWish(fav.closest('[data-id]').dataset.id);
+        if (hasGsap && on) gsap.fromTo(fav, { scale: .6 }, { scale: 1, duration: .7, ease: 'elastic.out(1, .35)' });
         return;
       }
+      const unwish = e.target.closest('[data-unwish]');
+      if (unwish) return void OL.toggleWish(unwish.closest('[data-id]').dataset.id);
+      if (e.target.closest('[data-open-wish]')) return setDrawer('wish');
+      if (e.target.closest('[data-open-search]')) { html.classList.remove('menu-open'); return setSearch(true); }
+      if (e.target.closest('[data-close-search]')) return setSearch(false);
+      const sq = e.target.closest('[data-q]');
+      if (sq) {
+        const input = $('#searchInput');
+        input.value = sq.dataset.q;
+        renderSearch();
+        input.focus({ preventScroll: true });
+        return;
+      }
+      if (e.target.closest('[data-clear-recent]')) { store.set('recent', []); return renderSearch(); }
       if (e.target.closest('[data-theme-toggle]')) return OL.toggleTheme();
       const lang = e.target.closest('[data-lang]');
       if (lang) return OL.setLang(lang.dataset.lang);
-      if (e.target.closest('[data-open-cart]')) return openCart(true);
-      if (e.target.closest('[data-close-cart]')) return openCart(false);
-      if (e.target.closest('[data-menu-toggle]')) return html.classList.toggle('menu-open');
+      if (e.target.closest('[data-open-cart]')) return setDrawer('cart');
+      if (e.target.closest('[data-close-cart]')) return setDrawer(null);
+      if (e.target.closest('[data-menu-toggle]')) { html.classList.toggle('menu-open'); return lockScroll(); }
       if (e.target.closest('[data-checkout]')) return OL.toast(t('cart.demo'));
 
       const item = e.target.closest('.cart-item');
@@ -648,7 +880,12 @@
       }
     });
 
+    const sInput = $('#searchInput');
+    let st;
+    sInput.addEventListener('input', () => { clearTimeout(st); st = setTimeout(renderSearch, 70); });
+
     document.addEventListener('submit', (e) => {
+      if (e.target.closest('.search-bar')) return e.preventDefault();
       const form = e.target.closest('[data-news]');
       if (!form) return;
       e.preventDefault();
@@ -662,7 +899,14 @@
     });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { openCart(false); html.classList.remove('menu-open'); }
+      if (e.key === 'Escape') return closeAll();
+      const typing = e.target.closest('input, textarea, select');
+      if (e.key === '/' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setDrawer(null);
+        setSearch(true);
+      }
+      if (e.key === 'Enter' && e.target.id === 'searchInput') remember(e.target.value);
     });
 
     // keep scroll measurements honest while images stream in
@@ -688,9 +932,12 @@
   OL.initShell = () => {
     $('#brandMark').innerHTML = OL.logoMark();
     $('#cart').setAttribute('data-lenis-prevent', '');
+    $('#wish').setAttribute('data-lenis-prevent', '');
+    $('#search').setAttribute('data-lenis-prevent', '');
     applyI18n();
     renderFooter();
     renderCart();
+    renderWish();
     initLenis();
     initHeader();
     initCursor();

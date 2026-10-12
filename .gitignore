@@ -9,3 +9,7 @@ Thumbs.db
 # Vercel CLI link + local secrets
 .vercel
 .env*
+node_modules/
+
+# keep the template
+!.env.example

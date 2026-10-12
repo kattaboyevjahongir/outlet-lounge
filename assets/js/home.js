@@ -5,7 +5,11 @@
 
   OL.page = {
     render() {
-      const P = OL.P, L = OL.LISTS;
+      const L = OL.lists();
+      const hero = OL.hero();
+      const counts = OL.counts();
+      const esc = OL.esc;
+      const catRows = ['running', 'lifestyle', 'basketball', 'men', 'women', 'kids'].filter((c) => counts[c] > 0);
       const [r1, r2, r3] = t('f.title');
       return `
       <div class="f-progress" aria-hidden="true">
@@ -33,9 +37,9 @@
 
           <div class="f-shoe">
             <div class="f-shoe-float">
-              <div class="f-disc"><img class="f-shoe-img" src="${OL.img(9, 1000, 1000)}" alt="Featured sneaker"></div>
+              <div class="f-disc">${hero.image ? `<img class="f-shoe-img" src="${OL.pimg(hero.image, 1000, 1000)}" alt="${esc(hero.product ? hero.product.name : '')}">` : ''}</div>
               <div class="f-disc-ring"></div>
-              <span class="f-price-tag"><small>${P.p9.name}</small><b>${OL.price(P.p9.price)}</b></span>
+              ${hero.product ? `<span class="f-price-tag"><small>${esc(hero.product.name)}</small><b>${OL.price(hero.product.price)}</b></span>` : ''}
             </div>
           </div>
 
@@ -56,7 +60,7 @@
         ${OL.ui.marquee(t('f.words').map((w) => w.toUpperCase()), 'f-tape f-tape-2')}
       </section>
 
-      <section class="f-drops" id="new">
+      ${L.drops.length ? `<section class="f-drops" id="new">
         <div class="f-drops-pin">
           <div class="f-drops-track">
             <div class="f-drops-intro">
@@ -65,7 +69,7 @@
               <p class="f-drops-text">${t('f.dropsText')}</p>
               <span class="f-side">${t('f.side')} ${OL.ICON.arrow}</span>
             </div>
-            ${L.drops.map((id, i) => `<div class="f-drop">${OL.ui.card(P[id], { index: i + 1 })}</div>`).join('')}
+            ${L.drops.map((p, i) => `<div class="f-drop">${OL.ui.card(p, { index: i + 1 })}</div>`).join('')}
             <a href="#best" class="f-drops-end">
               <span>${t('ui.viewAll')}</span>
               <i>${OL.ICON.arrowUR}</i>
@@ -73,25 +77,25 @@
           </div>
           <div class="f-drops-bar container"><div><i></i></div><span class="f-drops-count">01 / 0${L.drops.length}</span></div>
         </div>
-      </section>
+      </section>` : ''}
 
-      <section class="f-cats" id="cats">
+      ${catRows.length ? `<section class="f-cats" id="cats">
         <div class="container">
           <p class="eyebrow">02 / ${t('sec.catsEyebrow')}</p>
           <ul class="f-cat-list">
-            ${['running', 'lifestyle', 'basketball', 'men', 'women', 'kids'].map((c, i) => `
+            ${catRows.map((c, i) => `
               <li>
                 <a href="#best" class="f-cat" data-img="${OL.img(OL.CAT_IMG[c], 640, 800)}">
                   <span class="f-cat-i">0${i + 1}</span>
                   <span class="f-cat-name"><span>${t('cat.' + c)}</span><span class="f-cat-dup" aria-hidden="true">${t('cat.' + c)}</span></span>
-                  <span class="f-cat-n">${OL.CAT_COUNT[c]} ${t('ui.models')}</span>
+                  <span class="f-cat-n">${counts[c]} ${t('ui.models')}</span>
                   <span class="f-cat-go">${OL.ICON.arrowUR}</span>
                 </a>
               </li>`).join('')}
           </ul>
         </div>
         <div class="f-cat-preview" aria-hidden="true"><img alt=""></div>
-      </section>
+      </section>` : ''}
 
       <section class="f-deal" id="deals">
         <div class="f-deal-band">
@@ -111,15 +115,15 @@
         </div>
       </section>
 
-      <section class="f-best" id="best">
+      ${L.best.length ? `<section class="f-best" id="best">
         <div class="container">
           <div class="f-head">
             <p class="eyebrow">04 / ${t('sec.bestEyebrow')}</p>
             <h2 class="f-h2" data-reveal="up">${t('sec.best')}</h2>
           </div>
-          <div class="f-grid pgrid" data-stagger>${L.best.map((id, i) => OL.ui.card(P[id], { index: i + 1 })).join('')}</div>
+          <div class="f-grid pgrid" data-stagger>${L.best.map((p, i) => OL.ui.card(p, { index: i + 1 })).join('')}</div>
         </div>
-      </section>
+      </section>` : ''}
 
       ${OL.ui.reviews('f-reviews')}
       ${OL.ui.news('f-news')}`;
@@ -183,9 +187,10 @@
       const mm = gsap.matchMedia();
       mm.add('(min-width: 900px)', () => {
         const track = q('.f-drops-track');
+        if (!track) return;
         const bar = q('.f-drops-bar i');
         const count = q('.f-drops-count');
-        const n = OL.LISTS.drops.length;
+        const n = Math.max(1, qa('.f-drop').length);
         const dist = () => track.scrollWidth - innerWidth;
         const tween = gsap.to(track, {
           x: () => -dist(),
@@ -215,9 +220,9 @@
 
       /* --- categories: preview follows the cursor --- */
       const preview = q('.f-cat-preview');
-      const pimg = preview.querySelector('img');
+      const pimg = preview && preview.querySelector('img');
       const list = q('.f-cat-list');
-      if (!OL.touch) {
+      if (preview && !OL.touch) {
         const px = gsap.quickTo(preview, 'x', { duration: .6, ease: 'power3' });
         const py = gsap.quickTo(preview, 'y', { duration: .6, ease: 'power3' });
         const rot = gsap.quickTo(preview, 'rotate', { duration: .8, ease: 'power3' });
