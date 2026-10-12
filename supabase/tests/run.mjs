@@ -4,7 +4,7 @@
 //
 //   cd supabase/tests && npm install && npm test
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
@@ -53,7 +53,10 @@ await db.exec(`
   grant execute on function auth.uid(), auth.role() to anon, authenticated, service_role;
 `);
 
-await db.exec(read('../migrations/20261012000000_init.sql'));
+// every migration, in order — exactly what `supabase db push` applies
+for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter((n) => n.endsWith('.sql')).sort()) {
+  await db.exec(read(`../migrations/${f}`));
+}
 await db.exec(`
   grant all on all tables in schema public to anon, authenticated, service_role;
   grant all on all sequences in schema public to anon, authenticated, service_role;
@@ -260,6 +263,68 @@ await test('per-phone limit, unknown code and min order are refused', async () =
   await as('service_role');
   await rejects(place(order([{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }],
     { customer: { name: 'B', phone: '+998909999999' }, promo_code: 'LOUNGE10' })), /invalid:promo/, 'min order');
+});
+
+
+console.log('\nQuote + quick order (cart preview)');
+const quote = async (payload) => (await one('select public.quote_order($1::jsonb) as r', [JSON.stringify(payload)])).r;
+await test('quote never changes stock and matches what place_order charges', async () => {
+  await asSuper();
+  const before = await stockOf('old-skool-burgundy', 41);
+  await as('service_role');
+  const items = [{ slug: 'old-skool-burgundy', size: 41, qty: 2 }];
+  const q = await quote({ items, delivery: { method: 'courier_tashkent' } });
+  await asSuper();
+  assert.equal(await stockOf('old-skool-burgundy', 41), before, 'quote must not take stock');
+  await as('service_role');
+  const placed = await place(order(items, { customer: { name: 'Q', phone: '+998901110000' } }));
+  for (const k of ['subtotal', 'discount', 'delivery_fee', 'total']) assert.equal(q[k], placed[k], k);
+  assert.equal(q.lines[0].unit_price, 590000);
+});
+await test('quote defaults to courier delivery and reports promo problems', async () => {
+  await asSuper();
+  await db.exec(`insert into promo_codes (code, type, value, min_order) values ('FIX50', 'fixed', 50000, 0)`);
+  await as('service_role');
+  const q = await quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'fix50' });
+  assert.equal(q.discount, 50000);
+  assert.equal(q.delivery_fee, 30000);
+  assert.equal(q.promo_code, 'FIX50');
+  await rejects(quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'WRONG' }), /invalid:promo/);
+  await rejects(quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 50 }] }), /invalid:qty/);
+});
+await test('quote reports sold-out lines', async () => {
+  await as('service_role');
+  await rejects(quote({ items: [{ slug: 'air-max-1-sunset', size: 41, qty: 1 }] }), /out_of_stock:air-max-1-sunset:41/);
+});
+await test('quote does not use up a promo code', async () => {
+  await asSuper();
+  const before = (await one(`select used_count from promo_codes where code = 'FIX50'`)).used_count;
+  await as('service_role');
+  await quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'FIX50' });
+  await asSuper();
+  assert.equal((await one(`select used_count from promo_codes where code = 'FIX50'`)).used_count, before);
+});
+await test('quick order: "callback" delivery has no fee and needs no address', async () => {
+  await as('service_role');
+  const r = await place({
+    customer: { name: 'Quick', phone: '+998905550000', contact_pref: 'call' },
+    delivery: { method: 'callback' },
+    payment: 'tbd',
+    items: [{ slug: 'x-90-pink-haze', size: 38, qty: 1 }],
+  });
+  assert.equal(r.delivery_fee, 0);
+  assert.equal(r.total, 890000);
+  await asSuper();
+  const o = await one('select delivery_method, address from orders where id = $1', [r.order_id]);
+  assert.equal(o.delivery_method, 'callback');
+  assert.equal(o.address, null);
+});
+await test('visitors and managers cannot price or quote', async () => {
+  await as('anon');
+  await rejects(one(`select public.quote_order('{}'::jsonb)`), /permission denied/);
+  await rejects(one(`select public.price_order('{}'::jsonb, false)`), /permission denied/);
+  await as('authenticated', MANAGER);
+  await rejects(one(`select public.quote_order('{}'::jsonb)`), /permission denied/);
 });
 
 console.log('\nOrder status');

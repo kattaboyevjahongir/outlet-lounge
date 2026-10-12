@@ -29,6 +29,7 @@ page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/d
 | `/new` `/sale` `/men` `/women` `/kids` `/brands/<brand>` | Pre-filtered catalog |
 | `/product/<slug>` | Product page: gallery + zoom, sizes (EU/US/cm), size guide, related, recently viewed |
 | `/wishlist` | Saved items |
+| `/cart` `/checkout` `/order/success` | Cart page, checkout (no account), thank-you page |
 | anything else | 404 |
 
 All of them are one HTML shell (`index.html`); `vercel.json` rewrites every non-file path to it and
@@ -39,16 +40,21 @@ All of them are one HTML shell (`index.html`); `vercel.json` rewrites every non-
 ```
 index.html                 page shell (header + mega-menu, drawers, search, loader, theme curtain)
 api/catalog.js             GET /api/catalog — live products + public settings from Supabase
+api/quote.js               POST /api/quote — cart totals/promo from the database (never changes stock)
+api/order.js               POST /api/order — checkout, quick order, notify-me → database + Telegram
+api/telegram.js            POST /api/telegram — bot webhook (order status buttons, /id)
+api/_lib/                  validation, Telegram message format, Supabase/Telegram clients
 assets/css/base.css        theme tokens, shared components, phone card layout
 assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
 assets/js/data.js          placeholder catalog + settings, EN/RU/UZ translations
 assets/js/catalog-logic.js collections, filters, sort, URL state (pure, unit-tested)
 assets/js/core.js          logo, theme/language, cart, wishlist, search, mega-menu, live catalog loader
 assets/js/router.js        URL → page, history, transitions, per-page meta
-assets/js/home.js | shop.js | product.js | pages.js    the pages
+assets/js/home.js | shop.js | product.js | checkout.js | pages.js    the pages
+assets/js/order-logic.js   phone mask, form validation, local totals (pure, unit-tested)
 assets/js/main.js          boot
 supabase/                  database: migrations, seed, tests, setup guide (see supabase/README.md)
-scripts/                   build-seed.mjs, dev-server.mjs
+scripts/                   build-seed.mjs, dev-server.mjs, telegram-setup.mjs
 tests/                     API + catalog-logic + router tests
 docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Telegram, roadmap
 ```
@@ -56,13 +62,25 @@ docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Te
 ## Tests
 
 ```bash
-npm test          # API shaping/caching, filters/sort/URL state, router
+npm test          # API shaping, filters/sort/URL state, router, order API, Telegram webhook, order helpers
 npm run test:db   # database: stock safety, pricing, promo rules, who can do what
 ```
 
 ## Environment variables
 
 See `.env.example`. Real values live only in Vercel — never in git.
+
+### Telegram order alerts (one-time setup)
+
+1. In Telegram, open **@BotFather → /mybots → your bot → API Token**. If the token was ever shared
+   anywhere, press **Revoke current token** to get a fresh one.
+2. Put the token in Vercel (it prompts for the value, nothing is echoed):
+   `vercel env add TELEGRAM_BOT_TOKEN production`
+3. Add the bot to the managers' group and send a message there.
+4. `vercel env pull .env.production.local --environment=production`, then
+   `node scripts/telegram-setup.mjs discover` → copy the group's id.
+5. `vercel env add TELEGRAM_CHAT_ID production` (paste the id), redeploy: `vercel --prod`.
+6. `node scripts/telegram-setup.mjs webhook` then `node scripts/telegram-setup.mjs test`.
 
 ## Notes
 

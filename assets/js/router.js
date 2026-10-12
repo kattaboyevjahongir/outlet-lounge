@@ -11,6 +11,9 @@
     { re: /^\/brands\/([a-z0-9-]+)\/?$/, name: 'shop', params: (m) => ({ collection: 'brand', brand: m[1] }) },
     { re: /^\/product\/([a-z0-9-]+)\/?$/, name: 'product', params: (m) => ({ slug: m[1] }) },
     { re: /^\/wishlist\/?$/, name: 'wishlist' },
+    { re: /^\/cart\/?$/, name: 'cart' },
+    { re: /^\/checkout\/?$/, name: 'checkout' },
+    { re: /^\/order\/success\/?$/, name: 'success' },
   ];
 
   // Pure: URL → { name, params, path, search, hash }

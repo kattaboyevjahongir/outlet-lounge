@@ -416,13 +416,18 @@
     }).join('');
     const sub = items.reduce((s, i) => s + OL.P[i.id].price * i.qty, 0);
     const save = items.reduce((s, i) => s + Math.max(0, OL.P[i.id].was - OL.P[i.id].price) * i.qty, 0);
+    const thr = (OL.SETTINGS && OL.SETTINGS.delivery && OL.SETTINGS.delivery.free_threshold) || 0;
+    const prog = OL.orderLogic.freeProgress(sub, thr);
     $('#cartFoot').innerHTML = `
+      ${prog.enabled ? `<div class="free-bar${prog.free ? ' is-free' : ''}"><p>${prog.free ? t('cp.freeDone') : t('cp.freeFrom', { n: OL.price(prog.left) })}</p><div><i style="width:${prog.pct}%"></i></div></div>` : ''}
       <div class="cf-row"><span>${t('cart.subtotal')}</span><b>${OL.price(sub)}</b></div>
       <div class="cf-row cf-save"><span>${t('cart.save')}</span><span>${OL.price(save)}</span></div>
       <p class="cf-note">${t('cart.note')}</p>
-      <button type="button" class="btn btn-gold" data-checkout>${t('cart.checkout')} ${ICON.arrow}</button>`;
+      <a class="btn btn-gold" href="/checkout"><span>${t('cart.checkout')}</span>${ICON.arrow}</a>
+      <a class="cf-view" href="/cart">${t('cp.viewCart')}</a>`;
   }
   OL.renderCart = renderCart;
+  OL.saveCart = saveCart;
 
   /* ---------- Drawers (cart / wishlist) + scroll lock ---------- */
   const lockScroll = () => {
@@ -725,7 +730,7 @@
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 4000);
-      const res = await fetch('/api/catalog', { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+      const res = await fetch('/api/catalog', { signal: ctrl.signal, cache: 'no-cache', headers: { Accept: 'application/json' } }); // the edge caches it; the browser must always revalidate
       clearTimeout(timer);
       if (!res.ok) throw new Error('catalog ' + res.status);
       const data = await res.json();
@@ -935,7 +940,6 @@
       if (e.target.closest('[data-open-cart]')) return setDrawer('cart');
       if (e.target.closest('[data-close-cart]')) return setDrawer(null);
       if (e.target.closest('[data-menu-toggle]')) { html.classList.toggle('menu-open'); return lockScroll(); }
-      if (e.target.closest('[data-checkout]')) return OL.toast(t('cart.demo'));
 
       const item = e.target.closest('.cart-item');
       if (item) {

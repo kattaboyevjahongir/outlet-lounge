@@ -15,7 +15,7 @@
 | GitHub repo `kattaboyevjahongir/outlet-lounge` | ✅ Done |
 | Vercel project (manual deploys) | ✅ Done; auto-deploy on push needs Vercel's GitHub access |
 | Catalog `/shop` + collections, product page, wishlist page, mega-menu, 404 | ✅ Phase 2 built (filters, sort, size guide, gallery + zoom, related/recent) |
-| Checkout, orders → Telegram | ❌ Phase 3 |
+| Cart page, checkout, orders → database, quick order, notify-me, Telegram alerts + status buttons | ✅ Phase 3 built and tested end-to-end against the live database; **Telegram needs the bot token + group id (owner step)** |
 | Admin panel (products, stock, orders, reports, content, staff) | ❌ Planned (§5) |
 | Database (Supabase) | ✅ Live: project `outlet-lounge` (Frankfurt), schema + security rules applied, placeholder products seeded, verified as a visitor (reads products only) |
 | Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Live on https://outlet-lounge.vercel.app (source: database) |

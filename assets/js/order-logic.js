@@ -1,0 +1,57 @@
+/* Outlet Lounge — order helpers (pure, unit-tested in tests/order-logic.test.mjs):
+   phone mask + validation, form validation, local totals (offline fallback), free-delivery progress. */
+(function () {
+  const OL = (window.OL = window.OL || {});
+  const O = (OL.orderLogic = {});
+
+  // Uzbek mobile: +998 XX XXX XX XX → 9 national digits
+  O.phoneDigits = (raw) => {
+    let d = String(raw == null ? '' : raw).replace(/\D/g, '');
+    if (d.startsWith('998')) d = d.slice(3);
+    return d.slice(0, 9);
+  };
+  O.formatPhone = (raw) => {
+    const d = O.phoneDigits(raw);
+    if (!d) return String(raw || '').trim().startsWith('+') ? '+998 ' : '';
+    const groups = [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean);
+    return `+998 ${groups.join(' ')}`;
+  };
+  O.isValidPhone = (raw) => O.phoneDigits(raw).length === 9;
+  O.toE164 = (raw) => `+998${O.phoneDigits(raw)}`;
+
+  O.NO_ADDRESS = ['pickup', 'callback'];
+
+  // returns { field: 'errorKey' } — empty object when the form is fine
+  O.validate = (f, opts = {}) => {
+    const e = {};
+    if (String(f.name || '').trim().length < 2) e.name = 'name';
+    if (!O.isValidPhone(f.phone)) e.phone = 'phone';
+    if (f.telegram && !/^@?[A-Za-z0-9_]{5,32}$/.test(String(f.telegram).trim().replace(/^https?:\/\/t\.me\//i, ''))) e.telegram = 'telegram';
+    if (opts.needsAddress) {
+      if (!f.region) e.region = 'region';
+      if (String(f.address || '').trim().length < 5) e.address = 'address';
+    }
+    if (opts.requireConsent && !f.consent) e.consent = 'consent';
+    return e;
+  };
+
+  // Offline / not-configured fallback. The server's number is always the real one.
+  O.localQuote = (cart, products, delivery, method) => {
+    let subtotal = 0;
+    cart.forEach((i) => { if (products[i.id]) subtotal += products[i.id].price * i.qty; });
+    const d = delivery || {};
+    const m = (d.methods || []).find((x) => x.id === method);
+    let fee = m ? m.fee : 0;
+    if (d.free_threshold && subtotal >= d.free_threshold) fee = 0;
+    return { subtotal, discount: 0, delivery_fee: fee, total: subtotal + fee };
+  };
+
+  // How far the basket is from free delivery: { left, pct, free }
+  O.freeProgress = (amount, threshold) => {
+    if (!threshold) return { left: 0, pct: 0, free: false, enabled: false };
+    const left = Math.max(0, threshold - amount);
+    return { left, pct: Math.min(100, Math.round((amount / threshold) * 100)), free: left === 0, enabled: true };
+  };
+
+  O.cartItems = (cart) => cart.map((i) => ({ slug: i.id, size: i.size, qty: i.qty }));
+})();

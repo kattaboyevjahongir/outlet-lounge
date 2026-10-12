@@ -22,7 +22,24 @@ if (existsSync(envFile)) {
   }
 }
 
-const { default: catalog } = await import(pathToFileURL(join(root, 'api/catalog.js')).href);
+// API routes: /api/<name> → api/<name>.js (default export), like Vercel functions.
+// The body is parsed to JSON into req.body, as the platform does.
+const handlers = new Map();
+const loadHandler = async (name) => {
+  if (!handlers.has(name)) {
+    const file = join(root, 'api', `${name}.js`);
+    handlers.set(name, existsSync(file) ? (await import(pathToFileURL(file).href)).default : null);
+  }
+  return handlers.get(name);
+};
+const readBody = (req) => new Promise((resolve) => {
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', () => {
+    const raw = Buffer.concat(chunks).toString('utf8');
+    try { resolve(raw ? JSON.parse(raw) : undefined); } catch { resolve(raw); }
+  });
+});
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
@@ -33,13 +50,23 @@ const TYPES = {
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
 
-  if (url.pathname === '/api/catalog') {
+  const api = url.pathname.match(/^\/api\/([a-z0-9_-]+)$/);
+  if (api) {
+    const handler = await loadHandler(api[1]);
+    if (!handler) { res.statusCode = 404; return res.end('{"error":"not_found"}'); }
+    req.body = req.method === 'POST' ? await readBody(req) : undefined;
     const r = {
       status(c) { res.statusCode = c; return r; },
       setHeader(k, v) { res.setHeader(k, v); },
       json(b) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(b)); },
     };
-    return catalog({ method: req.method }, r);
+    try {
+      return await handler(req, r);
+    } catch (e) {
+      console.error('api error:', e);
+      res.statusCode = 500;
+      return res.end('{"error":"server_error"}');
+    }
   }
 
   let rel = normalize(decodeURIComponent(url.pathname)).replace(/^[\\/]+/, '');

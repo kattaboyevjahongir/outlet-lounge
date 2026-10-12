@@ -125,6 +125,10 @@
                 <button type="button" class="pd-share" data-share aria-label="${t('pd.share')}"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.4"/><circle cx="17.5" cy="6" r="2.4"/><circle cx="17.5" cy="18" r="2.4"/><path d="m8.2 10.9 7.1-3.7M8.2 13.1l7.1 3.7"/></svg></button>
               </div>
 
+              ${inStock
+    ? `<button type="button" class="btn btn-ghost pd-quick" data-quick><span>${t('qb.btn')}</span></button>`
+    : `<button type="button" class="btn btn-ghost pd-quick" data-notify><span>${t('nt.btn')}</span></button>`}
+
               <ul class="pd-trust">${t('pd.trust').map((x) => `<li><svg viewBox="0 0 24 24"><path d="m5 12.5 4.2 4.2L19 7"/></svg>${x}</li>`).join('')}</ul>
 
               <div class="pd-acc">
@@ -163,6 +167,41 @@
               <tbody>${SIZE_TABLE.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody>
             </table>
             <p class="sg-note">${t('sg.note')}</p>
+          </div>
+        </div>
+
+        <div class="modal" id="quickBuy" role="dialog" aria-modal="true" aria-label="${t('qb.title')}" aria-hidden="true">
+          <div class="modal-backdrop" data-close-modal></div>
+          <div class="modal-card">
+            <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            <form class="mform" data-form="quick" novalidate>
+              <h2>${t('qb.title')}</h2>
+              <p>${t('qb.text')}</p>
+              <p class="mform-item"><b>${esc(p.name)}</b><span data-quick-size></span></p>
+              <label class="fld"><span>${t('qb.name')}</span><input name="name" autocomplete="name" maxlength="80"><em class="fld-err"></em></label>
+              <label class="fld"><span>${t('qb.phone')}</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67"><em class="fld-err"></em></label>
+              <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+              <p class="ck-error" data-form-error hidden></p>
+              <button type="submit" class="btn btn-gold"><span>${t('qb.send')}</span></button>
+            </form>
+            <div class="mdone" hidden><h2>${t('qb.doneTitle')}</h2><p>${t('qb.doneText')}</p><p class="mdone-no"></p></div>
+          </div>
+        </div>
+
+        <div class="modal" id="notifyMe" role="dialog" aria-modal="true" aria-label="${t('nt.title')}" aria-hidden="true">
+          <div class="modal-backdrop" data-close-modal></div>
+          <div class="modal-card">
+            <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            <form class="mform" data-form="notify" novalidate>
+              <h2>${t('nt.title')}</h2>
+              <p>${t('nt.text')}</p>
+              <label class="fld"><span>${t('nt.phone')}</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67"><em class="fld-err"></em></label>
+              <label class="fld"><span>${t('nt.telegram')}</span><input name="telegram" autocomplete="off" placeholder="@username" maxlength="40"><em class="fld-err"></em></label>
+              <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+              <p class="ck-error" data-form-error hidden></p>
+              <button type="submit" class="btn btn-gold"><span>${t('nt.send')}</span></button>
+            </form>
+            <div class="mdone" hidden><h2>${t('nt.doneTitle')}</h2><p>${t('nt.doneText')}</p></div>
           </div>
         </div>
       </article>`;
@@ -281,7 +320,16 @@
         html.classList.toggle('modal-open', open);
         OL.lockScroll();
       };
-      const onGuideKey = (e) => { if (e.key === 'Escape' && guide.classList.contains('is-open')) setGuide(false); };
+      const onGuideKey = (e) => {
+        if (e.key !== 'Escape') return;
+        if (guide.classList.contains('is-open')) setGuide(false);
+        page.querySelectorAll('#quickBuy.is-open, #notifyMe.is-open').forEach((m) => {
+          m.classList.remove('is-open');
+          m.setAttribute('aria-hidden', 'true');
+          html.classList.remove('modal-open');
+          OL.lockScroll();
+        });
+      };
       document.addEventListener('keydown', onGuideKey);
       OL.onCleanup(() => { document.removeEventListener('keydown', onGuideKey); html.classList.remove('modal-open'); });
 
@@ -324,8 +372,120 @@
         OL.onCleanup(() => io.disconnect());
       }
 
+      /* ---- quick order + notify-me (modals with small forms) ---- */
+      const O = OL.orderLogic;
+      const modalOpenedAt = {};
+      const setModal = (el, open) => {
+        el.classList.toggle('is-open', open);
+        el.setAttribute('aria-hidden', String(!open));
+        html.classList.toggle('modal-open', open || !!page.querySelector('.modal.is-open'));
+        OL.lockScroll();
+        if (open) {
+          modalOpenedAt[el.id] = Date.now();
+          const first = el.querySelector('input:not([tabindex="-1"])');
+          if (first) setTimeout(() => first.focus({ preventScroll: true }), 80);
+        }
+      };
+      const errorBanner = (form, text) => {
+        const b = form.querySelector('[data-form-error]');
+        b.hidden = !text;
+        b.textContent = text || '';
+      };
+      const fieldErr = (form, name, key) => {
+        const input = form.elements[name];
+        const holder = input.closest('.fld');
+        holder.classList.toggle('has-error', !!key);
+        holder.querySelector('.fld-err').textContent = key ? t('err.' + key) : '';
+      };
+      const bindPhoneMask = (form) => {
+        const input = form.elements.phone;
+        input.addEventListener('input', (e) => {
+          const del = e.inputType && e.inputType.startsWith('delete');
+          input.value = del && !O.phoneDigits(input.value) ? '' : O.formatPhone(input.value);
+        });
+      };
+      const post = async (form, body) => {
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        errorBanner(form, '');
+        let data = {};
+        let status = 0;
+        try {
+          const r = await fetch('/api/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          status = r.status;
+          data = await r.json().catch(() => ({}));
+        } catch (e) {
+          errorBanner(form, t('err.network'));
+          btn.disabled = false;
+          return null;
+        }
+        btn.disabled = false;
+        if (status >= 200 && status < 300 && data.ok) return data;
+        if (status === 429) errorBanner(form, t('err.tooMany'));
+        else if (status === 503) errorBanner(form, t('err.down'));
+        else if (data.error === 'out_of_stock' || data.error === 'unavailable') errorBanner(form, t('err.gone', { name: p.name }));
+        else if (data.error === 'invalid' && data.field === 'phone') fieldErr(form, 'phone', 'phone');
+        else errorBanner(form, t('err.generic'));
+        return null;
+      };
+      const quick = $('#quickBuy');
+      const notify = $('#notifyMe');
+      $$('.mform').forEach(bindPhoneMask);
+
+      quick.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const errs = O.validate({ name: form.elements.name.value, phone: form.elements.phone.value }, {});
+        fieldErr(form, 'name', errs.name);
+        fieldErr(form, 'phone', errs.phone);
+        if (errs.name || errs.phone) return;
+        const data = await post(form, {
+          type: 'quick',
+          website: form.elements.website.value,
+          elapsed: Date.now() - (modalOpenedAt.quickBuy || Date.now()),
+          lang: OL.state.lang,
+          customer: { name: form.elements.name.value, phone: O.toE164(form.elements.phone.value) },
+          items: [{ slug: p.slug, size: selected, qty: 1 }],
+        });
+        if (!data) return;
+        form.hidden = true;
+        const done = quick.querySelector('.mdone');
+        done.hidden = false;
+        done.querySelector('.mdone-no').textContent = data.number;
+      });
+
+      notify.querySelector('form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const form = e.target;
+        const errs = O.validate({ name: 'xx', phone: form.elements.phone.value, telegram: form.elements.telegram.value }, {});
+        fieldErr(form, 'phone', errs.phone && !form.elements.telegram.value.trim() ? 'phone' : '');
+        fieldErr(form, 'telegram', errs.telegram);
+        if ((errs.phone && !form.elements.telegram.value.trim()) || errs.telegram) return;
+        const data = await post(form, {
+          type: 'notify',
+          website: form.elements.website.value,
+          elapsed: Date.now() - (modalOpenedAt.notifyMe || Date.now()),
+          slug: p.slug,
+          phone: O.isValidPhone(form.elements.phone.value) ? O.toE164(form.elements.phone.value) : '',
+          telegram: form.elements.telegram.value,
+        });
+        if (!data) return;
+        form.hidden = true;
+        notify.querySelector('.mdone').hidden = false;
+      });
+
       /* ---- clicks ---- */
       page.addEventListener('click', (e) => {
+        if (e.target.closest('[data-quick]')) {
+          if (selected == null) return needSize();
+          quick.querySelector('[data-quick-size]').textContent = ` · EU ${selected}`;
+          return setModal(quick, true);
+        }
+        if (e.target.closest('[data-notify]')) return setModal(notify, true);
+        if (e.target.closest('[data-close-modal]')) {
+          const m = e.target.closest('.modal');
+          if (m && m.id !== 'sizeGuide') return setModal(m, false);
+        }
         const thumb = e.target.closest('[data-thumb]');
         if (thumb) return go(Number(thumb.dataset.thumb));
         const step = e.target.closest('[data-step]');
