@@ -3,7 +3,7 @@
 // Access control is NOT done here: the database (row level security + the functions in
 // supabase/migrations/20261014000000_admin.sql) decides what a signed-in person may do.
 
-import { orderSearch, rangeStart, variantPath, photoVariants, isUploadedPath } from './logic.js';
+import { orderSearch, rangeStart, variantPath, photoVariants, isUploadedPath, loginEmail } from './logic.js';
 import { processImage } from './images.js';
 
 export class AdminError extends Error {
@@ -19,6 +19,8 @@ export function mapError(e) {
   if (e instanceof AdminError) return e;
   const msg = String((e && (e.message || e.error_description)) || e || '');
   const code = String((e && e.code) || '');
+  if (/last_owner/.test(msg)) return new AdminError('last_owner', msg);
+  if ((code === '23505' || /duplicate key|unique/i.test(msg)) && /promo_codes/.test(msg)) return new AdminError('promo_taken', msg);
   if (code === '23505' || /duplicate key|unique/i.test(msg)) return new AdminError('slug_taken', msg);
   if (code === '42501' || /permission denied|row-level security|forbidden/i.test(msg)) return new AdminError('denied', msg);
   if (code === 'PGRST301' || /jwt|not authenticated|invalid refresh token/i.test(msg)) return new AdminError('auth', msg);
@@ -79,6 +81,22 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
     return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/product-images/${variantPath(path, width)}`;
   };
   const bucket = () => client.storage.from('product-images');
+  // POST to one of our /api endpoints; failures become AdminError(<server's error code>)
+  const postJson = async (path, body, token) => {
+    let res;
+    try {
+      res = await fetch(`${apiBase}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body),
+      });
+    } catch { throw new AdminError('offline'); }
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) return data;
+    const err = new AdminError(data.error || (res.status === 401 ? 'auth' : res.status === 403 ? 'denied' : 'unknown'), data.field || '');
+    err.info = data;
+    throw err;
+  };
 
   return {
     mode: 'live',
@@ -93,8 +111,9 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
       const { data } = client.auth.onAuthStateChange((event, session) => cb(event, session));
       return () => data.subscription.unsubscribe();
     },
-    async signIn(email, password) {
-      const { data, error } = await client.auth.signInWithPassword({ email, password });
+    // staff type a username; it is turned into the login e-mail (see logic.js loginEmail)
+    async signIn(username, password) {
+      const { data, error } = await client.auth.signInWithPassword({ email: loginEmail(username), password });
       if (error) {
         if (error.status === 429 || /rate limit/i.test(error.message)) throw new AdminError('too_many');
         throw new AdminError(/invalid/i.test(error.message) ? 'invalid_login' : 'unknown', error.message);
@@ -114,9 +133,9 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
     },
     // the signed-in person's staff row (null = signed in but not staff / deactivated)
     async loadStaff(userId) {
-      const r = await client.from('staff').select('name,role,is_active').eq('user_id', userId).maybeSingle();
+      const r = await client.from('staff').select('name,role,is_active,username').eq('user_id', userId).maybeSingle();
       const row = check(r);
-      return row && row.is_active ? { name: row.name, role: row.role } : null;
+      return row && row.is_active ? { name: row.name, role: row.role, username: row.username || '' } : null;
     },
 
     /* ----------------------------------------------------- dashboard */
@@ -272,6 +291,128 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
     async deletePhotos(paths) {
       const files = paths.filter(isUploadedPath).flatMap(photoVariants);
       if (files.length) await bucket().remove(files).catch(() => {}); // orphans are harmless
+    },
+
+    /* ------------------------------------------------- account & setup */
+    async touchLogin() {
+      try { await client.rpc('touch_login'); } catch { /* not important */ }
+    },
+    // verifies the current password again, then sets the new one
+    async changePassword(username, current, next) {
+      const { error } = await client.auth.signInWithPassword({ email: loginEmail(username), password: current });
+      if (error) throw new AdminError('wrong_password');
+      const r = await client.auth.updateUser({ password: next });
+      if (r.error) throw new AdminError(/weak|short|least/i.test(r.error.message) ? 'weak_password' : 'unknown', r.error.message);
+    },
+    async setupStatus() {
+      const r = await fetch(`${apiBase}/api/admin-setup`, { cache: 'no-store' }).catch(() => null);
+      if (!r || !r.ok) return { open: false, telegram: false };
+      return r.json();
+    },
+    async setupSend() {
+      return postJson('/api/admin-setup', { action: 'send' });
+    },
+    async setupClaim(payload) {
+      return postJson('/api/admin-setup', { action: 'claim', ...payload });
+    },
+
+    /* ------------------------------------------------- staff (owner) */
+    async listStaff() {
+      const res = await client.from('staff').select('user_id,name,role,is_active,username,last_login,created_at').order('created_at');
+      return check(res);
+    },
+    async staffAction(payload) {
+      const session = await this.getSession();
+      if (!session) throw new AdminError('auth');
+      return postJson('/api/admin-staff', payload, session.access_token);
+    },
+    async telegramTest() {
+      const session = await this.getSession();
+      if (!session) throw new AdminError('auth');
+      return postJson('/api/admin-telegram', { action: 'test' }, session.access_token);
+    },
+
+    /* ----------------------------------------------- settings (owner) */
+    async getSettings() {
+      const rows = check(await client.from('settings').select('key,value,is_public'));
+      return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    },
+    async saveSetting(key, value, isPublic = true) {
+      const res = await client.from('settings')
+        .upsert({ key, value, is_public: isPublic, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+        .select('key');
+      if (check(res).length === 0) throw new AdminError('denied');
+    },
+
+    /* ------------------------------------------------ promo (owner) */
+    async listPromos() {
+      const codes = check(await client.from('promo_codes').select('*').order('created_at', { ascending: false }));
+      const used = check(await client.from('orders').select('promo_code_id,total,discount,status').not('promo_code_id', 'is', null));
+      const by = new Map();
+      for (const o of used) {
+        if (o.status === 'cancelled') continue;
+        const e = by.get(o.promo_code_id) || { orders: 0, revenue: 0, discount: 0 };
+        e.orders += 1; e.revenue += o.total; e.discount += o.discount;
+        by.set(o.promo_code_id, e);
+      }
+      return codes.map((c) => ({ ...c, stats: by.get(c.id) || { orders: 0, revenue: 0, discount: 0 } }));
+    },
+    async savePromo(row, id) {
+      const q = id ? client.from('promo_codes').update(row).eq('id', id).select('id') : client.from('promo_codes').insert(row).select('id');
+      const res = await q;
+      if (res.error) throw mapError(res.error);
+      if (!res.data.length) throw new AdminError('denied');
+    },
+    async deletePromo(id) {
+      const res = await client.from('promo_codes').delete().eq('id', id).select('id');
+      if (check(res).length === 0) throw new AdminError('denied');
+    },
+
+    /* ------------------------------------- reports, exports (owner) */
+    async report(from, to) {
+      return check(await client.rpc('admin_report', { p_from: from, p_to: to }));
+    },
+    // every order in the range with its lines, oldest first (paged: PostgREST returns 1000 rows at most)
+    async exportOrders(from, to) {
+      const rows = [];
+      for (let offset = 0; offset < 20000; offset += 500) {
+        const res = await client.from('orders')
+          .select('number,status,created_at,customer_name,phone,telegram,delivery_method,region,city,address,landmark,payment_method,subtotal,discount,delivery_fee,total,comment,tracking_no,promo_codes(code),order_items(brand_snapshot,name_snapshot,size_eu,qty,unit_price)')
+          .gte('created_at', from).lt('created_at', to).order('created_at').range(offset, offset + 499);
+        const page = check(res);
+        rows.push(...page);
+        if (page.length < 500) break;
+      }
+      return rows.map((o) => ({ ...o, promo_code: o.promo_codes ? o.promo_codes.code : '', items: o.order_items || [] }));
+    },
+
+    /* ---------------------------------------------- activity (owner) */
+    async listActivity({ entity = '', page = 1, pageSize = 40 } = {}) {
+      let q = client.from('activity_log').select('*', { count: 'exact' }).order('created_at', { ascending: false });
+      if (entity) q = q.eq('entity', entity);
+      const from = (page - 1) * pageSize;
+      const res = await q.range(from, from + pageSize - 1);
+      if (res.error) throw mapError(res.error);
+      return { rows: res.data, total: res.count || 0 };
+    },
+
+    /* --------------------------------------------- bulk product edits */
+    // op: { active: boolean } | { discount: percent }
+    async bulkProducts(products, op) {
+      let n = 0;
+      if (op.active !== undefined) {
+        const ids = products.map((p) => p.id);
+        const res = await client.from('products').update({ is_active: !!op.active }).in('id', ids).select('id');
+        n = check(res).length;
+      } else {
+        for (const p of products) {
+          const base = p.old_price && p.old_price > p.price ? p.old_price : p.price;
+          const price = Math.max(1000, Math.round((base * (1 - op.discount / 100)) / 1000) * 1000);
+          const res = await client.from('products').update({ price, old_price: price < base ? base : null }).eq('id', p.id).select('id');
+          n += check(res).length;
+        }
+      }
+      return n;
     },
   };
 }

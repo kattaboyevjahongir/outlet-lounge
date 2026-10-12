@@ -60,6 +60,56 @@ export async function userRpc(jwt, name, args) {
   return { ok: false, status: res.status, error: (data && (data.message || data.error)) || `rpc ${res.status}` };
 }
 
+// insert or replace by primary key (settings.key)
+export const upsert = (table, row, conflict) =>
+  call('POST', `${table}?on_conflict=${conflict}`, row, { Prefer: 'resolution=merge-duplicates,return=minimal' });
+export const remove = (path) => call('DELETE', path, undefined, { Prefer: 'return=representation' });
+
+// Supabase Auth admin API (create / change users). Service role only; never reachable from a browser.
+export async function authAdmin(method, path, body) {
+  const cfg = supabaseConfig();
+  if (!cfg) throw Object.assign(new Error('not_configured'), { code: 'not_configured' });
+  const res = await fetch(`${cfg.url}/auth/v1${path}`, {
+    method,
+    headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}`, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT),
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  return { ok: res.ok, status: res.status, data, code: data && (data.error_code || data.code) };
+}
+
+// Who is calling? Validates the staff session token with Supabase Auth and loads the staff row.
+// -> { user: { id }, staff: { user_id, name, role, is_active, username } } | { error: 'unauthorized' | 'forbidden' | 'not_configured' }
+export async function staffFromRequest(req) {
+  const jwt = String((req.headers && req.headers.authorization) || '').replace(/^Bearer\s+/i, '').trim();
+  const url = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const anon = process.env.SUPABASE_ANON_KEY || '';
+  if (!url || !anon || !supabaseConfig()) return { error: 'not_configured' };
+  if (!jwt) return { error: 'unauthorized' };
+  let user;
+  try {
+    const r = await fetch(`${url}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${jwt}` }, signal: AbortSignal.timeout(TIMEOUT),
+    });
+    if (!r.ok) return { error: 'unauthorized' };
+    user = await r.json();
+  } catch {
+    return { error: 'unauthorized' };
+  }
+  if (!user || !user.id) return { error: 'unauthorized' };
+  const s = await select(`staff?user_id=eq.${encodeURIComponent(user.id)}&select=user_id,name,role,is_active,username`);
+  const row = s.ok && Array.isArray(s.data) && s.data[0];
+  if (!row || !row.is_active) return { error: 'forbidden' };
+  return { user: { id: user.id }, staff: row };
+}
+
+export const logActivity = (actor, action, entity, entityId, diff) =>
+  insert('activity_log', { actor, action, entity, entity_id: entityId, diff });
+
+
 /* ------------------------------------------------------------ Telegram */
 // The managers' chat: TELEGRAM_CHAT_ID, or else `chat_id` in the private `telegram` setting
 // (picked during setup, editable in admin later). null = alerts are off. Cached for a minute.

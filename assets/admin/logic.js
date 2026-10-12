@@ -218,6 +218,158 @@ export function moveItem(list, from, to) {
   return out;
 }
 
+/* ------------------------------------------------------------- sign-in */
+// Staff type a username, not an e-mail. Supabase Auth wants an e-mail-shaped login, so the username
+// becomes <username>@staff.outlet-lounge.invalid — a reserved domain (RFC 2606) that can never
+// receive mail, so no reset message can ever be intercepted. Real e-mail addresses still work.
+export const STAFF_EMAIL_DOMAIN = 'staff.outlet-lounge.invalid';
+export const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+export const loginEmail = (input) => {
+  const v = String(input == null ? '' : input).trim().toLowerCase();
+  if (!v) return '';
+  return v.includes('@') ? v : `${v}@${STAFF_EMAIL_DOMAIN}`;
+};
+export const usernameFromEmail = (email) => {
+  const e = String(email || '').toLowerCase();
+  return e.endsWith(`@${STAFF_EMAIL_DOMAIN}`) ? e.slice(0, -STAFF_EMAIL_DOMAIN.length - 1) : e;
+};
+// -> null | 'required' | 'format'
+export const usernameProblem = (u) => {
+  const v = String(u == null ? '' : u).trim().toLowerCase();
+  if (!v) return 'required';
+  return USERNAME_RE.test(v) ? null : 'format';
+};
+// the same rule Supabase enforces (config.toml): 10+ characters with letters and digits
+// -> null | 'short' | 'weak'
+export const passwordProblem = (pw) => {
+  const v = String(pw == null ? '' : pw);
+  if (v.length < 10) return 'short';
+  return /[A-Za-z]/.test(v) && /\d/.test(v) ? null : 'weak';
+};
+// readable random password (no 0/O/1/l/I); `bytes` = a Uint8Array of random values
+const PW_ALPHABET = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const generatePassword = (bytes, length = 12) => {
+  let out = '';
+  for (let i = 0; i < length; i += 1) out += PW_ALPHABET[bytes[i % bytes.length] % PW_ALPHABET.length];
+  if (!/\d/.test(out)) out = `${out.slice(0, -1)}7`;
+  if (!/[A-Za-z]/.test(out)) out = `a${out.slice(1)}`;
+  return out;
+};
+
+/* ---------------------------------------------------------------- promo */
+export const PROMO_RE = /^[A-Z0-9][A-Z0-9_-]{2,19}$/;
+export const emptyPromo = () => ({
+  id: null, code: '', type: 'percent', value: '', min_order: '', starts_at: '', ends_at: '',
+  usage_limit: '', per_phone_limit: '', is_active: true,
+});
+const TZ_MS = 5 * 3600 * 1000;
+// <input type="datetime-local"> values are shop time (Tashkent, UTC+5)
+export const localToIso = (v) => (v ? new Date(`${v}:00+05:00`).toISOString() : null);
+export const isoToLocal = (iso) => (iso ? new Date(new Date(iso).getTime() + TZ_MS).toISOString().slice(0, 16) : '');
+
+export function validatePromo(f) {
+  const errors = {};
+  const code = String(f.code || '').trim().toUpperCase();
+  if (!PROMO_RE.test(code)) errors.code = 'code';
+  const value = parseMoney(f.value);
+  if (value == null || value <= 0) errors.value = 'positive';
+  else if (f.type === 'percent' && value > 100) errors.value = 'percent';
+  const min = parseMoney(f.min_order);
+  if (f.min_order !== '' && min == null) errors.min_order = 'number';
+  for (const k of ['usage_limit', 'per_phone_limit']) {
+    const n = parseMoney(f[k]);
+    if (f[k] !== '' && (n == null || n < 1)) errors[k] = 'positive';
+  }
+  if (f.starts_at && f.ends_at && localToIso(f.ends_at) <= localToIso(f.starts_at)) errors.ends_at = 'range';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+export const promoToRow = (f) => ({
+  code: String(f.code).trim().toUpperCase(),
+  type: f.type === 'fixed' ? 'fixed' : 'percent',
+  value: parseMoney(f.value),
+  min_order: parseMoney(f.min_order) || 0,
+  starts_at: localToIso(f.starts_at),
+  ends_at: localToIso(f.ends_at),
+  usage_limit: parseMoney(f.usage_limit),
+  per_phone_limit: parseMoney(f.per_phone_limit),
+  is_active: !!f.is_active,
+});
+export function promoState(p, now = Date.now()) {
+  if (!p.is_active) return 'inactive';
+  if (p.starts_at && new Date(p.starts_at).getTime() > now) return 'scheduled';
+  if (p.ends_at && new Date(p.ends_at).getTime() < now) return 'expired';
+  if (p.usage_limit != null && p.used_count >= p.usage_limit) return 'used_up';
+  return 'active';
+}
+
+/* ------------------------------------------------------------- settings */
+export const DELIVERY_METHODS = ['courier_tashkent', 'regions', 'pickup'];
+// a pasted link or @name → the bare handle
+export const cleanHandle = (v) => String(v == null ? '' : v).trim()
+  .replace(/^https?:\/\/(www\.)?(t\.me|telegram\.me|instagram\.com)\//i, '').replace(/^@/, '').replace(/\/+$/, '');
+export function validateContacts(c) {
+  const errors = {};
+  const phone = String(c.phone || '').replace(/\D/g, '');
+  if (c.phone && (phone.length < 9 || phone.length > 15)) errors.phone = 'phone';
+  const handle = cleanHandle;
+  if (c.telegram && !/^[A-Za-z0-9_]{4,32}$/.test(handle(c.telegram))) errors.telegram = 'handle';
+  if (c.telegram_bot && !/^[A-Za-z0-9_]{4,32}$/.test(handle(c.telegram_bot))) errors.telegram_bot = 'handle';
+  if (c.instagram && !/^[A-Za-z0-9_.]{1,30}$/.test(handle(c.instagram))) errors.instagram = 'handle';
+  const mins = parseMoney(c.call_minutes);
+  if (c.call_minutes !== '' && c.call_minutes != null && (mins == null || mins < 1 || mins > 600)) errors.call_minutes = 'minutes';
+  if (c.hours && String(c.hours).length > 40) errors.hours = 'long';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+export function validateDelivery(d) {
+  const errors = {};
+  for (const id of DELIVERY_METHODS) {
+    const fee = parseMoney(d[id]);
+    if (fee == null || fee < 0) errors[id] = 'fee';
+  }
+  if (d.free_threshold !== '' && d.free_threshold != null && parseMoney(d.free_threshold) == null) errors.free_threshold = 'fee';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+
+/* --------------------------------------------------------------- charts */
+// daily: [{ day, orders, revenue }] oldest first → bars scaled to the tallest day
+export function chartBars(daily, height = 120) {
+  const max = Math.max(1, ...daily.map((d) => Number(d.revenue) || 0));
+  return daily.map((d, i) => {
+    const v = Number(d.revenue) || 0;
+    return { i, day: d.day, orders: d.orders, revenue: v, h: v === 0 ? 2 : Math.max(4, Math.round((v / max) * height)) };
+  });
+}
+
+// { from, to } (ISO, `to` exclusive) for the report presets, in shop time
+export function reportRange(preset, now = new Date()) {
+  const local = new Date(now.getTime() + TZ_MS);
+  const y = local.getUTCFullYear();
+  const m = local.getUTCMonth();
+  const d = local.getUTCDate();
+  const midnight = (yy, mm, dd) => new Date(Date.UTC(yy, mm, dd) - TZ_MS);
+  const tomorrow = midnight(y, m, d + 1);
+  const start = {
+    today: midnight(y, m, d),
+    '7d': midnight(y, m, d - 6),
+    '30d': midnight(y, m, d - 29),
+    month: midnight(y, m, 1),
+    year: midnight(y, 0, 1),
+  }[preset] || midnight(y, m, d - 29);
+  return { from: start.toISOString(), to: tomorrow.toISOString() };
+}
+
+/* ------------------------------------------------------------ activity */
+const SKIP_FIELDS = new Set(['id', 'created_at', 'updated_at', 'updated_by', 'user_id', 'slug']);
+// -> { entity, action, label, changes: [{ field, from, to }] }
+export function activityView(row) {
+  const diff = row.diff || {};
+  const changes = Object.entries(diff.changes || {})
+    .filter(([k]) => !SKIP_FIELDS.has(k))
+    .map(([field, [from, to]]) => ({ field, from, to }));
+  return { entity: row.entity, action: row.action, label: diff.label || '', eu: diff.eu || null, changes };
+}
+
+
 /* ---------------------------------------------------------------- time */
 export function ago(iso, now = Date.now()) {
   const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));

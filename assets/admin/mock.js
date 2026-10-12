@@ -3,7 +3,7 @@
 // It follows the same rules as the real one: status flow, stock returned on cancel, size rows kept.
 
 import { AdminError } from './data.js';
-import { SLUG_RE, nextStatuses, orderSearch, rangeStart, isUploadedPath } from './logic.js';
+import { SLUG_RE, USERNAME_RE, nextStatuses, orderSearch, rangeStart, isUploadedPath, passwordProblem } from './logic.js';
 import { processImage } from './images.js';
 
 const U = (id) => `https://images.unsplash.com/${id}`;
@@ -78,9 +78,37 @@ export function createMock() {
   orders[3].events.push({ id: uid(), from_status: 'new', to_status: 'confirmed', note: 'Telegram', actor: 'telegram:Малика', created_at: minutesAgo(60 * 19) });
   orders[3].events.push({ id: uid(), from_status: 'confirmed', to_status: 'shipped', note: null, actor: 'Админ', created_at: minutesAgo(60 * 6) });
 
-  const staff = { name: 'Демо-владелец', role: (location.search.match(/role=(manager)/) || [])[1] || 'owner' };
+  const params = new URLSearchParams(location.search);
+  const staff = { name: 'Демо-владелец', role: params.get('role') === 'manager' ? 'manager' : 'owner' };
+  let setupOpen = params.has('setup');
+  let claimed = null;
+  const staffList = [
+    { user_id: 'u1', name: 'Демо-владелец', role: 'owner', is_active: true, username: 'owner', last_login: minutesAgo(5), created_at: minutesAgo(60 * 24 * 30) },
+    { user_id: 'u2', name: 'Малика К.', role: 'manager', is_active: true, username: 'malika', last_login: minutesAgo(60 * 3), created_at: minutesAgo(60 * 24 * 12) },
+    { user_id: 'u3', name: 'Жасур Т.', role: 'manager', is_active: false, username: 'jasur', last_login: null, created_at: minutesAgo(60 * 24 * 3) },
+  ];
+  const settings = {
+    contacts: { phone: '+998 90 123 45 67', hours: '10:00–21:00', call_minutes: 15, telegram: 'outlet_manager', telegram_bot: 'outlet_lounge_bot', instagram: 'outlet.lounge' },
+    delivery: { methods: [{ id: 'courier_tashkent', fee: 30000 }, { id: 'regions', fee: 50000 }, { id: 'pickup', fee: 0 }], free_threshold: 1500000 },
+    home: { hero: { image: 'https://images.unsplash.com/photo-1491553895911-0055eca6402d', product: 'kyrie-7-onyx' }, deal_ends: null },
+    telegram: { bot: 'outlet_lounge_bot', chat_id: -1004346539283, chat_title: 'Outlet_requests' },
+  };
+  const promos = [
+    { id: 'pr1', code: 'LOUNGE10', type: 'percent', value: 10, min_order: 500000, starts_at: null, ends_at: null, usage_limit: 100, per_phone_limit: 1, used_count: 7, is_active: true, created_at: minutesAgo(60 * 24 * 9) },
+    { id: 'pr2', code: 'WEEKEND50', type: 'fixed', value: 50000, min_order: 0, starts_at: null, ends_at: minutesAgo(60 * 24 * 2), usage_limit: null, per_phone_limit: null, used_count: 31, is_active: true, created_at: minutesAgo(60 * 24 * 20) },
+  ];
+  const activity = [
+    ['Малика К.', 'update', 'products', 'Air Max 1 “Sunset”', { price: ['1190000', '1250000'] }, 12],
+    ['Малика К.', 'update', 'product_sizes', 'Air Max 1 “Sunset”', { stock: ['3', '9'] }, 40, 42],
+    ['Демо-владелец', 'update', 'promo_codes', 'LOUNGE10', { value: ['5', '10'] }, 120],
+    ['Демо-владелец', 'update', 'settings', 'delivery', { value: ['{"free_threshold":1200000}', '{"free_threshold":1500000}'] }, 300],
+    ['Демо-владелец', 'insert', 'staff', 'malika', {}, 60 * 24 * 12],
+    ['Малика К.', 'insert', 'products', 'Dunk High “Coral Cream”', {}, 60 * 30],
+    ['Малика К.', 'update', 'products', '247 “Olive Suede”', { is_active: ['true', 'false'] }, 60 * 40],
+  ].map((a, i) => ({ id: `a${i}`, actor: a[0], action: a[1], entity: a[2], entity_id: String(i), created_at: minutesAgo(a[5]),
+    diff: { label: a[3], changes: a[4], eu: a[6] ? String(a[6]) : null } }));
   const blobs = new Map();
-  let signedIn = true;
+  let signedIn = !params.has('login') && !params.has('setup');
   const listeners = new Set();
 
   const view = (p) => ({ ...clone(p), brand_name: brandName(p.brand_id) });
@@ -91,11 +119,17 @@ export function createMock() {
 
     async getSession() { return signedIn ? { user: { id: 'demo' }, access_token: 'demo' } : null; },
     onAuthChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-    async signIn() { await delay(); signedIn = true; listeners.forEach((f) => f('SIGNED_IN', {})); return {}; },
+    async signIn(username, password) {
+      await delay();
+      if (password !== 'demo' && !claimed) throw new AdminError('invalid_login');
+      signedIn = true;
+      listeners.forEach((f) => f('SIGNED_IN', {}));
+      return {};
+    },
     async signOut() { signedIn = false; listeners.forEach((f) => f('SIGNED_OUT', null)); },
     async sendReset() { await delay(); },
     async setPassword() { await delay(); },
-    async loadStaff() { return { ...staff }; },
+    async loadStaff() { return claimed ? { name: 'Владелец', role: 'owner', username: claimed } : { ...staff, username: 'owner' }; },
 
     async overview() {
       await delay();
@@ -114,6 +148,14 @@ export function createMock() {
       return {
         by_status, today_orders: inDay.length, today_revenue: inDay.reduce((a, o) => a + o.total, 0),
         week_orders: inWeek.length, week_revenue: inWeek.reduce((a, o) => a + o.total, 0), notify_waiting: 2, low_stock: low.slice(0, 30),
+        daily: Array.from({ length: 30 }, (_, n) => {
+          const d = new Date(Date.now() + 5 * 3600000 - (29 - n) * 86400000).toISOString().slice(0, 10);
+          const l = live.filter((o) => new Date(new Date(o.created_at).getTime() + 5 * 3600000).toISOString().slice(0, 10) === d);
+          const seed = 400000 + ((n * 7919) % 9) * 260000; // gentle fake history so the chart has a shape
+          return { day: d, orders: l.length || 1 + (n % 4), revenue: l.reduce((a, o) => a + o.total, 0) || seed };
+        }),
+        top_products: [...live.flatMap((o) => o.items).reduce((m, i) => m.set(i.name, (m.get(i.name) || 0) + i.qty), new Map()).entries()]
+          .map(([name, qty]) => ({ name, qty, revenue: qty * 1000000 })).sort((a, b) => b.qty - a.qty).slice(0, 5),
       };
     },
 
@@ -225,5 +267,119 @@ export function createMock() {
       return { path, url: blobs.get(path), sizes: variants.map((v) => v.blob.size) };
     },
     async deletePhotos(paths) { paths.filter(isUploadedPath).forEach((p) => blobs.delete(p)); },
+
+    /* ---------------------------------------------- phase 5 (owner tools) */
+    async touchLogin() {},
+    async changePassword(username, current) {
+      await delay();
+      if (current !== 'demo-pass-1') throw new AdminError('wrong_password');
+    },
+    async setupStatus() { return { open: setupOpen, telegram: true }; },
+    async setupSend() { await delay(); return { ok: true, ttl_minutes: 15 }; },
+    async setupClaim({ code, username }) {
+      await delay();
+      if (code !== '12345678') { const e = new AdminError('invalid_code'); e.info = { attempts_left: 4 }; throw e; }
+      setupOpen = false;
+      claimed = username;
+      return { ok: true, username };
+    },
+
+    async listStaff() { await delay(); return clone(staffList); },
+    async staffAction(p) {
+      await delay(150);
+      const bad = (field, reason) => { const e = new AdminError('invalid', field); e.info = { field, reason }; return e; };
+      if (p.action === 'create') {
+        if (!USERNAME_RE.test(String(p.username || '').toLowerCase())) throw bad('username');
+        if (passwordProblem(p.password)) throw bad('password', passwordProblem(p.password));
+        if (staffList.some((s) => s.username === p.username.toLowerCase())) throw new AdminError('username_taken');
+        staffList.push({ user_id: uid(), name: p.name, role: p.role, is_active: true, username: p.username.toLowerCase(), last_login: null, created_at: new Date().toISOString() });
+        return { ok: true };
+      }
+      const row = staffList.find((s) => s.user_id === p.user_id);
+      if (!row) throw new AdminError('not_found');
+      if (p.action === 'password') {
+        if (passwordProblem(p.password)) throw bad('password', passwordProblem(p.password));
+        return { ok: true };
+      }
+      if ((p.is_active === false || (p.role && p.role !== 'owner')) && row.user_id === staffList[0].user_id) throw new AdminError('self');
+      if (p.role !== undefined) row.role = p.role;
+      if (p.is_active !== undefined) row.is_active = !!p.is_active;
+      if (!staffList.some((s) => s.role === 'owner' && s.is_active)) { row.role = 'owner'; row.is_active = true; throw new AdminError('last_owner'); }
+      return { ok: true };
+    },
+    async telegramTest() { await delay(); return { ok: true }; },
+
+    async getSettings() { await delay(); return clone(settings); },
+    async saveSetting(key, value) { await delay(); settings[key] = clone(value); },
+
+    async listPromos() {
+      await delay();
+      return promos.map((p) => ({ ...clone(p), stats: { orders: p.used_count, revenue: p.used_count * 1400000, discount: p.used_count * 120000 } }));
+    },
+    async savePromo(row, id) {
+      await delay();
+      if (promos.some((p) => p.code === row.code && p.id !== id)) throw new AdminError('promo_taken');
+      if (id) Object.assign(promos.find((p) => p.id === id), row);
+      else promos.unshift({ id: uid(), used_count: 0, created_at: new Date().toISOString(), ...row });
+    },
+    async deletePromo(id) { await delay(); promos.splice(promos.findIndex((p) => p.id === id), 1); },
+
+    async report(from, to) {
+      await delay();
+      const live = orders.filter((o) => o.created_at >= from && o.created_at < to && o.status !== 'cancelled');
+      const all = orders.filter((o) => o.created_at >= from && o.created_at < to);
+      const sum = (a, k) => a.reduce((n, x) => n + x[k], 0);
+      const group = (list, key) => {
+        const m = new Map();
+        list.forEach((x) => { const k = key(x); m.set(k, [...(m.get(k) || []), x]); });
+        return m;
+      };
+      const lines = live.flatMap((o) => o.items);
+      const byDay = [...group(live, (o) => new Date(new Date(o.created_at).getTime() + 5 * 3600000).toISOString().slice(0, 10)).entries()]
+        .sort().map(([day, l]) => ({ day, orders: l.length, revenue: sum(l, 'total') }));
+      const top = (key) => [...group(lines, key).entries()].map(([name, l]) => ({ name, qty: sum(l, 'qty'), revenue: l.reduce((n, i) => n + i.qty * i.unit_price, 0) }))
+        .sort((a, b) => b.revenue - a.revenue);
+      return {
+        totals: { orders: live.length, revenue: sum(live, 'total'), avg_order: live.length ? Math.round(sum(live, 'total') / live.length) : 0,
+          cancelled: all.length - live.length, all_orders: all.length, discounts: sum(live, 'discount') },
+        by_status: Object.fromEntries([...group(all, (o) => o.status).entries()].map(([k, l]) => [k, l.length])),
+        by_day: byDay,
+        by_brand: top((i) => i.brand).map((x) => ({ brand: x.name, qty: x.qty, revenue: x.revenue })),
+        by_product: top((i) => i.name).slice(0, 30),
+        by_region: [...group(live, (o) => o.region || o.delivery_method).entries()].map(([region, l]) => ({ region, orders: l.length, revenue: sum(l, 'total') })),
+        by_source: [...group(live, (o) => (o.utm && (o.utm.utm_source || o.utm.source)) || 'direct').entries()].map(([source, l]) => ({ source, orders: l.length, revenue: sum(l, 'total') })),
+        promo: [...group(live.filter((o) => o.promo_code), (o) => o.promo_code).entries()].map(([code, l]) => ({ code, orders: l.length, discount: sum(l, 'discount'), revenue: sum(l, 'total') })),
+      };
+    },
+    async exportOrders(from, to) {
+      await delay();
+      return orders.filter((o) => o.created_at >= from && o.created_at < to).map((o) => ({
+        ...clone(o), items: o.items.map((i) => ({ brand_snapshot: i.brand, name_snapshot: i.name, size_eu: i.size_eu, qty: i.qty, unit_price: i.unit_price })),
+      }));
+    },
+
+    async listActivity({ entity = '', page = 1, pageSize = 40 } = {}) {
+      await delay();
+      const rows = activity.filter((a) => !entity || a.entity === entity);
+      return { rows: clone(rows.slice((page - 1) * pageSize, page * pageSize)), total: rows.length };
+    },
+
+    async bulkProducts(list, op) {
+      await delay();
+      let n = 0;
+      list.forEach((p) => {
+        const row = products.find((x) => x.id === p.id);
+        if (!row) return;
+        if (op.active !== undefined) row.is_active = !!op.active;
+        else {
+          const base = row.old_price && row.old_price > row.price ? row.old_price : row.price;
+          const price = Math.max(1000, Math.round((base * (1 - op.discount / 100)) / 1000) * 1000);
+          row.price = price;
+          row.old_price = price < base ? base : null;
+        }
+        n += 1;
+      });
+      return n;
+    },
   };
 }

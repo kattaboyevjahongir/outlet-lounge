@@ -574,4 +574,101 @@ await test('owner deletes a product: sizes and photos go with it, order history 
   assert.equal(item.product_id, null, 'order line is kept, only the link is cleared');
 });
 
+
+console.log('\nAdmin panel phase 5: usernames, owner guard, reports');
+await test('usernames are validated and unique', async () => {
+  await asSuper();
+  await db.exec(`update staff set username = 'malika' where user_id = '${MANAGER}'`);
+  await rejects(db.exec(`update staff set username = 'malika' where user_id = '${OWNER}'`), /duplicate key|unique/);
+  await rejects(db.exec(`update staff set username = 'Bad Name' where user_id = '${OWNER}'`), /staff_username_format|check/);
+  await rejects(db.exec(`update staff set username = 'ab' where user_id = '${OWNER}'`), /staff_username_format|check/);
+  await db.exec(`update staff set username = 'owner' where user_id = '${OWNER}'`);
+});
+await test('the last active owner cannot be demoted, deactivated or deleted', async () => {
+  await asSuper();
+  await db.exec(`update staff set is_active = false where user_id = '${NEW_OWNER}'`); // another owner remains: fine
+  await rejects(db.exec(`update staff set is_active = false where user_id = '${OWNER}'`), /last_owner/);
+  await rejects(db.exec(`update staff set role = 'manager' where user_id = '${OWNER}'`), /last_owner/);
+  await rejects(db.exec(`delete from staff where user_id = '${OWNER}'`), /last_owner/);
+  await db.exec(`update staff set is_active = true where user_id = '${NEW_OWNER}'`);
+  await db.exec(`update staff set role = 'manager' where user_id = '${NEW_OWNER}'`); // allowed again: OWNER stays
+  await db.exec(`update staff set role = 'owner' where user_id = '${NEW_OWNER}'`);
+});
+await test('touch_login records the sign-in for staff only and is not logged as a change', async () => {
+  await asSuper();
+  await db.exec(`delete from activity_log`);
+  await as('authenticated', MANAGER);
+  await db.exec(`select public.touch_login()`);
+  await asSuper();
+  assert.ok((await one(`select last_login from staff where user_id = '${MANAGER}'`)).last_login);
+  assert.equal((await one(`select count(*)::int c from activity_log`)).c, 0, 'sign-ins are not activity');
+  await as('anon');
+  await rejects(one(`select public.touch_login()`), /permission denied/);
+});
+await test('promo, settings and staff changes are recorded with the actor', async () => {
+  await asSuper();
+  await db.exec(`delete from activity_log`);
+  await as('authenticated', OWNER);
+  await db.exec(`update promo_codes set value = 15 where code = 'FIX50'`);
+  await db.exec(`update settings set value = jsonb_set(value, '{free_threshold}', '1200000') where key = 'delivery'`);
+  await db.exec(`update staff set is_active = false where user_id = '${MANAGER}'`);
+  await db.exec(`update staff set is_active = true where user_id = '${MANAGER}'`);
+  await asSuper();
+  const log = await all(`select * from activity_log order by created_at, id`);
+  const promo = log.find((l) => l.entity === 'promo_codes');
+  assert.equal(promo.actor, 'Owner');
+  assert.equal(promo.diff.label, 'FIX50');
+  assert.deepEqual(promo.diff.changes.value, ['50000', '15']);
+  const setting = log.find((l) => l.entity === 'settings');
+  assert.equal(setting.entity_id, 'delivery');
+  assert.ok('value' in setting.diff.changes);
+  assert.equal(log.filter((l) => l.entity === 'staff').length, 2);
+  await db.exec(`update settings set value = jsonb_set(value, '{free_threshold}', '1500000') where key = 'delivery'`);
+});
+
+await test('overview: 30 days to today, best sellers, and a manager can read it', async () => {
+  await as('authenticated', MANAGER);
+  const o = (await one('select public.admin_overview() as r')).r;
+  assert.equal(o.daily.length, 30);
+  const days = o.daily.map((d) => d.day);
+  assert.deepEqual([...days].sort(), days, 'oldest first');
+  await asSuper();
+  const today = (await one(`select (timezone('Asia/Tashkent', now()))::date::text as d`)).d;
+  assert.equal(days.at(-1), today);
+  assert.ok(o.daily.at(-1).orders >= 1);
+  assert.ok(o.top_products.length >= 1 && o.top_products.length <= 5);
+  const qty = o.top_products.map((p) => p.qty);
+  assert.deepEqual([...qty].sort((a, b) => b - a), qty, 'best seller first');
+});
+await test('report: owner only; totals add up; cancelled orders are excluded from revenue', async () => {
+  const range = [`now() - interval '2 days'`, `now() + interval '1 day'`];
+  await as('authenticated', MANAGER);
+  await rejects(one(`select public.admin_report(${range[0]}, ${range[1]})`), /forbidden/);
+  await as('authenticated', OWNER);
+  const r = (await one(`select public.admin_report(${range[0]}, ${range[1]}) as r`)).r;
+  await asSuper();
+  const real = await one(`select count(*) filter (where status <> 'cancelled')::int n,
+                                 coalesce(sum(total) filter (where status <> 'cancelled'), 0)::int rev,
+                                 count(*) filter (where status = 'cancelled')::int canc
+                            from orders where created_at >= now() - interval '2 days'`);
+  assert.equal(r.totals.orders, real.n);
+  assert.equal(r.totals.revenue, real.rev);
+  assert.equal(r.totals.cancelled, real.canc);
+  assert.equal(r.by_day.reduce((a, d) => a + d.revenue, 0), real.rev);
+  const items = await one(`select coalesce(sum(i.qty * i.unit_price), 0)::int s from order_items i join orders o on o.id = i.order_id
+                            where o.status <> 'cancelled' and o.created_at >= now() - interval '2 days'`);
+  assert.equal(r.by_brand.reduce((a, x) => a + x.revenue, 0), items.s, 'brands add up to the items sold');
+  assert.ok(r.by_region.length >= 1);
+  assert.ok(r.by_source.some((s) => s.source === 'direct'));
+  assert.ok(real.n > 0 && real.canc > 0, 'fixture has live and cancelled orders');
+});
+await test('report rejects a missing, reversed or huge range', async () => {
+  await as('authenticated', OWNER);
+  await rejects(one(`select public.admin_report(now(), now() - interval '1 day')`), /invalid:range/);
+  await rejects(one(`select public.admin_report(now() - interval '900 days', now())`), /invalid:range/);
+  await rejects(one(`select public.admin_report(null, now())`), /invalid:range/);
+  await as('anon');
+  await rejects(one(`select public.admin_report(now() - interval '1 day', now())`), /permission denied/);
+});
+
 console.log(`\n${passed} checks passed${process.exitCode ? ' — WITH FAILURES' : ''}\n`);

@@ -4,7 +4,8 @@
 
 import { html, raw, esc, $, $$ } from './dom.js';
 import { t, setLang, getLang, LANGS } from './i18n.js';
-import { ICON, logo, toast, errorText, confirmDialog } from './ui.js';
+import { ICON, logo, toast, errorText } from './ui.js';
+import { usernameProblem, passwordProblem } from './logic.js';
 import { createData, AdminError } from './data.js';
 
 const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/+esm';
@@ -18,7 +19,7 @@ const store = {
 
 const state = {
   data: null, me: null, session: null, newCount: 0, route: null, token: 0, guard: null,
-  stopPoll: null, idleTimer: null, lastOverview: null,
+  stopPoll: null, idleTimer: null, lastOverview: null, screen: 'login',
 };
 
 const root = $('#app');
@@ -28,6 +29,15 @@ const NAV = [
   { id: 'products', path: '/admin/products', icon: ICON.products },
   { id: 'stock', path: '/admin/stock', icon: ICON.stock },
 ];
+// owner-only screens (the database refuses managers anyway; this just keeps the menu short for them)
+const NAV_OWNER = [
+  { id: 'promo', path: '/admin/promo', icon: ICON.tag },
+  { id: 'reports', path: '/admin/reports', icon: ICON.chart },
+  { id: 'settings', path: '/admin/settings', icon: ICON.cog },
+  { id: 'staff', path: '/admin/staff', icon: ICON.users },
+  { id: 'activity', path: '/admin/activity', icon: ICON.list },
+];
+const MORE_IDS = new Set(['more', 'account', ...NAV_OWNER.map((n) => n.id)]); // all live under "More" on a phone
 const PAGES = {
   dashboard: () => import('./pages/dashboard.js'),
   orders: () => import('./pages/orders.js'),
@@ -35,6 +45,13 @@ const PAGES = {
   products: () => import('./pages/products.js'),
   product: () => import('./pages/product.js'),
   stock: () => import('./pages/stock.js'),
+  promo: () => import('./pages/promo.js'),
+  reports: () => import('./pages/reports.js'),
+  settings: () => import('./pages/settings.js'),
+  staff: () => import('./pages/staff.js'),
+  activity: () => import('./pages/activity.js'),
+  account: () => import('./pages/account.js'),
+  more: () => import('./pages/more.js'),
 };
 
 /* ------------------------------------------------------------- theme/lang */
@@ -61,6 +78,7 @@ function resolve(pathname) {
   if (p === '/admin/products/new') return { name: 'product', nav: 'products', params: { id: null } };
   if ((m = p.match(/^\/admin\/products\/([0-9a-zA-Z-]+)$/))) return { name: 'product', nav: 'products', params: { id: m[1] } };
   if (p === '/admin/stock') return { name: 'stock', nav: 'stock', params: {} };
+  if ((m = p.match(/^\/admin\/(promo|reports|settings|staff|activity|account|more)$/))) return { name: m[1], nav: m[1], params: {} };
   return null;
 }
 
@@ -129,16 +147,20 @@ function pageContext(route) {
 
 /* ------------------------------------------------------------------ shell */
 function renderShell() {
-  const nav = (cls) => NAV.map((n) => html`
+  const owner = state.me.role === 'owner';
+  const item = (n, cls) => html`
     <a class="${cls}" href="${n.path}" data-nav="${n.id}">
       ${n.icon}<span>${t(`nav.${n.id}`)}</span>${n.id === 'orders' ? html`<b class="count" data-new-count ${state.newCount ? '' : 'hidden'}>${state.newCount}</b>` : ''}
-    </a>`);
+    </a>`;
   const langs = LANGS.map((l) => html`<button type="button" class="seg ${l === getLang() ? 'is-on' : ''}" data-lang="${l}">${l.toUpperCase()}</button>`);
   root.innerHTML = String(html`
     <div class="shell">
       <aside class="side">
         <a class="brand" href="/admin" aria-label="Outlet Lounge">${logo()}<span>OUTLET LOUNGE<small>Admin</small></span></a>
-        <nav class="side-nav" aria-label="Main">${nav('nav-link')}</nav>
+        <nav class="side-nav" aria-label="Main">
+          ${NAV.map((n) => item(n, 'nav-link'))}
+          ${owner ? html`<p class="side-label">${t('nav.manage')}</p>${NAV_OWNER.map((n) => item(n, 'nav-link'))}` : ''}
+        </nav>
         <div class="side-foot">
           <a class="nav-link ghost" href="/" target="_blank" rel="noopener">${ICON.external}<span>${t('nav.shop')}</span></a>
           <div class="tools">
@@ -146,7 +168,7 @@ function renderShell() {
             <button type="button" class="icon-btn" data-act="theme" aria-label="${t('nav.theme')}">${currentTheme() === 'dark' ? ICON.sun : ICON.moon}</button>
           </div>
           <div class="who">
-            <div><b>${state.me.name}</b><small>${t(`role.${state.me.role}`)}</small></div>
+            <a class="who-name" href="/admin/account" data-nav="account" title="${t('nav.account')}"><b>${state.me.name}</b><small>${t(`role.${state.me.role}`)}</small></a>
             <button type="button" class="icon-btn" data-act="signout" aria-label="${t('nav.signOut')}">${ICON.signOut}</button>
           </div>
         </div>
@@ -162,7 +184,10 @@ function renderShell() {
         </header>
         <main id="view" tabindex="-1"></main>
       </div>
-      <nav class="tabbar" aria-label="Main">${nav('tab')}</nav>
+      <nav class="tabbar" aria-label="Main">
+        ${NAV.map((n) => item(n, 'tab'))}
+        <a class="tab" href="/admin/more" data-nav="more">${ICON.more}<span>${t('nav.more')}</span></a>
+      </nav>
       <div id="toasts" aria-live="polite"></div>
     </div>`);
   highlightNav(state.route && state.route.nav);
@@ -170,7 +195,9 @@ function renderShell() {
 
 function highlightNav(id) {
   $$('[data-nav]').forEach((a) => {
-    const on = a.dataset.nav === id;
+    const n = a.dataset.nav;
+    // on a phone every owner screen sits under "More"; in the sidebar each has its own item
+    const on = n === id || (n === 'more' && MORE_IDS.has(id));
     a.classList.toggle('is-on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
@@ -251,14 +278,17 @@ function screen(inner) {
 }
 
 function loginScreen(message = '', kind = 'err') {
+  state.screen = 'login';
   screen(html`
     <h1>${t('auth.title')}</h1><p class="muted">${t('auth.text')}</p>
     <form id="loginForm" class="stack" novalidate>
-      <label class="field"><span>${t('auth.email')}</span><input type="email" name="email" autocomplete="username" inputmode="email" required autofocus></label>
+      <label class="field"><span>${t('auth.username')}</span>
+        <input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus></label>
       <label class="field"><span>${t('auth.password')}</span><input type="password" name="password" autocomplete="current-password" required></label>
       <p class="form-msg ${kind}" role="alert" ${message ? '' : 'hidden'}>${message}</p>
       <button class="btn btn-gold" type="submit">${t('auth.signIn')}</button>
-      <button class="link" type="button" data-act="forgot">${t('auth.forgot')}</button>
+      <p class="muted small">${t('auth.forgotHint')}</p>
+      <button class="link" type="button" data-setup hidden>${t('auth.firstSetup')}</button>
     </form>`);
   const form = $('#loginForm');
   const msg = (text, k = 'err') => {
@@ -267,32 +297,94 @@ function loginScreen(message = '', kind = 'err') {
   };
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = form.email.value.trim();
+    const username = form.username.value.trim();
     const password = form.password.value;
-    if (!email || !password) return msg(t('auth.invalid'));
+    if (!username || !password) return msg(t('auth.invalid'));
     const btn = $('button[type=submit]', form);
     btn.disabled = true; btn.textContent = t('auth.signingIn');
     try {
-      await state.data.signIn(email, password);
+      await state.data.signIn(username, password);
       await enter();
     } catch (err) {
       msg(err.code === 'too_many' ? t('auth.tooMany') : err.code === 'invalid_login' ? t('auth.invalid') : errorText(err));
       btn.disabled = false; btn.textContent = t('auth.signIn');
     }
   });
-  $('[data-act=forgot]', form).addEventListener('click', async () => {
-    const email = form.email.value.trim();
-    if (!email) return msg(t('auth.resetNeedEmail'));
+  // "first run" link: only while the shop has no owner yet
+  const setupLink = $('[data-setup]', form);
+  setupLink.addEventListener('click', () => setupScreen());
+  state.data.setupStatus().then((s) => { if (s && s.open && state.screen === 'login') setupLink.hidden = false; }).catch(() => {});
+}
+
+// First run: a code goes to the managers' Telegram group; whoever can read it creates the owner.
+function setupScreen() {
+  state.screen = 'setup';
+  screen(html`
+    <h1>${t('setup.title')}</h1><p class="muted">${t('setup.text')}</p>
+    <div class="stack" id="setupStep1">
+      <button class="btn btn-gold" type="button" id="sendCode">${t('setup.send')}</button>
+    </div>
+    <form id="setupForm" class="stack" hidden novalidate>
+      <label class="field"><span>${t('setup.code')}</span><input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+      <label class="field"><span>${t('setup.name')}</span><input name="name" autocomplete="name" maxlength="60"></label>
+      <label class="field"><span>${t('setup.username')}</span><input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32"></label>
+      <label class="field"><span>${t('setup.password')}</span><input type="password" name="password" autocomplete="new-password"></label>
+      <button class="btn btn-gold" type="submit">${t('setup.create')}</button>
+    </form>
+    <p class="form-msg err" id="setupMsg" role="alert" hidden></p>
+    <button class="link" type="button" data-back>${t('setup.back')}</button>`);
+  const msg = $('#setupMsg');
+  const say = (text, k = 'err') => { msg.textContent = text; msg.className = `form-msg ${k}`; msg.hidden = !text; };
+  const form = $('#setupForm');
+  $('[data-back]').addEventListener('click', () => loginScreen());
+
+  $('#sendCode').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    say('');
     try {
-      await state.data.sendReset(email);
-      msg(t('auth.resetSent'), 'ok');
+      await state.data.setupSend();
+      say(t('setup.sent'), 'ok');
+      form.hidden = false;
+      form.code.focus();
     } catch (err) {
-      msg(err.code === 'too_many' ? t('auth.tooMany') : errorText(err));
+      say({ wait: t('setup.wait'), telegram_off: t('setup.telegramOff'), closed: t('setup.closed'), too_many_requests: t('auth.tooMany') }[err.code]
+        || errorText(err));
+    } finally { btn.disabled = false; }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    say('');
+    const v = { code: form.code.value.replace(/\D/g, ''), name: form.name.value.trim(), username: form.username.value.trim().toLowerCase(), password: form.password.value };
+    if (v.code.length !== 8) return say(t('pf.err.required'));
+    if (v.name.length < 2) return say(t('pf.err.required'));
+    if (usernameProblem(v.username)) return say(t('auth.badUsername'));
+    const pw = passwordProblem(v.password);
+    if (pw) return say(pw === 'short' ? t('auth.tooShort') : t('auth.weak'));
+    const btn = $('button[type=submit]', form);
+    btn.disabled = true;
+    try {
+      await state.data.setupClaim(v);
+      say(t('setup.done'), 'ok');
+      await state.data.signIn(v.username, v.password);
+      await enter();
+    } catch (err) {
+      btn.disabled = false;
+      if (err.code === 'invalid_code') {
+        const left = err.info && err.info.attempts_left;
+        say(left === undefined ? t('setup.expired') : t('setup.invalidCode', { n: left }));
+      } else if (err.code === 'locked') say(t('setup.locked'));
+      else if (err.code === 'username_taken') say(t('setup.taken'));
+      else if (err.code === 'closed') say(t('setup.closed'));
+      else if (err.code === 'invalid') say(err.info && err.info.field === 'username' ? t('auth.badUsername') : t('auth.weak'));
+      else say(errorText(err));
     }
   });
 }
 
 function setPasswordScreen() {
+  state.screen = 'password';
   screen(html`
     <h1>${t('auth.setTitle')}</h1><p class="muted">${t('auth.setText')}</p>
     <form id="pwForm" class="stack" novalidate>
@@ -335,6 +427,8 @@ async function enter() {
   }
   state.session = session;
   state.me = me;
+  state.screen = 'app';
+  if (state.data.touchLogin) state.data.touchLogin();
   renderShell();
   armIdle();
   startPolling();
@@ -365,7 +459,7 @@ function wire() {
     const lang = e.target.closest('[data-lang]');
     if (lang) {
       applyLang(lang.dataset.lang);
-      if (state.me) { renderShell(); setNewCount(state.newCount); show(); } else if ($('#pwForm')) setPasswordScreen(); else loginScreen();
+      if (state.me) { renderShell(); setNewCount(state.newCount); show(); } else if (state.screen === 'setup') setupScreen(); else if (state.screen === 'password') setPasswordScreen(); else loginScreen();
       return;
     }
     const act = e.target.closest('[data-act]');

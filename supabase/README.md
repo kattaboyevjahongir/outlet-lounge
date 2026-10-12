@@ -49,25 +49,20 @@ supabase/
 
 ## Staff accounts (owner and managers)
 
-Staff are **invited**; public sign-up is off. An invitation is a row in `staff_invites` — when the
-person's account is created with that email, a database trigger turns it into a `staff` row with the
-chosen name and role.
+Staff sign in with a **username and password**; there is no public sign-up. Under the hood each username
+is a Supabase Auth login `<username>@staff.outlet-lounge.invalid` (a reserved domain that can never
+receive mail, so no reset message can be intercepted) plus a row in `public.staff` with the role.
 
-1. Register the invitation (SQL Editor, or `npx supabase db query --linked`):
-   ```sql
-   insert into public.staff_invites (email, name, role)
-   values (lower('you@example.com'), 'Your name', 'owner');   -- or 'manager'
-   ```
-2. Send the invitation: Dashboard → Authentication → Users → **Invite user** (or the admin API
-   `POST /auth/v1/invite`). The e-mail link opens the shop, which forwards to **/admin**, where the person
-   chooses a password (10+ characters, letters and digits).
-3. They sign in at **/admin**. Deactivate someone with
-   `update public.staff set is_active = false where user_id = …`.
+1. **Owner — first run.** Open `/admin`; while the shop has no owner the sign-in page offers
+   *First run: create the owner*. A code is posted to the managers' Telegram group; whoever can read it
+   chooses the owner's name, username and password. (`api/admin-setup.js`)
+2. **Everyone else** is added by the owner in the panel (**Staff → Add**): username, name, role and an
+   initial password, which the owner hands over. The owner can reset a password, change a role or switch
+   someone off at any time (`api/admin-staff.js`). The shop always keeps at least one active owner.
+3. **Real e-mail invitations still work** (Dashboard → Authentication → Users → Invite user, after
+   adding a row to `public.staff_invites`), for people who prefer a link to a password.
 
-Supabase's built-in mail service only delivers to your own team members and is limited to a few
-messages an hour. Before inviting managers who are not on the Supabase team, set up your own SMTP
-(Dashboard → Authentication → SMTP) — or create the account in the dashboard (*Add user* → *Create new
-user*, tick Auto Confirm) and give them the password to change.
+Lost owner password: Dashboard → Authentication → Users → open the user → set a new password.
 
 ## Shop contact details
 

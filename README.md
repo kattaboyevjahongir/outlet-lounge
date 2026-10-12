@@ -31,7 +31,7 @@ page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/d
 | `/wishlist` | Saved items |
 | `/cart` `/checkout` `/order/success` | Cart page, checkout (no account), thank-you page |
 | anything else | 404 |
-| `/admin` … | Staff panel (not indexed): overview, orders, products, stock — see "Admin panel" below |
+| `/admin` … | Staff panel (not indexed): overview, orders, products, stock, promo codes, reports, settings, staff, activity — see "Admin panel" below |
 
 All of them are one HTML shell (`index.html`); `vercel.json` rewrites every non-file path to it and
 `assets/js/router.js` picks the page.
@@ -46,6 +46,9 @@ api/order.js               POST /api/order — checkout, quick order, notify-me 
 api/telegram.js            POST /api/telegram — bot webhook (order status buttons, /id)
 api/admin-config.js        GET /api/admin-config — public Supabase URL + anon key for the admin panel
 api/admin-order-status.js  POST — staff changes an order status; the Telegram message is updated too
+api/admin-setup.js         first-run owner creation (code via the managers' Telegram group)
+api/admin-staff.js         owner adds staff / resets passwords / changes roles (needs the service key)
+api/admin-telegram.js      owner sends a test message to the managers' chat
 api/_lib/                  validation, Telegram message format, Supabase/Telegram clients
 assets/css/base.css        theme tokens, shared components, phone card layout
 assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
@@ -67,21 +70,30 @@ docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Te
 
 ## Admin panel
 
-Sign in at **/admin** (RU / UZ / EN, light / dark, works on a phone). Staff are invited — nobody can sign
-themselves up. What each role may do is enforced by the database, not by hiding buttons:
+Open **/admin** (RU / UZ / EN, light / dark, works on a phone). Staff sign in with a **username and
+password** — no e-mail address is involved. What each role may do is enforced by the database, not by
+hiding buttons:
 
 | | Owner | Manager |
 |---|---|---|
-| Orders: view, change status, notes, tracking | ✅ | ✅ |
-| Products, photos, sizes, stock | ✅ | ✅ |
-| Delete a product | ✅ | — |
+| Overview, orders (status, notes, tracking), products, photos, sizes, stock | ✅ | ✅ |
+| Bulk hide / show / discount, delete a product | ✅ | hide / show / discount only |
+| Promo codes, site settings, reports + Excel export, staff, activity log | ✅ | — |
 
-Changing an order status in the panel also edits its Telegram message, and the other way round
-(both write the same database row). Staff photos are resized in the browser to WebP 1600 / 800 / 400 px.
+**First run (creating the owner).** While the shop has no owner, the sign-in page shows
+*“First run: create the owner”*. It sends an 8-digit code to the managers' Telegram group (only people
+in that group can read it; valid 15 minutes, 5 attempts) and asks for a name, username and password.
+After that the door is closed for good. Everyone else is added by the owner under **Staff**.
+
+- Changing an order's status in the panel also edits its Telegram message, and the other way round.
+- Staff photos are resized in the browser to WebP 1600 / 800 / 400 px before upload.
+- Reports export to `.xlsx` (written in the browser, no library) and CSV.
+- **Lost owner password:** Supabase dashboard → Authentication → Users → the user
+  `<username>@staff.outlet-lounge.invalid` → set a new password.
 
 Try it locally without an account or database: `npm run dev`, then open
-`http://localhost:5173/admin?demo` (in-memory demo data; add `&role=manager` to see the manager view).
-Owner setup and inviting staff: see `supabase/README.md`.
+`http://localhost:5173/admin?demo` (in-memory demo data; add `&role=manager` for the manager view,
+`&login` to see the sign-in page — password `demo` — or `&setup` for the first-run flow — code `12345678`).
 
 ## Tests
 

@@ -29,6 +29,11 @@ export const ICON = {
   x: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
   bell: svg('<path d="M6 17.500V11a6 6 0 0 1 12 0v6.500l1.500 1.500h-15L6 17.500ZM10 21h4"/>'),
   external: svg('<path d="M14 4.500h5.500V10M19.500 4.500 11 13M18 14v4.500a1 1 0 0 1-1 1H5.500a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1H10"/>'),
+  tag: svg('<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1 1 0 0 1 0 1.400l-7.300 7.300a1 1 0 0 1-1.400 0L3.500 12.200Z"/><circle cx="8" cy="8" r="1.300"/>'),
+  chart: svg('<path d="M4 20V4M4 20h16"/><rect x="7.500" y="11" width="3" height="6" rx=".8"/><rect x="12.500" y="7" width="3" height="10" rx=".8"/><rect x="17.500" y="13" width="2.500" height="4" rx=".8"/>'),
+  cog: svg('<circle cx="12" cy="12" r="3"/><path d="M19.400 14.500a1.700 1.700 0 0 0 .3 1.800l.1.100a2 2 0 1 1-2.800 2.800l-.1-.1a1.700 1.700 0 0 0-1.800-.3 1.700 1.700 0 0 0-1 1.500V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-1.100-1.500 1.700 1.700 0 0 0-1.800.3l-.1.100a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0 .3-1.800 1.700 1.700 0 0 0-1.500-1H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.500-1.100 1.700 1.700 0 0 0-.3-1.800l-.1-.1a2 2 0 1 1 2.800-2.800l.1.100a1.700 1.700 0 0 0 1.800.3h0a1.700 1.700 0 0 0 1-1.500V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 1 1.500 1.700 1.700 0 0 0 1.800-.3l.1-.1a2 2 0 1 1 2.800 2.800l-.1.100a1.700 1.700 0 0 0-.3 1.800v0a1.700 1.700 0 0 0 1.500 1H21a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1Z"/>'),
+  users: svg('<circle cx="9" cy="8" r="3.200"/><path d="M3 20c0-3.300 2.700-6 6-6s6 2.700 6 6M16 5.200a3 3 0 0 1 0 5.600M17.500 14.300c2 .7 3.500 2.700 3.500 5.700"/>'),
+  list: svg('<path d="M8.500 6.500h11M8.500 12h11M8.500 17.500h11"/><circle cx="4.500" cy="6.500" r="1"/><circle cx="4.500" cy="12" r="1"/><circle cx="4.500" cy="17.500" r="1"/>'),
   more: svg('<circle cx="5.500" cy="12" r="1.200"/><circle cx="12" cy="12" r="1.200"/><circle cx="18.500" cy="12" r="1.200"/>'),
   eye: svg('<path d="M2.500 12S6 5.500 12 5.500 21.500 12 21.500 12 18 18.500 12 18.500 2.500 12 2.500 12Z"/><circle cx="12" cy="12" r="2.800"/>'),
   eyeOff: svg('<path d="M4 4l16 16M9.800 5.800A9 9 0 0 1 12 5.500c6 0 9.500 6.500 9.500 6.500a15 15 0 0 1-3 3.800M6.300 7.700A15 15 0 0 0 2.500 12S6 18.500 12 18.500c1.500 0 2.800-.4 4-1M10 10a3 3 0 0 0 4 4"/>'),
@@ -124,6 +129,21 @@ export function confirmDialog({ title, text = '', ok = t('common.yes'), danger =
     document.body.append(d);
     d.showModal();
   });
+}
+
+// what a manager sees when they open an owner-only address (the database refuses them anyway)
+export const deniedPage = () => html`<div class="empty-state"><p>${t('common.denied')}</p><a class="btn btn-ghost" href="/admin">${t('common.back')}</a></div>`;
+
+// save bytes / text as a file the browser downloads
+export function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // the message shown for an AdminError code

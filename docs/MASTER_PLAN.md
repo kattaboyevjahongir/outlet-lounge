@@ -18,7 +18,7 @@
 | Cart page, checkout, orders → database, quick order, notify-me, Telegram alerts + status buttons | ✅ Phase 3 built and tested end-to-end against the live database; Telegram connected 2026-10-13 (@outlet_lounge_bot → group Outlet_requests) |
 | Phase 1–3 finishing touches: size change in the cart drawer, footer contacts, “Ask a manager” Telegram button (phones), “Track in Telegram” on the thank-you page (bot answers `/start <order no>` with the status), Telegram fallback when checkout fails, hero → `/new` | ✅ Built; contact buttons stay hidden until the `contacts` setting is filled in (owner details, §12) |
 | Admin panel core: sign-in + roles, orders with Telegram status sync, products with photo upload and sizes, stock grid, overview | ✅ Phase 4 built and tested (2026-10-14); owner account pending (§12) |
-| Admin panel extended: dashboard charts, reports/Excel, content & settings, promo codes, staff management, activity-log viewer | ❌ Phase 5 (§5) |
+| Admin panel extended: dashboard chart + best sellers, reports + Excel/CSV export, site settings (contacts, delivery prices, countdown), promo codes, staff management, activity log, bulk product actions, username + password sign-in with first-run owner setup | ✅ Phase 5 built and tested (2026-10-14); order-item editing and the announcement bar are still to do |
 | Database (Supabase) | ✅ Live: project `outlet-lounge` (Frankfurt), schema + security rules applied, placeholder products seeded, verified as a visitor (reads products only) |
 | Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Live on https://outlet-lounge.vercel.app (source: database) |
 | Real products/photos | ❌ Placeholders (Unsplash, made-up prices) |

@@ -35,6 +35,7 @@ export default async function page({ data, query, go }) {
         <select name="state"><option value="">${t('products.state')}: ${t('common.all')}</option>
           ${STATES.map((s) => html`<option value="${s}" ${s === f.state ? 'selected' : ''}>${t(`products.state.${s}`)}</option>`)}</select></label>
     </form>
+    <div id="bulkBar" class="bulkbar" hidden></div>
     <div id="productsResult" aria-live="polite"></div>`;
 
   const sync = () => {
@@ -49,11 +50,14 @@ export default async function page({ data, query, go }) {
     return html`<span class="badge sv-${s.state}">${t(`products.state.${s.state === 'ok' ? 'ok' : s.state}`)}</span>`;
   };
 
+  const sel = new Set(); // ids ticked for a bulk action
+
   const card = (p) => {
     const s = stockState(p);
     const off = discountPct(p.price, p.old_price);
     return html`
       <li class="pitem ${p.is_active ? '' : 'is-hidden'}" data-id="${p.id}">
+        <label class="sel"><input type="checkbox" data-sel="${p.id}" ${sel.has(p.id) ? 'checked' : ''} aria-label="${p.name}"></label>
         <a class="pitem-photo" href="/admin/products/${p.id}" tabindex="-1" aria-hidden="true">${photo(data, p.images[0] && p.images[0].path, 400, '')}</a>
         <div class="pitem-main">
           <a href="/admin/products/${p.id}"><b>${p.name}</b></a>
@@ -88,7 +92,8 @@ export default async function page({ data, query, go }) {
           return;
         }
         result.innerHTML = String(list.length ? html`
-          <p class="muted count-line">${t('products.count', { n: list.length })}</p>
+          <div class="count-line sel-line"><span class="muted">${t('products.count', { n: list.length })}</span>
+            <label class="switch"><input type="checkbox" id="selAll" ${slice.length && slice.every((p) => sel.has(p.id)) ? 'checked' : ''}><span>${t('products.selectAll')}</span></label></div>
           <ul class="plist">${slice.map(card)}</ul>
           ${pages > 1 ? html`<nav class="pager">
             <button class="btn btn-ghost btn-sm" data-page="${f.page - 1}" ${f.page <= 1 ? 'disabled' : ''}>${t('common.prev')}</button>
@@ -120,6 +125,61 @@ export default async function page({ data, query, go }) {
         } catch (err) {
           toast(errorText(err), 'err');
           tg.disabled = false;
+        }
+      });
+      const bar = $('#bulkBar', root);
+      const renderBulk = () => {
+        bar.hidden = sel.size === 0;
+        if (!sel.size) { bar.innerHTML = ''; return; }
+        bar.innerHTML = String(html`
+          <b>${t('products.selected', { n: sel.size })}</b>
+          <button type="button" class="btn btn-ghost btn-sm" data-bulk="hide">${t('products.bulkHide')}</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-bulk="show">${t('products.bulkShow')}</button>
+          <span class="bulk-discount"><input id="bulkPct" inputmode="numeric" placeholder="${t('products.bulkDiscount')}" aria-label="${t('products.bulkDiscount')}" maxlength="2">
+            <button type="button" class="btn btn-gold btn-sm" data-bulk="discount">${t('products.bulkApply')}</button></span>
+          <button type="button" class="btn btn-ghost btn-sm" data-bulk="clear">${t('products.clear')}</button>
+          <small class="muted">${t('products.bulkHint')}</small>`);
+      };
+      result.addEventListener('change', (e) => {
+        const one = e.target.closest('[data-sel]');
+        if (one) {
+          if (one.checked) sel.add(one.dataset.sel); else sel.delete(one.dataset.sel);
+          renderBulk();
+          return;
+        }
+        if (e.target.id === 'selAll') {
+          const list = filterProducts(products, f).slice((f.page - 1) * PAGE_SIZE, f.page * PAGE_SIZE);
+          list.forEach((p) => { if (e.target.checked) sel.add(p.id); else sel.delete(p.id); });
+          render();
+          renderBulk();
+        }
+      });
+      bar.addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-bulk]');
+        if (!b) return;
+        const kind = b.dataset.bulk;
+        if (kind === 'clear') { sel.clear(); render(); renderBulk(); return; }
+        const chosen = products.filter((p) => sel.has(p.id));
+        let op;
+        if (kind === 'hide') op = { active: false };
+        else if (kind === 'show') op = { active: true };
+        else {
+          const pct = Number($('#bulkPct', bar).value);
+          if (!Number.isInteger(pct) || pct < 1 || pct > 90) return toast(t('products.bulkNeedPct'), 'err');
+          op = { discount: pct };
+        }
+        b.disabled = true;
+        try {
+          const n = await data.bulkProducts(chosen, op);
+          const fresh = await data.listProducts();
+          products.splice(0, products.length, ...fresh);
+          sel.clear();
+          toast(t('products.bulkDone', { n }));
+          render();
+          renderBulk();
+        } catch (err) {
+          toast(errorText(err), 'err');
+          b.disabled = false;
         }
       });
       render();
