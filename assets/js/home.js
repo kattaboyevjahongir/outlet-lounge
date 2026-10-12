@@ -232,22 +232,51 @@
         const py = gsap.quickTo(preview, 'y', { duration: .6, ease: 'power3' });
         const rot = gsap.quickTo(preview, 'rotate', { duration: .8, ease: 'power3' });
         let lastX = 0;
-        const move = (e) => { px(e.clientX); py(e.clientY); rot(gsap.utils.clamp(-14, 14, (e.clientX - lastX) * .6)); lastX = e.clientX; };
-        const enter = (e) => {
-          const a = e.target.closest('.f-cat');
-          if (!a) return;
+        let pointer = null; // last cursor position, to re-check what's under it after a scroll
+        let active = null;  // the row the preview is showing (null = hidden)
+        // overwrite: a quick in-and-out must never leave an older "show" tween finishing after the "hide"
+        const show = (a) => {
+          if (a === active) return;
+          active = a;
           if (pimg.getAttribute('src') !== a.dataset.img) {
             pimg.src = a.dataset.img;
-            gsap.fromTo(pimg, { scale: 1.3 }, { scale: 1, duration: .8, ease: 'expo.out' });
+            gsap.fromTo(pimg, { scale: 1.3 }, { scale: 1, duration: .8, ease: 'expo.out', overwrite: true });
           }
-          gsap.to(preview, { autoAlpha: 1, scale: 1, duration: .5, ease: 'expo.out' });
+          gsap.to(preview, { autoAlpha: 1, scale: 1, duration: .5, ease: 'expo.out', overwrite: 'auto' });
         };
-        const leave = () => gsap.to(preview, { autoAlpha: 0, scale: .6, duration: .4 });
+        const hide = () => {
+          if (!active) return;
+          active = null;
+          gsap.to(preview, { autoAlpha: 0, scale: .6, duration: .4, overwrite: 'auto' });
+        };
+        const sync = () => {
+          const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
+          const a = el && el.closest('.f-cat');
+          if (a && list.contains(a)) show(a); else hide();
+        };
+        const move = (e) => {
+          pointer = { x: e.clientX, y: e.clientY };
+          px(e.clientX); py(e.clientY); rot(gsap.utils.clamp(-14, 14, (e.clientX - lastX) * .6)); lastX = e.clientX;
+        };
+        const enter = (e) => { const a = e.target.closest('.f-cat'); if (a) show(a); };
+        // scrolling moves the rows under a still cursor without any pointer events
+        let raf = 0;
+        const onScroll = () => { if (active && !raf) raf = requestAnimationFrame(() => { raf = 0; sync(); }); };
+        const out = (e) => { if (!e.relatedTarget) { pointer = null; hide(); } }; // cursor left the window
         gsap.set(preview, { autoAlpha: 0, scale: .6, xPercent: -50, yPercent: -50 });
         addEventListener('pointermove', move, { passive: true });
+        addEventListener('scroll', onScroll, { passive: true });
+        document.addEventListener('pointerout', out);
+        addEventListener('blur', hide);
         list.addEventListener('pointerover', enter);
-        list.addEventListener('pointerleave', leave);
-        OL.onCleanup(() => { removeEventListener('pointermove', move); });
+        list.addEventListener('pointerleave', hide);
+        OL.onCleanup(() => {
+          removeEventListener('pointermove', move);
+          removeEventListener('scroll', onScroll);
+          document.removeEventListener('pointerout', out);
+          removeEventListener('blur', hide);
+          cancelAnimationFrame(raf);
+        });
       }
       qa('.f-cat-list li').forEach((li) =>
         gsap.from(li, { yPercent: 60, autoAlpha: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: li, start: 'top 92%', once: true } }));
