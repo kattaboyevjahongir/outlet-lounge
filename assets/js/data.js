@@ -44,13 +44,16 @@
 
   const UNSPLASH = (i) => `https://images.unsplash.com/photo-${OL.IMG[i]}`;
 
-  // Resize helper: placeholder (Unsplash) photos are resized on the fly;
-  // uploaded product photos are served exactly as stored.
+  // Resize helper: placeholder (Unsplash) photos are resized on the fly; photos uploaded in the
+  // admin panel exist as 1600 / 800 / 400 px files next to each other (…-1600.webp), so the
+  // closest size that is large enough is picked.
   OL.pimg = (url, w = 800, h) => {
     if (!url) return '';
     if (url.includes('images.unsplash.com')) {
       return `${url.split('?')[0]}?auto=format&fit=crop&w=${w}${h ? `&h=${h}` : ''}&q=80`;
     }
+    const m = url.match(/^(.*\/product-images\/.*)-1600\.(webp|jpg)$/);
+    if (m) return `${m[1]}-${w <= 420 ? 400 : w <= 840 ? 800 : 1600}.${m[2]}`;
     return url;
   };
   OL.img = (i, w = 800, h) => OL.pimg(UNSPLASH(i), w, h); // category / hero placeholders

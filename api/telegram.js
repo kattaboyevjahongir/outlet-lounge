@@ -10,6 +10,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import { orderMessage, keyboard, ACTION_TO_STATUS, STATUS, customerMessage } from './_lib/format.js';
 import { rpc, select, patch, tg, telegramChat, limited, clientIp } from './_lib/services.js';
+import { loadOrder, hhmm } from './_lib/orders.js';
 
 const ok = (res) => res.status(200).json({ ok: true });
 
@@ -18,16 +19,6 @@ const safeEqual = (a, b) => {
   const y = Buffer.from(String(b || ''));
   return x.length === y.length && x.length > 0 && timingSafeEqual(x, y);
 };
-
-const hhmm = () =>
-  new Intl.DateTimeFormat('ru-RU', { timeZone: 'Asia/Tashkent', hour: '2-digit', minute: '2-digit' }).format(new Date());
-
-async function loadOrder(id) {
-  const r = await select(`orders?id=eq.${id}&select=*,order_items(*),promo_codes(code)`);
-  if (!r.ok || !Array.isArray(r.data) || !r.data.length) return null;
-  const o = r.data[0];
-  return { ...o, promo_code: o.promo_codes ? o.promo_codes.code : null };
-}
 
 async function onButton(cq) {
   const answer = (text, alert = false) => tg('answerCallbackQuery', { callback_query_id: cq.id, text, show_alert: alert });

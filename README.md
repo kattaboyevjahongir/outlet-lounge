@@ -31,6 +31,7 @@ page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/d
 | `/wishlist` | Saved items |
 | `/cart` `/checkout` `/order/success` | Cart page, checkout (no account), thank-you page |
 | anything else | 404 |
+| `/admin` … | Staff panel (not indexed): overview, orders, products, stock — see "Admin panel" below |
 
 All of them are one HTML shell (`index.html`); `vercel.json` rewrites every non-file path to it and
 `assets/js/router.js` picks the page.
@@ -43,6 +44,8 @@ api/catalog.js             GET /api/catalog — live products + public settings 
 api/quote.js               POST /api/quote — cart totals/promo from the database (never changes stock)
 api/order.js               POST /api/order — checkout, quick order, notify-me → database + Telegram
 api/telegram.js            POST /api/telegram — bot webhook (order status buttons, /id)
+api/admin-config.js        GET /api/admin-config — public Supabase URL + anon key for the admin panel
+api/admin-order-status.js  POST — staff changes an order status; the Telegram message is updated too
 api/_lib/                  validation, Telegram message format, Supabase/Telegram clients
 assets/css/base.css        theme tokens, shared components, phone card layout
 assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
@@ -53,11 +56,32 @@ assets/js/router.js        URL → page, history, transitions, per-page meta
 assets/js/home.js | shop.js | product.js | checkout.js | pages.js    the pages
 assets/js/order-logic.js   phone mask, form validation, local totals (pure, unit-tested)
 assets/js/main.js          boot
+admin/index.html           admin panel shell (own CSP, noindex)
+assets/admin/              admin panel: app.js (sign-in, layout, routing), pages/*.js, data.js (Supabase),
+                           logic.js (pure, unit-tested), images.js (browser photo resize), mock.js (demo), i18n.js
 supabase/                  database: migrations, seed, tests, setup guide (see supabase/README.md)
 scripts/                   build-seed.mjs, dev-server.mjs
 tests/                     API + catalog-logic + router tests
 docs/MASTER_PLAN.md        the full plan: storefront, admin panel, orders → Telegram, roadmap
 ```
+
+## Admin panel
+
+Sign in at **/admin** (RU / UZ / EN, light / dark, works on a phone). Staff are invited — nobody can sign
+themselves up. What each role may do is enforced by the database, not by hiding buttons:
+
+| | Owner | Manager |
+|---|---|---|
+| Orders: view, change status, notes, tracking | ✅ | ✅ |
+| Products, photos, sizes, stock | ✅ | ✅ |
+| Delete a product | ✅ | — |
+
+Changing an order status in the panel also edits its Telegram message, and the other way round
+(both write the same database row). Staff photos are resized in the browser to WebP 1600 / 800 / 400 px.
+
+Try it locally without an account or database: `npm run dev`, then open
+`http://localhost:5173/admin?demo` (in-memory demo data; add `&role=manager` to see the manager view).
+Owner setup and inviting staff: see `supabase/README.md`.
 
 ## Tests
 

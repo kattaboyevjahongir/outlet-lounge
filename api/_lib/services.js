@@ -40,6 +40,26 @@ export const select = (path) => call('GET', path);
 export const insert = (table, row) => call('POST', table, row, { Prefer: 'return=representation' });
 export const patch = (path, row) => call('PATCH', path, row, { Prefer: 'return=minimal' });
 
+// A Postgres function called AS the signed-in staff member: their JWT goes in Authorization, so
+// row level security and auth.uid() inside the function see them (not the service role). The
+// public anon key only identifies the project.
+export async function userRpc(jwt, name, args) {
+  const url = (process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const anon = process.env.SUPABASE_ANON_KEY || '';
+  if (!url || !anon) throw Object.assign(new Error('not_configured'), { code: 'not_configured' });
+  const res = await fetch(`${url}/rest/v1/rpc/${name}`, {
+    method: 'POST',
+    headers: { apikey: anon, Authorization: `Bearer ${jwt}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(args),
+    signal: AbortSignal.timeout(TIMEOUT),
+  });
+  const text = await res.text();
+  let data = null;
+  if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+  if (res.ok) return { ok: true, data };
+  return { ok: false, status: res.status, error: (data && (data.message || data.error)) || `rpc ${res.status}` };
+}
+
 /* ------------------------------------------------------------ Telegram */
 // The managers' chat: TELEGRAM_CHAT_ID, or else `chat_id` in the private `telegram` setting
 // (picked during setup, editable in admin later). null = alerts are off. Cached for a minute.

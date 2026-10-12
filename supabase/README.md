@@ -47,17 +47,27 @@ supabase/
 6. **Redeploy** (`vercel --prod`). The site now shows live data; open
    `https://<your-site>/api/catalog` to see the JSON.
 
-## Make yourself the owner
+## Staff accounts (owner and managers)
 
-After you have created your own login (Authentication → Users → Add user → *Create new user*,
-tick "Auto Confirm User"), run this once in **SQL Editor** — replace the email:
+Staff are **invited**; public sign-up is off. An invitation is a row in `staff_invites` — when the
+person's account is created with that email, a database trigger turns it into a `staff` row with the
+chosen name and role.
 
-```sql
-insert into public.staff (user_id, name, role)
-select id, 'Owner', 'owner' from auth.users where email = 'you@example.com';
-```
+1. Register the invitation (SQL Editor, or `npx supabase db query --linked`):
+   ```sql
+   insert into public.staff_invites (email, name, role)
+   values (lower('you@example.com'), 'Your name', 'owner');   -- or 'manager'
+   ```
+2. Send the invitation: Dashboard → Authentication → Users → **Invite user** (or the admin API
+   `POST /auth/v1/invite`). The e-mail link opens the shop, which forwards to **/admin**, where the person
+   chooses a password (10+ characters, letters and digits).
+3. They sign in at **/admin**. Deactivate someone with
+   `update public.staff set is_active = false where user_id = …`.
 
-Managers are added the same way with `'manager'` (the admin panel will do this for you in phase 4).
+Supabase's built-in mail service only delivers to your own team members and is limited to a few
+messages an hour. Before inviting managers who are not on the Supabase team, set up your own SMTP
+(Dashboard → Authentication → SMTP) — or create the account in the dashboard (*Add user* → *Create new
+user*, tick Auto Confirm) and give them the password to change.
 
 ## Shop contact details
 

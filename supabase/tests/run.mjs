@@ -53,14 +53,17 @@ await db.exec(`
   grant execute on function auth.uid(), auth.role() to anon, authenticated, service_role;
 `);
 
+// like Supabase: tables created by migrations are open to the API roles by default;
+// row level security and the migrations' own revokes/grants narrow that down
+await db.exec(`
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+`);
+
 // every migration, in order — exactly what `supabase db push` applies
 for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter((n) => n.endsWith('.sql')).sort()) {
   await db.exec(read(`../migrations/${f}`));
 }
-await db.exec(`
-  grant all on all tables in schema public to anon, authenticated, service_role;
-  grant all on all sequences in schema public to anon, authenticated, service_role;
-`);
 await db.exec(read('../seed.sql'));
 
 // --------------------------------------------------------------- helpers
@@ -405,6 +408,170 @@ await test('deactivated staff lose access', async () => {
   await rejects(one(`select public.set_order_status(gen_random_uuid(), 'confirmed')`), /forbidden/);
   await asSuper();
   await db.exec(`update staff set is_active = true where user_id = '${MANAGER}'`);
+});
+
+
+console.log('\nAdmin panel: invites, columns, product save, activity log');
+const NEW_OWNER = '00000000-0000-0000-0000-0000000000b1';
+await test('an invited email becomes staff with the invited role when the account is created', async () => {
+  await asSuper();
+  await db.exec(`insert into staff_invites (email, name, role) values ('boss@example.com', 'Boss', 'owner')`);
+  await db.exec(`insert into auth.users (id, email) values ('${NEW_OWNER}', 'Boss@Example.com')`);
+  const s = await one(`select name, role, is_active from staff where user_id = '${NEW_OWNER}'`);
+  assert.deepEqual(s, { name: 'Boss', role: 'owner', is_active: true });
+  assert.equal((await one(`select count(*)::int c from staff_invites`)).c, 0, 'invite is used up');
+});
+await test('an uninvited sign-up gets no staff row and no access', async () => {
+  await asSuper();
+  const id = '00000000-0000-0000-0000-0000000000b2';
+  await db.exec(`insert into auth.users (id, email) values ('${id}', 'stranger@example.com')`);
+  assert.equal((await one(`select count(*)::int c from staff where user_id = '${id}'`)).c, 0);
+  await as('authenticated', id);
+  assert.equal((await one('select count(*)::int c from orders')).c, 0);
+  await rejects(one(`select public.admin_overview()`), /forbidden/);
+});
+await test('managers cannot read or create invites', async () => {
+  await as('authenticated', MANAGER);
+  assert.equal((await one('select count(*)::int c from staff_invites')).c, 0);
+  await rejects(db.exec(`insert into staff_invites (email, name) values ('x@example.com', 'X')`), /row-level security/);
+});
+await test('staff can edit only the note and tracking number of an order', async () => {
+  await asSuper();
+  const o = await one(`select id, status, total from orders where status = 'new' limit 1`);
+  await as('authenticated', MANAGER);
+  await db.exec(`update orders set staff_note = 'called twice', tracking_no = 'BTS-1' where id = '${o.id}'`);
+  await rejects(db.exec(`update orders set status = 'cancelled' where id = '${o.id}'`), /permission denied/);
+  await rejects(db.exec(`update orders set total = 1 where id = '${o.id}'`), /permission denied/);
+  await rejects(db.exec(`update orders set phone = '+998000000000' where id = '${o.id}'`), /permission denied/);
+  await asSuper();
+  const after = await one(`select status, total, staff_note, tracking_no from orders where id = '${o.id}'`);
+  assert.equal(after.status, 'new');
+  assert.equal(after.total, o.total);
+  assert.equal(after.staff_note, 'called twice');
+});
+await test('order items and history cannot be edited from the browser', async () => {
+  await as('authenticated', OWNER);
+  await db.exec(`update order_items set qty = 99`);   // no update policy: matches no rows
+  await db.exec(`delete from order_items`);
+  await db.exec(`delete from order_events`);
+  await asSuper();
+  assert.ok((await one('select count(*)::int c from order_items')).c > 0, 'rows must still be there');
+  assert.equal((await one('select count(*)::int c from order_items where qty = 99')).c, 0);
+  assert.ok((await one('select count(*)::int c from order_events')).c > 0);
+});
+
+let saved;
+const save = async (userId, payload) => {
+  await as('authenticated', userId);
+  return (await one('select public.admin_save_product($1::jsonb) as r', [JSON.stringify(payload)])).r;
+};
+const baseProduct = (extra = {}) => ({
+  slug: 'new-balance-550-white-green', brand_name: 'New Balance', name: '550 “White Green”', colorway: 'White / Green',
+  sku: 'BB550WT1', category: 'lifestyle', gender: 'unisex', price: 1290000, old_price: 1890000,
+  description_ru: 'Классика', tags: ['nb', ' 550 ', ''], is_new: true, is_active: true,
+  sizes: [{ eu: 40, us: 7, cm: 25, stock: 3 }, { eu: 41, us: 8, cm: 26, stock: 2 }],
+  images: [{ path: 'products/a/one-1600.webp' }, { path: 'products/a/two-1600.webp' }],
+  ...extra,
+});
+await test('manager creates a product: brand reused, sizes and ordered photos saved', async () => {
+  saved = await save(MANAGER, baseProduct());
+  await asSuper();
+  const p = await one(`select p.*, b.name brand from products p join brands b on b.id = p.brand_id where p.id = $1`, [saved.id]);
+  assert.equal(p.brand, 'New Balance');
+  assert.equal((await one(`select count(*)::int c from brands where lower(name) = 'new balance'`)).c, 1, 'no duplicate brand');
+  assert.deepEqual(p.tags, ['nb', '550']);
+  assert.equal(p.old_price, 1890000);
+  const imgs = await all('select path, sort, is_main from product_images where product_id = $1 order by sort', [saved.id]);
+  assert.deepEqual(imgs.map((i) => [i.path, i.is_main]), [['products/a/one-1600.webp', true], ['products/a/two-1600.webp', false]]);
+  assert.equal((await one('select count(*)::int c from product_sizes where product_id = $1', [saved.id])).c, 2);
+});
+await test('a new brand is created on the fly with a clean slug', async () => {
+  const r = await save(MANAGER, baseProduct({ slug: 'hoka-clifton-9', brand_name: 'HOKA One One', name: 'Clifton 9' }));
+  await asSuper();
+  assert.equal((await one(`select b.slug from brands b join products p on p.brand_id = b.id where p.id = $1`, [r.id])).slug, 'hoka-one-one');
+});
+await test('editing keeps size rows (and stock unless one is given); removed sizes and photos go away', async () => {
+  await asSuper();
+  const before = await all('select id, eu from product_sizes where product_id = $1 order by eu', [saved.id]);
+  const r = await save(MANAGER, baseProduct({
+    id: saved.id, price: 1190000,
+    sizes: [{ eu: 40, us: 7, cm: 25, stock: null }, { eu: 42, us: 9, cm: 27, stock: 5 }],   // 41 removed, 42 added
+    images: [{ path: 'products/a/two-1600.webp' }, { path: 'products/a/three-1600.webp' }], // order changed, one gone, one new
+  }));
+  assert.equal(r.id, saved.id);
+  await asSuper();
+  const sizes = await all('select id, eu, stock from product_sizes where product_id = $1 order by eu', [saved.id]);
+  assert.deepEqual(sizes.map((s) => [Number(s.eu), s.stock]), [[40, 3], [42, 5]], 'stock kept when null');
+  assert.equal(sizes[0].id, before[0].id, 'same row — order history still points at it');
+  const imgs = await all('select path, is_main from product_images where product_id = $1 order by sort', [saved.id]);
+  assert.deepEqual(imgs.map((i) => [i.path, i.is_main]), [['products/a/two-1600.webp', true], ['products/a/three-1600.webp', false]]);
+  assert.equal((await one('select price from products where id = $1', [saved.id])).price, 1190000);
+});
+await test('save is validated: slug, price, old price, size, stock, brand', async () => {
+  await rejects(save(MANAGER, baseProduct({ slug: 'Bad Slug!' })), /invalid:slug/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', price: -1 })), /invalid:price/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', price: 100, old_price: 50 })), /invalid:old_price/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', sizes: [{ eu: 5, stock: 1 }] })), /invalid:size/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', sizes: [{ eu: 40, stock: -2 }] })), /invalid:stock/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', brand_name: '', brand_id: null })), /invalid:brand/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', gender: 'robots' })), /invalid:gender/);
+  await rejects(save(MANAGER, baseProduct({ slug: 'old-skool-burgundy' })), /duplicate key|unique/);
+  await asSuper();
+  assert.equal((await one(`select count(*)::int c from products where slug = 'ok-slug'`)).c, 0, 'failed saves leave nothing behind');
+});
+await test('strangers and anonymous visitors cannot save products or read the overview', async () => {
+  await rejects(save(STRANGER, baseProduct({ slug: 'sneaky' })), /forbidden/);
+  await as('anon');
+  await rejects(one(`select public.admin_save_product('{}'::jsonb)`), /permission denied/);
+  await rejects(one(`select public.admin_overview()`), /permission denied/);
+});
+await test('admin_overview: counts, revenue (cancelled excluded) and low stock', async () => {
+  await as('authenticated', MANAGER);
+  const o = (await one('select public.admin_overview() as r')).r;
+  assert.ok(o.by_status.new >= 1);
+  assert.ok(o.by_status.cancelled >= 1);
+  assert.ok(o.today_orders >= 1);
+  assert.ok(o.low_stock.every((x) => x.stock <= 1));
+  assert.ok(o.low_stock.some((x) => x.slug === 'air-max-1-sunset' && Number(x.eu) === 41 && x.stock === 0));
+  await asSuper();
+  const real = await one(`select coalesce(sum(total),0)::int s from orders where status <> 'cancelled'`);
+  assert.ok(o.today_revenue > 0 && o.today_revenue <= real.s);
+});
+await test('activity log: staff edits are recorded with their name, server stock changes are not', async () => {
+  await asSuper();
+  await db.exec(`delete from activity_log`);
+  await as('authenticated', MANAGER);
+  await db.exec(`update products set price = 1250000 where id = '${saved.id}'`);
+  await db.exec(`update product_sizes set stock = 9 where product_id = '${saved.id}' and eu = 40`);
+  const spare = await one(`select p.slug, s.eu from product_sizes s join products p on p.id = s.product_id where s.stock >= 2 and p.is_active limit 1`);
+  await as('service_role');
+  await place(order([{ slug: spare.slug, size: Number(spare.eu), qty: 1 }], { customer: { name: 'L', phone: '+998906660000' } }));
+  await asSuper();
+  const log = await all('select * from activity_log order by created_at, id');
+  const price = log.find((l) => l.entity === 'products');
+  assert.equal(price.actor, 'Manager');
+  assert.equal(price.action, 'update');
+  assert.deepEqual(price.diff.changes.price, ['1190000', '1250000']);
+  const stock = log.find((l) => l.entity === 'product_sizes');
+  assert.deepEqual(stock.diff.changes.stock, ['3', '9']);
+  assert.equal(Number(stock.diff.eu), 40);
+  assert.equal(log.length, 2, 'placing an order must not add log noise');
+});
+await test('only the owner can read the activity log', async () => {
+  await as('authenticated', MANAGER);
+  assert.equal((await one('select count(*)::int c from activity_log')).c, 0);
+  await as('authenticated', OWNER);
+  assert.ok((await one('select count(*)::int c from activity_log')).c > 0);
+});
+await test('owner deletes a product: sizes and photos go with it, order history keeps its snapshot', async () => {
+  await asSuper();
+  const used = await one(`select p.id, i.name_snapshot from products p join order_items i on i.product_id = p.id limit 1`);
+  await as('authenticated', OWNER);
+  await db.exec(`delete from products where id = '${used.id}'`);
+  await asSuper();
+  assert.equal((await one(`select count(*)::int c from product_sizes where product_id = '${used.id}'`)).c, 0);
+  const item = await one(`select product_id from order_items where name_snapshot = $1 limit 1`, [used.name_snapshot]);
+  assert.equal(item.product_id, null, 'order line is kept, only the link is cleared');
 });
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — WITH FAILURES' : ''}\n`);

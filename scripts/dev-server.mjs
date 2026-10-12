@@ -1,6 +1,7 @@
 // Local dev server that behaves like Vercel for this project:
 //   - real files are served as-is (assets, index.html)
-//   - any other path without a dot (/shop, /product/x …) serves index.html (the router takes over)
+//   - any other path without a dot (/shop, /product/x …) serves index.html (the router takes over);
+//     /admin and /admin/… serve admin/index.html with the same security headers as production
 //   - /api/catalog runs the real handler, using SUPABASE_URL / SUPABASE_ANON_KEY
 //     from the environment or a git-ignored .env.local
 //
@@ -41,6 +42,15 @@ const readBody = (req) => new Promise((resolve) => {
   });
 });
 
+// the headers vercel.json sets for /admin/*, so the panel is tried under the same CSP locally
+const adminHeaders = (() => {
+  try {
+    const cfg = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
+    const block = (cfg.headers || []).find((h) => h.source === '/admin/:path*');
+    return block ? block.headers : [];
+  } catch { return []; }
+})();
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
@@ -78,7 +88,9 @@ http.createServer(async (req, res) => {
     res.statusCode = 404;
     return res.end('not found');
   }
-  if (!looksLikeFile) file = join(root, 'index.html'); // SPA fallback
+  const isAdmin = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
+  if (!looksLikeFile) file = join(root, isAdmin ? 'admin/index.html' : 'index.html'); // SPA fallback
+  if (isAdmin && !looksLikeFile) for (const h of adminHeaders) res.setHeader(h.key, h.value);
 
   res.setHeader('Content-Type', TYPES[extname(file)] || 'application/octet-stream');
   res.setHeader('Cache-Control', 'no-store');
