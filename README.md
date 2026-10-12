@@ -97,3 +97,5 @@ See `.env.example`. Real values live only in Vercel — never in git.
 - When real products are live, set `OL.CONFIG.staticFallback = false` in `data.js` so placeholder prices are never shown if the API is down.
 - Motion is reduced automatically when the visitor's system has "reduce motion" turned on.
 - When you change CSS/JS, bump the `?v=` number in `index.html` so browsers don't serve old copies.
+- Pushing to `main` deploys to production automatically (Vercel ↔ GitHub).
+- Uzbek text uses `ʻ` (U+02BB) in oʻ/gʻ and `ʼ` (U+02BC) for the tutuq belgisi — never `‘ ’ '`. Jost has no glyph for them; the font stack falls back to Inter, which does.

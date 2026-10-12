@@ -13,7 +13,7 @@
 | Homepage ("Flight Path" design), light/dark, EN/RU/UZ, UZS prices | ✅ Done, live at https://outlet-lounge.vercel.app |
 | Cart drawer (front-end only, stored in the browser) | ✅ Done |
 | GitHub repo `kattaboyevjahongir/outlet-lounge` | ✅ Done |
-| Vercel project (manual deploys) | ✅ Done; auto-deploy on push needs Vercel's GitHub access |
+| Vercel project | ✅ Done; GitHub connected 2026-10-13 — every push to `main` deploys to production |
 | Catalog `/shop` + collections, product page, wishlist page, mega-menu, 404 | ✅ Phase 2 built (filters, sort, size guide, gallery + zoom, related/recent) |
 | Cart page, checkout, orders → database, quick order, notify-me, Telegram alerts + status buttons | ✅ Phase 3 built and tested end-to-end against the live database; Telegram connected 2026-10-13 (@outlet_lounge_bot → group Outlet_requests) |
 | Phase 1–3 finishing touches: size change in the cart drawer, footer contacts, “Ask a manager” Telegram button (phones), “Track in Telegram” on the thank-you page (bot answers `/start <order no>` with the status), Telegram fallback when checkout fails, hero → `/new` | ✅ Built; contact buttons stay hidden until the `contacts` setting is filled in (owner details, §12) |
