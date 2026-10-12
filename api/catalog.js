@@ -69,10 +69,11 @@ export function shapeCatalog(productRows, settingRows, supabaseUrl) {
 }
 
 async function rest(base, key, path) {
-  const res = await fetch(`${base}/rest/v1/${path}`, {
-    headers: { apikey: key, Authorization: `Bearer ${key}` },
-    signal: AbortSignal.timeout(8000),
-  });
+  // legacy anon keys are JWTs and go in Authorization too; new publishable
+  // keys (sb_publishable_…) are not JWTs and must only be sent as `apikey`
+  const headers = { apikey: key };
+  if (key.startsWith('eyJ')) headers.Authorization = `Bearer ${key}`;
+  const res = await fetch(`${base}/rest/v1/${path}`, { headers, signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`supabase ${res.status}`);
   return res.json();
 }
