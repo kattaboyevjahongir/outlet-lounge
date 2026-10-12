@@ -69,8 +69,7 @@
         <h3><a href="${OL.productUrl(p)}">${esc(p.name)}</a></h3>
         <div class="cp-controls">
           <label class="cp-size"><span>${t('cp.size')}</span>
-            <select data-size-select>${p.sizes.map((z) =>
-    `<option value="${z.s}" ${z.s === i.size ? 'selected' : ''} ${z.ok || z.s === i.size ? '' : 'disabled'}>EU ${z.s}${z.ok ? '' : ` — ${t('pd.soldOut')}`}</option>`).join('')}</select>
+            ${OL.sizeSelect(p, i.size)}
           </label>
           <div class="qty"><button type="button" data-qty="-1" aria-label="−">−</button><span>${i.qty}</span><button type="button" data-qty="1" aria-label="+">+</button></div>
         </div>
@@ -220,9 +219,7 @@
         if (!sel) return;
         const line = cartLines()[Number(sel.closest('.cp-row').dataset.key)];
         if (!line) return;
-        const size = Number(sel.value);
-        const twin = OL.state.cart.find((i) => i !== line && i.id === line.id && i.size === size);
-        if (twin) { twin.qty = Math.min(10, twin.qty + line.qty); OL.state.cart.splice(OL.state.cart.indexOf(line), 1); } else line.size = size;
+        OL.setCartSize(line, Number(sel.value));
         persist(); redraw();
       });
       $('#cpPromo').addEventListener('submit', (e) => {
@@ -444,8 +441,16 @@
       };
       const banner = (text) => {
         const b = $('#ckBanner');
+        const tg = OL.orderLogic.tgLink(OL.contacts().telegram);
         b.hidden = !text;
         b.textContent = text || '';
+        if (text && tg) {
+          const a = document.createElement('a');
+          a.href = tg; a.target = '_blank'; a.rel = 'noopener';
+          a.className = 'ck-banner-tg';
+          a.textContent = t('err.viaTg');
+          b.append(a);
+        }
         if (text) b.scrollIntoView({ block: 'center', behavior: OL.reduced ? 'auto' : 'smooth' });
       };
 
@@ -571,6 +576,8 @@
 
     render() {
       const o = ss.get(KEY.last);
+      const contacts = OL.contacts();
+      const follow = o && OL.orderLogic.tgLink(contacts.telegram_bot, o.number);
       if (!o) {
         return `<section class="shop"><div class="container ok-wrap">
           <div class="shop-empty"><h3>${t('ok.none')}</h3><p>${t('ok.noneText')}</p>
@@ -581,7 +588,7 @@
         <div class="container ok-wrap">
           <div class="ok-mark" aria-hidden="true"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="36"/><path d="m24 41 11 11 22-24"/></svg></div>
           <h1 class="shop-title">${t('ok.title')}</h1>
-          <p class="ok-text">${t('ok.text')}</p>
+          <p class="ok-text">${t('ok.text', { min: contacts.call_minutes || 15, hours: esc(contacts.hours || '10:00–21:00') })}</p>
           <div class="ok-card">
             <div class="ok-no"><span>${t('ok.number')}</span><b>${esc(o.number)}</b></div>
             <ul class="ck-items">
@@ -591,7 +598,10 @@
             <div class="sum-row"><span>${t('cp.delivery')}</span><b>${o.delivery_fee > 0 ? OL.price(o.delivery_fee) : t('cp.free')}</b></div>
             <div class="sum-total"><span>${t('ok.total')}</span><b>${OL.price(o.total)}</b></div>
           </div>
-          <a class="btn btn-gold" href="/shop"><span>${t('ok.continue')}</span>${OL.ICON.arrow}</a>
+          <div class="ok-actions">
+            ${follow ? `<a class="btn btn-ghost" href="${follow}" target="_blank" rel="noopener">${OL.ICON.tg}<span>${t('ok.follow')}</span></a>` : ''}
+            <a class="btn btn-gold" href="/shop"><span>${t('ok.continue')}</span>${OL.ICON.arrow}</a>
+          </div>
         </div>
       </section>`;
     },

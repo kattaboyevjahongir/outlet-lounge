@@ -1,13 +1,14 @@
 // POST /api/telegram — the bot's webhook.
 //   • status buttons under an order message  → set_order_status() + the message is re-rendered
 //   • /id                                    → replies with the chat's id (handy when setting up)
+//   • /start OL-…  (private chat)            → a customer from the thank-you page gets the order's status
 //
 // Only requests that carry the secret header (set when the webhook is registered) are accepted,
 // and only button presses from the managers' chat (TELEGRAM_CHAT_ID) change anything.
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_WEBHOOK_SECRET
 
 import { timingSafeEqual } from 'node:crypto';
-import { orderMessage, keyboard, ACTION_TO_STATUS, STATUS } from './_lib/format.js';
+import { orderMessage, keyboard, ACTION_TO_STATUS, STATUS, customerMessage } from './_lib/format.js';
 import { rpc, select, tg } from './_lib/services.js';
 
 const ok = (res) => res.status(200).json({ ok: true });
@@ -64,6 +65,20 @@ async function onButton(cq) {
   return answer(STATUS[status]);
 }
 
+async function onStart(msg) {
+  const no = (msg.text.match(/^\/start(?:@\w+)?\s+(OL-\d{6}-\d{4})\s*$/) || [])[1];
+  const userLang = msg.from && msg.from.language_code;
+  let text = customerMessage('hello', { lang: userLang });
+  if (no) {
+    const r = await select(`orders?number=eq.${no}&select=status,lang`);
+    const o = r.ok && Array.isArray(r.data) && r.data[0];
+    text = o
+      ? customerMessage('order', { number: no, status: o.status, lang: o.lang || userLang })
+      : customerMessage('missing', { number: no, lang: userLang });
+  }
+  return tg('sendMessage', { chat_id: msg.chat.id, text, parse_mode: 'HTML' });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
   if (!safeEqual(req.headers['x-telegram-bot-api-secret-token'], process.env.TELEGRAM_WEBHOOK_SECRET)) {
@@ -79,6 +94,9 @@ export default async function handler(req, res) {
   try {
     if (update.callback_query) {
       await onButton(update.callback_query);
+    } else if (update.message && typeof update.message.text === 'string' && update.message.chat
+               && update.message.chat.type === 'private' && /^\/start\b/.test(update.message.text)) {
+      await onStart(update.message);
     } else if (update.message && typeof update.message.text === 'string' && /^\/id(@\w+)?\b/.test(update.message.text)) {
       await tg('sendMessage', {
         chat_id: update.message.chat.id,

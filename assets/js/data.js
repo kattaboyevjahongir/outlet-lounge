@@ -115,6 +115,8 @@
       ],
       free_threshold: 1500000,
     },
+    // edited in admin later; empty values hide the matching buttons/links
+    contacts: { phone: '', hours: '10:00–21:00', call_minutes: 15, telegram: '', telegram_bot: '', instagram: '' },
   };
 
   // Active catalog (replaced by live data from /api/catalog when available)
@@ -126,6 +128,9 @@
     OL.source = source;
   };
   OL.setCatalog(OL.STATIC_PRODUCTS, OL.STATIC_SETTINGS, 'static');
+
+  // contact details: live `contacts` setting over the defaults above
+  OL.contacts = () => ({ ...OL.STATIC_SETTINGS.contacts, ...((OL.SETTINGS && OL.SETTINGS.contacts) || {}) });
 
   OL.off = (p) => (p.was && p.was > p.price ? Math.round((1 - p.price / p.was) * 100) : 0);
 
@@ -246,9 +251,10 @@
         network: 'Network problem. Check your connection and try again.',
         stock: 'Sorry, {name} (EU {size}) has just sold out. Please update your cart.',
         gone: 'Sorry, {name} is no longer available.', promo: 'This promo code is not valid for your order.', generic: 'Something went wrong. Please try again.',
+        viaTg: 'Or order through a manager in Telegram',
       },
       ok: {
-        title: 'Thank you!', text: 'Your order is accepted. A manager will call you within 15 minutes (10:00–21:00).',
+        title: 'Thank you!', text: 'Your order is accepted. A manager will call you within {min} minutes (daily {hours}).', follow: 'Track in Telegram',
         number: 'Order number', total: 'Total', continue: 'Continue shopping', none: 'No recent order',
         noneText: 'Orders you place show up here right after checkout.', notified: 'Our managers have been notified.',
       },
@@ -295,7 +301,7 @@
         remove: 'Remove', size: 'Size', demo: 'Demo store — checkout comes later', added: 'Added to cart',
       },
       footer: {
-        tagline: 'Original sneakers at outlet prices.', shop: 'Shop', help: 'Help', about: 'About',
+        tagline: 'Original sneakers at outlet prices.', cart: 'Cart', wish: 'Wishlist', ask: 'Ask a manager', hours: 'Daily {hours}', shop: 'Shop', help: 'Help', about: 'About',
         delivery: 'Delivery', returns: 'Returns', sizes: 'Size guide', contact: 'Contact',
         story: 'Our story', auth: 'Authenticity', stores: 'Stores',
         rights: 'All rights reserved.', currency: 'Prices in UZS', photos: 'Placeholder photos: Unsplash',
@@ -384,9 +390,10 @@
         network: 'Проблема с сетью. Проверьте соединение и повторите.',
         stock: 'К сожалению, {name} (EU {size}) только что раскупили. Обновите корзину.',
         gone: 'К сожалению, {name} больше недоступны.', promo: 'Этот промокод не подходит для вашего заказа.', generic: 'Что-то пошло не так. Попробуйте ещё раз.',
+        viaTg: 'Или оформите заказ у менеджера в Telegram',
       },
       ok: {
-        title: 'Спасибо за заказ!', text: 'Ваш заказ принят. Менеджер позвонит вам в течение 15 минут (10:00–21:00).',
+        title: 'Спасибо за заказ!', text: 'Ваш заказ принят. Менеджер позвонит вам в течение {min} минут (ежедневно {hours}).', follow: 'Отследить в Telegram',
         number: 'Номер заказа', total: 'Итого', continue: 'Продолжить покупки', none: 'Недавних заказов нет',
         noneText: 'Оформленные заказы появятся здесь сразу после покупки.', notified: 'Наши менеджеры уже уведомлены.',
       },
@@ -433,7 +440,7 @@
         remove: 'Удалить', size: 'Размер', demo: 'Демо-магазин — оформление появится позже', added: 'Добавлено в корзину',
       },
       footer: {
-        tagline: 'Оригинальные кроссовки по ценам аутлета.', shop: 'Магазин', help: 'Помощь', about: 'О нас',
+        tagline: 'Оригинальные кроссовки по ценам аутлета.', cart: 'Корзина', wish: 'Избранное', ask: 'Спросить менеджера', hours: 'Ежедневно {hours}', shop: 'Магазин', help: 'Помощь', about: 'О нас',
         delivery: 'Доставка', returns: 'Возврат', sizes: 'Таблица размеров', contact: 'Контакты',
         story: 'Наша история', auth: 'Оригинальность', stores: 'Магазины',
         rights: 'Все права защищены.', currency: 'Цены в сумах', photos: 'Временные фото: Unsplash',
@@ -522,9 +529,10 @@
         network: 'Tarmoq muammosi. Ulanishni tekshirib, qayta urinib ko‘ring.',
         stock: 'Afsuski, {name} (EU {size}) hozirgina sotilib ketdi. Savatni yangilang.',
         gone: 'Afsuski, {name} endi mavjud emas.', promo: 'Bu promokod buyurtmangiz uchun yaroqsiz.', generic: 'Xatolik yuz berdi. Qayta urinib ko‘ring.',
+        viaTg: 'Yoki buyurtmani Telegram orqali menejerga bering',
       },
       ok: {
-        title: 'Rahmat!', text: 'Buyurtmangiz qabul qilindi. Menejer 15 daqiqa ichida qo‘ng‘iroq qiladi (10:00–21:00).',
+        title: 'Rahmat!', text: 'Buyurtmangiz qabul qilindi. Menejer {min} daqiqa ichida qo‘ng‘iroq qiladi (har kuni {hours}).', follow: 'Telegram orqali kuzatish',
         number: 'Buyurtma raqami', total: 'Jami', continue: 'Xaridni davom ettirish', none: 'Yaqinda buyurtma yo‘q',
         noneText: 'Rasmiylashtirgan buyurtmalaringiz xariddan so‘ng shu yerda ko‘rinadi.', notified: 'Menejerlarimiz xabardor qilindi.',
       },
@@ -571,7 +579,7 @@
         remove: 'O‘chirish', size: 'O‘lcham', demo: 'Demo do‘kon — buyurtma keyinroq qo‘shiladi', added: 'Savatga qo‘shildi',
       },
       footer: {
-        tagline: 'Original krossovkalar autlet narxlarida.', shop: 'Do‘kon', help: 'Yordam', about: 'Biz haqimizda',
+        tagline: 'Original krossovkalar autlet narxlarida.', cart: 'Savat', wish: 'Sevimlilar', ask: 'Menejerdan so‘rash', hours: 'Har kuni {hours}', shop: 'Do‘kon', help: 'Yordam', about: 'Biz haqimizda',
         delivery: 'Yetkazib berish', returns: 'Qaytarish', sizes: 'O‘lchamlar jadvali', contact: 'Aloqa',
         story: 'Bizning tarix', auth: 'Originallik', stores: 'Do‘konlar',
         rights: 'Barcha huquqlar himoyalangan.', currency: 'Narxlar so‘mda', photos: 'Vaqtinchalik rasmlar: Unsplash',

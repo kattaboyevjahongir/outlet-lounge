@@ -59,6 +59,24 @@ select id, 'Owner', 'owner' from auth.users where email = 'you@example.com';
 
 Managers are added the same way with `'manager'` (the admin panel will do this for you in phase 4).
 
+## Shop contact details
+
+The footer, the “Ask a manager” button, the thank-you page and the checkout fallback read the public
+`contacts` setting. Until it exists those buttons stay hidden (only the default working hours show).
+Fill in the real values in **SQL Editor** (the admin panel will edit this later):
+
+```sql
+insert into public.settings (key, value, is_public) values ('contacts', jsonb_build_object(
+  'phone', '+998 90 123 45 67',        -- shown in the footer, tap to call
+  'hours', '10:00–21:00',              -- "a manager will call within … (daily 10:00–21:00)"
+  'call_minutes', 15,
+  'telegram', 'manager_username',      -- the managers' Telegram account (without @)
+  'telegram_bot', 'shop_bot_username', -- the order bot (for "Track in Telegram")
+  'instagram', 'shop_instagram'
+), true)
+on conflict (key) do update set value = excluded.value, updated_at = now();
+```
+
 ## Changing the database
 
 Never edit tables by hand in production. Add a new file

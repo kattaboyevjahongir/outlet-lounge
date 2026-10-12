@@ -406,3 +406,34 @@ test('webhook: cancelled orders stay cancelled; /id answers with the chat id', a
     assert.ok(idMsg.body.text.includes('-1001'));
   } finally { m.restore(); unconfigure(); }
 });
+
+test('webhook: /start <order no> in a private chat replies with the status only', async () => {
+  configure();
+  const m = mockFetch({
+    'orders?number=eq.OL-261013-0042': () => ({ status: 200, json: [{ status: 'shipped', lang: 'uz' }] }),
+    'orders?number=eq.OL-261013-9999': () => ({ status: 200, json: [] }),
+  });
+  const start = (text, extra = {}) => hook({ message: { text, chat: { id: 555, type: 'private' }, from: { language_code: 'en' }, ...extra } });
+  const lastSent = () => m.calls.filter((c) => c.url.includes('sendMessage')).pop().body;
+  try {
+    await webhook(start('/start OL-261013-0042'), res());
+    let sent = lastSent();
+    assert.equal(sent.chat_id, 555);
+    assert.equal(sent.text, 'Buyurtma <b>OL-261013-0042</b>: joʻnatildi.', 'in the language the order was placed in');
+
+    await webhook(start('/start OL-261013-9999'), res());
+    assert.match(lastSent().text, /^Order OL-261013-9999 was not found/);
+
+    await webhook(start('/start'), res());
+    assert.match(lastSent().text, /^Hello!/);
+
+    // junk payloads never reach the database query
+    await webhook(start('/start OL-1&select=*'), res());
+    assert.ok(!m.calls.some((c) => c.url.includes('select=*')));
+
+    // groups are ignored (the managers' chat uses /id and buttons)
+    const before = m.calls.length;
+    await webhook(hook({ message: { text: '/start OL-261013-0042', chat: { id: -1001, type: 'supergroup' } } }), res());
+    assert.equal(m.calls.length, before);
+  } finally { m.restore(); unconfigure(); }
+});

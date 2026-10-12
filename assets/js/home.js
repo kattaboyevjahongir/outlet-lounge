@@ -54,7 +54,7 @@
 
           <div class="f-hero-bottom">
             <p class="f-lead">${t('f.lead')}</p>
-            <a href="#new" class="btn btn-gold magnetic"><span>${t('f.cta')}</span>${OL.ICON.arrow}</a>
+            <a href="/new" class="btn btn-gold magnetic"><span>${t('f.cta')}</span>${OL.ICON.arrow}</a>
           </div>
         </div>
       </section>

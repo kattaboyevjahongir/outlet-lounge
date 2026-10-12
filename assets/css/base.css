@@ -559,6 +559,10 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
   opacity: .9;
 }
 .footer-bottom { margin-top: 36px; display: flex; flex-wrap: wrap; gap: 12px 28px; justify-content: space-between; font-size: 13px; color: var(--text-3); }
+.footer-contacts p { padding: 5px 0; color: var(--text-3); font-size: 14px; }
+
+/* "Ask a manager" Telegram button — phones only (see the 720px breakpoint) */
+.tg-fab { display: none; }
 .footer-social { display: flex; gap: 10px; }
 .footer-social a { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; transition: border-color .3s, color .3s; }
 .footer-social a:hover { border-color: var(--gold-2); color: var(--gold-ink); }
@@ -591,6 +595,16 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 .cart-item h4, .wish-item h4 { font-family: var(--font-serif); font-weight: 500; font-size: 19px; line-height: 1.2; }
 .cart-item small, .wish-item small { display: block; color: var(--text-3); font-size: 12.5px; margin-top: 4px; letter-spacing: .04em; }
 .cart-item .ci-price, .wish-item .ci-price { font: 500 14.5px var(--font-display); margin-top: 6px; }
+/* size picker on cart lines (drawer + cart page) */
+.cp-size select, .ci-size select {
+  appearance: none; -webkit-appearance: none;
+  padding: 8px 34px 8px 14px; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent;
+  font: 500 13px var(--font-display); color: var(--text); cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%23A88241' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.ci-size { display: block; margin-top: 8px; }
+.ci-size select { padding: 5px 30px 5px 12px; font-size: 12.5px; background-position: right 10px center; }
 .ci-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
 .qty { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 999px; }
 .qty button { width: 30px; height: 30px; display: grid; place-items: center; color: var(--text-2); }
@@ -966,4 +980,19 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+@media (max-width: 720px) {
+  .tg-fab {
+    position: fixed; right: 16px; bottom: calc(18px + env(safe-area-inset-bottom)); z-index: 780;
+    display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%;
+    background: var(--gold-grad); color: var(--on-gold); box-shadow: var(--shadow-sm);
+    transition: bottom .5s var(--ease-out), transform .3s var(--ease-out);
+  }
+  .tg-fab:active { transform: scale(.94); }
+  .tg-fab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; margin-left: -2px; }
+  .tg-fab span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  /* stay above the product page's sticky buy bar; out of the way while checking out */
+  body:has(.pd-sticky.is-on) .tg-fab { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  body[data-page="checkout"] .tg-fab, body[data-page="success"] .tg-fab { display: none; }
 }

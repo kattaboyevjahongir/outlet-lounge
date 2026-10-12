@@ -113,3 +113,42 @@ export function notifyMessage(n) {
   if (n.telegram) L.push(`✈️ ${esc(n.telegram)}`);
   return L.join('\n');
 }
+
+// Reply to a customer who opened t.me/<bot>?start=<order number> from the thank-you page.
+// Shows the status only — never names, phones or totals (order numbers can be guessed).
+const CUSTOMER = {
+  ru: {
+    status: {
+      new: 'принят — менеджер скоро свяжется с вами', confirmed: 'подтверждён', shipped: 'отправлен',
+      delivered: 'доставлен', cancelled: 'отменён', no_answer: 'мы не смогли до вас дозвониться — менеджер попробует ещё раз',
+    },
+    order: 'Заказ <b>{no}</b>: {status}.',
+    missing: 'Заказ {no} не найден. Проверьте номер.',
+    hello: 'Здравствуйте! Это бот магазина Outlet Lounge.',
+  },
+  uz: {
+    status: {
+      new: 'qabul qilindi — menejer tez orada siz bilan bogʻlanadi', confirmed: 'tasdiqlandi', shipped: 'joʻnatildi',
+      delivered: 'yetkazib berildi', cancelled: 'bekor qilindi', no_answer: 'sizga qoʻngʻiroq qila olmadik — menejer yana urinib koʻradi',
+    },
+    order: 'Buyurtma <b>{no}</b>: {status}.',
+    missing: '{no} raqamli buyurtma topilmadi. Raqamni tekshiring.',
+    hello: 'Assalomu alaykum! Bu Outlet Lounge doʻkonining boti.',
+  },
+  en: {
+    status: {
+      new: 'accepted — a manager will contact you soon', confirmed: 'confirmed', shipped: 'shipped',
+      delivered: 'delivered', cancelled: 'cancelled', no_answer: 'we couldn’t reach you by phone — a manager will try again',
+    },
+    order: 'Order <b>{no}</b>: {status}.',
+    missing: 'Order {no} was not found. Please check the number.',
+    hello: 'Hello! This is the Outlet Lounge shop bot.',
+  },
+};
+export const customerLang = (lang) => (CUSTOMER[String(lang || '').slice(0, 2)] ? String(lang).slice(0, 2) : 'ru');
+export function customerMessage(kind, { number, status, lang } = {}) {
+  const L = CUSTOMER[customerLang(lang)];
+  if (kind === 'hello') return L.hello;
+  const text = kind === 'order' ? L.order : L.missing;
+  return text.replace('{no}', esc(number)).replace('{status}', esc(L.status[status] || status));
+}

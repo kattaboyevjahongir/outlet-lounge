@@ -2,7 +2,7 @@
 
 > The full shop website and admin panel, from today's homepage to launch and beyond.
 > Orders are saved in the database and alert managers in Telegram instantly.
-> Status: **draft for review** · Owner: kattaboyevjahongir · Last updated: 2026-10-12
+> Status: **draft for review** · Owner: kattaboyevjahongir · Last updated: 2026-10-13
 
 ---
 
@@ -16,6 +16,7 @@
 | Vercel project (manual deploys) | ✅ Done; auto-deploy on push needs Vercel's GitHub access |
 | Catalog `/shop` + collections, product page, wishlist page, mega-menu, 404 | ✅ Phase 2 built (filters, sort, size guide, gallery + zoom, related/recent) |
 | Cart page, checkout, orders → database, quick order, notify-me, Telegram alerts + status buttons | ✅ Phase 3 built and tested end-to-end against the live database; **Telegram needs the bot token + group id (owner step)** |
+| Phase 1–3 finishing touches: size change in the cart drawer, footer contacts, “Ask a manager” Telegram button (phones), “Track in Telegram” on the thank-you page (bot answers `/start <order no>` with the status), Telegram fallback when checkout fails, hero → `/new` | ✅ Built; contact buttons stay hidden until the `contacts` setting is filled in (owner details, §12) |
 | Admin panel (products, stock, orders, reports, content, staff) | ❌ Planned (§5) |
 | Database (Supabase) | ✅ Live: project `outlet-lounge` (Frankfurt), schema + security rules applied, placeholder products seeded, verified as a visitor (reads products only) |
 | Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Live on https://outlet-lounge.vercel.app (source: database) |

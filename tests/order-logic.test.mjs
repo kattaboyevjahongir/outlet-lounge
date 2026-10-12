@@ -54,3 +54,19 @@ test('local totals and free-delivery progress', () => {
   assert.equal(O.freeProgress(500, 0).enabled, false);
   assert.deepEqual(plain(O.cartItems([{ id: 'x', size: 42, qty: 2 }])), [{ slug: 'x', size: 42, qty: 2 }]);
 });
+
+test('contact links: Telegram, Instagram, phone', () => {
+  assert.equal(O.tgLink('@outlet_manager'), 'https://t.me/outlet_manager');
+  assert.equal(O.tgLink('https://t.me/outlet_manager/'), 'https://t.me/outlet_manager');
+  assert.equal(O.tgLink('outlet_lounge_bot', 'OL-261012-4821'), 'https://t.me/outlet_lounge_bot?start=OL-261012-4821');
+  assert.equal(O.tgLink('outlet_lounge_bot', 'bad start!'), 'https://t.me/outlet_lounge_bot', 'invalid start param is dropped');
+  assert.equal(O.tgLink(''), '');
+  assert.equal(O.tgLink('a b'), '');
+  assert.equal(O.tgLink('javascript:alert(1)'), '');
+  assert.equal(O.instaLink('@outlet.lounge'), 'https://instagram.com/outlet.lounge');
+  assert.equal(O.instaLink('https://www.instagram.com/outlet.lounge/'), 'https://instagram.com/outlet.lounge');
+  assert.equal(O.instaLink(''), '');
+  assert.equal(O.telLink('+998 90 123 45 67'), 'tel:+998901234567');
+  assert.equal(O.telLink('90 123 45 67'), 'tel:+998901234567');
+  assert.equal(O.telLink('12'), '');
+});

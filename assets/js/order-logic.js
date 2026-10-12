@@ -54,4 +54,23 @@
   };
 
   O.cartItems = (cart) => cart.map((i) => ({ slug: i.id, size: i.size, qty: i.qty }));
+
+  // Contact links from the `contacts` setting. Each returns '' when the value is missing or
+  // malformed, so the matching button simply isn't shown.
+  const handle = (v) => String(v == null ? '' : v).trim()
+    .replace(/^https?:\/\/(www\.)?(t\.me|telegram\.me|instagram\.com)\//i, '').replace(/^@/, '').replace(/\/+$/, '');
+  O.tgLink = (user, start) => {
+    const u = handle(user);
+    if (!/^[A-Za-z0-9_]{4,32}$/.test(u)) return '';
+    const s = String(start || '');
+    return `https://t.me/${u}${/^[A-Za-z0-9_-]{1,64}$/.test(s) ? `?start=${s}` : ''}`;
+  };
+  O.instaLink = (user) => {
+    const u = handle(user);
+    return /^[A-Za-z0-9_.]{1,30}$/.test(u) ? `https://instagram.com/${u}` : '';
+  };
+  O.telLink = (phone) => {
+    const d = String(phone == null ? '' : phone).replace(/\D/g, '');
+    return d.length >= 9 && d.length <= 15 ? `tel:+${d.length === 9 ? `998${d}` : d}` : '';
+  };
 })();

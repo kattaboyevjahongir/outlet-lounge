@@ -16,6 +16,7 @@
       OL.buildMega();
       OL.renderCart();
       OL.renderWish();
+      OL.renderFooter(); // live contact details
       return OL.startRouter();
     })
     .then((api) => loader.then(() => api))

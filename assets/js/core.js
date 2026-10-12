@@ -407,7 +407,9 @@
       const p = OL.P[i.id];
       return `<div class="cart-item" data-key="${k}">
         <img src="${OL.pimg(p.images[0], 200, 230)}" alt="">
-        <div><h4>${esc(p.name)}</h4><small>${esc(p.brand)} · ${t('cart.size')} ${i.size}</small><div class="ci-price">${OL.price(p.price * i.qty)}</div></div>
+        <div><h4>${esc(p.name)}</h4><small>${esc(p.brand)}</small>
+          <label class="ci-size"><span class="sr-only">${t('cart.size')}</span>${OL.sizeSelect(p, i.size)}</label>
+          <div class="ci-price">${OL.price(p.price * i.qty)}</div></div>
         <div class="ci-side">
           <div class="qty"><button type="button" data-qty="-1" aria-label="−">−</button><span>${i.qty}</span><button type="button" data-qty="1" aria-label="+">+</button></div>
           <button type="button" class="ci-remove" data-remove>${t('cart.remove')}</button>
@@ -709,6 +711,18 @@
     gsap.fromTo('.cart-btn', { scale: 1 }, { scale: 1.2, duration: .18, yoyo: true, repeat: 1, ease: 'power2.out' });
     gsap.fromTo('#cartCount', { scale: .4 }, { scale: 1, duration: .6, ease: 'elastic.out(1, .4)', clearProps: 'transform' });
   }
+  // Size picker for a cart line (drawer + cart page). Sold-out sizes stay visible but disabled.
+  OL.sizeSelect = (p, current) => `<select data-size-select>${p.sizes.map((z) =>
+    `<option value="${z.s}" ${z.s === current ? 'selected' : ''} ${z.ok || z.s === current ? '' : 'disabled'}>EU ${z.s}${z.ok ? '' : ` — ${t('pd.soldOut')}`}</option>`).join('')}</select>`;
+  // Change a line's size; if the cart already has that size, the two lines merge.
+  OL.setCartSize = (line, size) => {
+    const twin = state.cart.find((i) => i !== line && i.id === line.id && i.size === size);
+    if (twin) {
+      twin.qty = Math.min(10, twin.qty + line.qty);
+      state.cart.splice(state.cart.indexOf(line), 1);
+    } else line.size = size;
+  };
+
   OL.addToCart = (id, size, img, btn) => {
     const ex = state.cart.find((i) => i.id === id && i.size === size);
     if (ex) ex.qty += 1; else state.cart.push({ id, size, qty: 1 });
@@ -749,24 +763,51 @@
     return OL.source;
   };
 
-  /* ---------- Footer ---------- */
+  /* ---------- Footer + "Ask a manager" button (contacts come from settings) ---------- */
   function renderFooter() {
+    const c = OL.contacts();
+    const L = OL.orderLogic;
+    const tg = L.tgLink(c.telegram);
+    const insta = L.instaLink(c.instagram);
+    const tel = L.telLink(c.phone);
+    const ext = 'target="_blank" rel="noopener"';
     $('#footer').innerHTML = `
       <div class="container">
         <div class="footer-top">
           <div class="footer-brand">${OL.logoMark()}<p class="footer-word">OUTLET LOUNGE</p><p class="footer-tag">${t('footer.tagline')}</p></div>
           <div class="footer-col"><h4>${t('footer.shop')}</h4><a href="/new">${t('nav.new')}</a><a href="/men">${t('nav.men')}</a><a href="/women">${t('nav.women')}</a><a href="/kids">${t('nav.kids')}</a><a href="/sale">${t('nav.deals')}</a></div>
-          <div class="footer-col"><h4>${t('footer.help')}</h4><a href="#">${t('footer.delivery')}</a><a href="#">${t('footer.returns')}</a><a href="#">${t('footer.sizes')}</a><a href="#">${t('footer.contact')}</a></div>
-          <div class="footer-col"><h4>${t('footer.about')}</h4><a href="#">${t('footer.story')}</a><a href="#">${t('footer.auth')}</a><a href="#">${t('footer.stores')}</a></div>
+          <div class="footer-col"><h4>${t('footer.help')}</h4><a href="/shop">${t('ui.shopNow')}</a><a href="/cart">${t('footer.cart')}</a><a href="/wishlist">${t('footer.wish')}</a>${tg ? `<a href="${tg}" ${ext}>${t('footer.ask')}</a>` : ''}</div>
+          <div class="footer-col footer-contacts"><h4>${t('footer.contact')}</h4>
+            ${tel ? `<a href="${tel}">${esc(c.phone)}</a>` : ''}
+            ${c.hours ? `<p>${t('footer.hours', { hours: esc(c.hours) })}</p>` : ''}
+            ${tg ? `<a href="${tg}" ${ext}>Telegram</a>` : ''}
+            ${insta ? `<a href="${insta}" ${ext}>Instagram</a>` : ''}
+          </div>
         </div>
         <div class="footer-big gold-text" aria-hidden="true">OUTLET LOUNGE</div>
         <div class="footer-bottom">
           <span>© 2026 Outlet Lounge. ${t('footer.rights')}</span>
           <span>${t('footer.currency')} · ${t('footer.photos')}</span>
-          <div class="footer-social"><a href="#" aria-label="Instagram">${ICON.insta}</a><a href="#" aria-label="Telegram">${ICON.tg}</a></div>
+          ${insta || tg ? `<div class="footer-social">${insta ? `<a href="${insta}" ${ext} aria-label="Instagram">${ICON.insta}</a>` : ''}${tg ? `<a href="${tg}" ${ext} aria-label="Telegram">${ICON.tg}</a>` : ''}</div>` : ''}
         </div>
       </div>`;
+
+    // floating Telegram button (phones only, via CSS); hidden until a manager username is set
+    let fab = $('#tgFab');
+    if (!tg) { if (fab) fab.remove(); return; }
+    if (!fab) {
+      fab = document.createElement('a');
+      fab.id = 'tgFab';
+      fab.className = 'tg-fab';
+      fab.target = '_blank';
+      fab.rel = 'noopener';
+      document.body.appendChild(fab);
+    }
+    fab.href = tg;
+    fab.setAttribute('aria-label', t('footer.ask'));
+    fab.innerHTML = `${ICON.tg}<span>${t('footer.ask')}</span>`;
   }
+  OL.renderFooter = renderFooter;
 
   /* ---------- Loader (logo draws itself) ---------- */
   OL.runLoader = () => new Promise((resolve) => {
@@ -954,6 +995,14 @@
         saveCart();
         renderCart();
       }
+    });
+    $('#cartItems').addEventListener('change', (e) => {
+      const sel = e.target.closest('[data-size-select]');
+      const line = sel && state.cart[Number(sel.closest('.cart-item').dataset.key)];
+      if (!line) return;
+      OL.setCartSize(line, Number(sel.value));
+      saveCart();
+      renderCart();
     });
 
     // mega-menu: hover / keyboard focus on the nav, closes when the pointer leaves the header
