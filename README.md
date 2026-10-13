@@ -30,6 +30,7 @@ page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/d
 | `/product/<slug>` | Product page: gallery + zoom, sizes (EU/US/cm), size guide, related, recently viewed |
 | `/wishlist` | Saved items |
 | `/cart` `/checkout` `/order/success` | Cart page, checkout (no account), thank-you page |
+| `/delivery` `/returns` `/size-guide` `/authenticity` `/about` `/contacts` `/faq` `/offer` `/privacy` | Information and legal pages (RU / UZ / EN; prices and details come from the admin settings) |
 | anything else | 404 |
 | `/admin` … | Staff panel (not indexed): overview, orders, products, stock, promo codes, reports, settings, staff, activity — see "Admin panel" below |
 
@@ -44,6 +45,8 @@ api/catalog.js             GET /api/catalog — live products + public settings 
 api/quote.js               POST /api/quote — cart totals/promo from the database (never changes stock)
 api/order.js               POST /api/order — checkout, quick order, notify-me → database + Telegram
 api/telegram.js            POST /api/telegram — bot webhook (order status buttons, /id)
+api/page.js                product / collection / brand / info pages with their own title, description, Open Graph and JSON-LD
+api/sitemap.js, robots.js  /sitemap.xml and /robots.txt (follow SITE_URL and the "index the shop" switch)
 api/admin-config.js        GET /api/admin-config — public Supabase URL + anon key for the admin panel
 api/admin-order-status.js  POST — staff changes an order status; the Telegram message is updated too
 api/admin-setup.js         first-run owner creation (code via the managers' Telegram group)
@@ -58,6 +61,8 @@ assets/js/core.js          logo, theme/language, cart, wishlist, search, mega-me
 assets/js/router.js        URL → page, history, transitions, per-page meta
 assets/js/home.js | shop.js | product.js | checkout.js | pages.js    the pages
 assets/js/order-logic.js   phone mask, form validation, local totals (pure, unit-tested)
+assets/js/info.js | info-content.js   information pages and their texts
+assets/js/analytics.js     Yandex Metrica / GA4 loader and shop events (only when an id is set in the admin)
 assets/js/main.js          boot
 admin/index.html           admin panel shell (own CSP, noindex)
 assets/admin/              admin panel: app.js (sign-in, layout, routing), pages/*.js, data.js (Supabase),
@@ -94,6 +99,17 @@ After that the door is closed for good. Everyone else is added by the owner unde
 Try it locally without an account or database: `npm run dev`, then open
 `http://localhost:5173/admin?demo` (in-memory demo data; add `&role=manager` for the manager view,
 `&login` to see the sign-in page — password `demo` — or `&setup` for the first-run flow — code `12345678`).
+
+## SEO, analytics and launch
+
+- **Server-rendered meta.** Public addresses are rewritten to `api/page.js`, which returns the shop shell with
+  the page's own title, description, canonical link, Open Graph / Twitter tags and JSON-LD
+  (Product + Offer in UZS, BreadcrumbList, Store). Link previews in Telegram / Instagram and search
+  engines see real content; unknown products answer a real 404.
+- **Closed until launch.** The public setting `site.indexing` (admin → Settings → Launch) is off by default:
+  pages are `noindex`, `robots.txt` disallows everything and the sitemap is empty. Switch it on on launch day.
+- **Analytics** load only when an id is entered under Settings → Analytics.
+- **Domain:** set `SITE_URL` in Vercel after connecting one. The full checklist is in `docs/LAUNCH.md`.
 
 ## Tests
 

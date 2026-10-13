@@ -209,6 +209,7 @@
 
     bind(root, ctx) {
       const p = OL.P[ctx.params.slug];
+      if (OL.track) OL.track('view_item', { currency: 'UZS', value: p.price, items: [OL.itemOf(p)] });
       const page = root.querySelector('.pd');
       const $ = (s) => page.querySelector(s);
       const $$ = (s) => [...page.querySelectorAll(s)];
@@ -448,6 +449,7 @@
           items: [{ slug: p.slug, size: selected, qty: 1 }],
         });
         if (!data) return;
+        if (OL.track) OL.track('purchase', { transaction_id: data.number, currency: 'UZS', value: p.price, quick: true, items: [OL.itemOf(p, { quantity: 1 })] });
         form.hidden = true;
         const done = quick.querySelector('.mdone');
         done.hidden = false;

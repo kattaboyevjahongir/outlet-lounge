@@ -51,6 +51,17 @@ const adminHeaders = (() => {
   } catch { return []; }
 })();
 
+// the same public addresses vercel.json rewrites to the SEO functions
+const SEO_ROUTES = [
+  [/^\/product\/([a-z0-9-]+)\/?$/, (m) => ['page', `type=product&slug=${m[1]}`]],
+  [/^\/brands\/([a-z0-9-]+)\/?$/, (m) => ['page', `type=brand&slug=${m[1]}`]],
+  [/^\/(shop|new|sale|men|women|kids)\/?$/, (m) => ['page', `type=collection&slug=${m[1]}`]],
+  [/^\/(delivery|returns|size-guide|authenticity|about|contacts|faq|offer|privacy)\/?$/, (m) => ['page', `type=info&slug=${m[1]}`]],
+  [/^\/$/, () => ['page', 'type=home']],
+  [/^\/sitemap\.xml$/, () => ['sitemap', '']],
+  [/^\/robots\.txt$/, () => ['robots', '']],
+];
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
@@ -58,7 +69,17 @@ const TYPES = {
 };
 
 http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://localhost');
+  let url = new URL(req.url, 'http://localhost');
+  for (const [re, to] of SEO_ROUTES) {
+    const m = url.pathname.match(re);
+    if (m && req.method === 'GET') {
+      const [name, qs] = to(m);
+      url = new URL(`/api/${name}${qs ? `?${qs}` : ''}`, 'http://localhost');
+      req.url = url.pathname + url.search;
+      req.query = Object.fromEntries(url.searchParams);
+      break;
+    }
+  }
 
   const api = url.pathname.match(/^\/api\/([a-z0-9_-]+)$/);
   if (api) {
@@ -69,6 +90,7 @@ http.createServer(async (req, res) => {
       status(c) { res.statusCode = c; return r; },
       setHeader(k, v) { res.setHeader(k, v); },
       json(b) { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(b)); },
+      send(b) { res.end(b); },
     };
     try {
       return await handler(req, r);

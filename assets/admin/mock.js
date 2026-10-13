@@ -92,6 +92,9 @@ export function createMock() {
     delivery: { methods: [{ id: 'courier_tashkent', fee: 30000 }, { id: 'regions', fee: 50000 }, { id: 'pickup', fee: 0 }], free_threshold: 1500000 },
     home: { hero: { image: 'https://images.unsplash.com/photo-1491553895911-0055eca6402d', product: 'kyrie-7-onyx' }, deal_ends: null },
     telegram: { bot: 'outlet_lounge_bot', chat_id: -1004346539283, chat_title: 'Outlet_requests' },
+    site: { indexing: false },
+    legal: { company: '', inn: '', address: '', email: '', return_days: 14 },
+    analytics: { yandex_metrica: '', ga4: '' },
   };
   const promos = [
     { id: 'pr1', code: 'LOUNGE10', type: 'percent', value: 10, min_order: 500000, starts_at: null, ends_at: null, usage_limit: 100, per_phone_limit: 1, used_count: 7, is_active: true, created_at: minutesAgo(60 * 24 * 9) },

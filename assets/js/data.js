@@ -226,6 +226,7 @@
       },
       wl: { title: 'Wishlist', browse: 'Browse sneakers', count: '{n} saved' },
       nf: { title: 'Page not found', text: 'The page may have moved, or the pair has sold out. Let’s get you back to the sneakers.', shop: 'Browse all sneakers', home: 'Back to home' },
+      ct: { phone: 'Phone', hours: 'Working hours', address: 'Address', soon: 'Contact details will appear here soon.', help: 'Help' },
       mega: { cats: 'Categories', brands: 'Top brands', all: 'View all', featured: 'Featured' },
       cp: {
         title: 'Your cart', items: '{n} items', empty: 'Your cart is empty', emptyText: 'Find a pair you love — it will wait for you here.',
@@ -304,7 +305,7 @@
         remove: 'Remove', size: 'Size', demo: 'Demo store — checkout comes later', added: 'Added to cart',
       },
       footer: {
-        tagline: 'Original sneakers at outlet prices.', cart: 'Cart', wish: 'Wishlist', ask: 'Ask a manager', hours: 'Daily {hours}', shop: 'Shop', help: 'Help', about: 'About',
+        tagline: 'Original sneakers at outlet prices.', cart: 'Cart', inn: 'TIN', wish: 'Wishlist', ask: 'Ask a manager', hours: 'Daily {hours}', shop: 'Shop', help: 'Help', about: 'About',
         delivery: 'Delivery', returns: 'Returns', sizes: 'Size guide', contact: 'Contact',
         story: 'Our story', auth: 'Authenticity', stores: 'Stores',
         rights: 'All rights reserved.', currency: 'Prices in UZS', photos: 'Placeholder photos: Unsplash',
@@ -365,6 +366,7 @@
       },
       wl: { title: 'Избранное', browse: 'Смотреть кроссовки', count: 'Сохранено: {n}' },
       nf: { title: 'Страница не найдена', text: 'Возможно, страница переехала или пара уже раскуплена. Давайте вернёмся к кроссовкам.', shop: 'Все кроссовки', home: 'На главную' },
+      ct: { phone: 'Телефон', hours: 'Часы работы', address: 'Адрес', soon: 'Контакты скоро появятся здесь.', help: 'Помощь' },
       mega: { cats: 'Категории', brands: 'Топ брендов', all: 'Смотреть все', featured: 'Выбор недели' },
       cp: {
         title: 'Корзина', items: 'Товаров: {n}', empty: 'Корзина пуста', emptyText: 'Найдите пару по душе — она будет ждать вас здесь.',
@@ -443,7 +445,7 @@
         remove: 'Удалить', size: 'Размер', demo: 'Демо-магазин — оформление появится позже', added: 'Добавлено в корзину',
       },
       footer: {
-        tagline: 'Оригинальные кроссовки по ценам аутлета.', cart: 'Корзина', wish: 'Избранное', ask: 'Спросить менеджера', hours: 'Ежедневно {hours}', shop: 'Магазин', help: 'Помощь', about: 'О нас',
+        tagline: 'Оригинальные кроссовки по ценам аутлета.', cart: 'Корзина', inn: 'ИНН', wish: 'Избранное', ask: 'Спросить менеджера', hours: 'Ежедневно {hours}', shop: 'Магазин', help: 'Помощь', about: 'О нас',
         delivery: 'Доставка', returns: 'Возврат', sizes: 'Таблица размеров', contact: 'Контакты',
         story: 'Наша история', auth: 'Оригинальность', stores: 'Магазины',
         rights: 'Все права защищены.', currency: 'Цены в сумах', photos: 'Временные фото: Unsplash',
@@ -504,6 +506,7 @@
       },
       wl: { title: 'Sevimlilar', browse: 'Krossovkalarni koʻrish', count: 'Saqlangan: {n}' },
       nf: { title: 'Sahifa topilmadi', text: 'Sahifa koʻchirilgan yoki juft sotib boʻlingan boʻlishi mumkin. Keling, krossovkalarga qaytamiz.', shop: 'Barcha krossovkalar', home: 'Bosh sahifaga' },
+      ct: { phone: 'Telefon', hours: 'Ish vaqti', address: 'Manzil', soon: 'Aloqa maʼlumotlari tez orada shu yerda paydo boʻladi.', help: 'Yordam' },
       mega: { cats: 'Kategoriyalar', brands: 'Top brendlar', all: 'Barchasini koʻrish', featured: 'Tanlangan' },
       cp: {
         title: 'Savat', items: 'Mahsulotlar: {n}', empty: 'Savat boʻsh', emptyText: 'Yoqqan juftni toping — u sizni shu yerda kutadi.',
@@ -582,7 +585,7 @@
         remove: 'Oʻchirish', size: 'Oʻlcham', demo: 'Demo doʻkon — buyurtma keyinroq qoʻshiladi', added: 'Savatga qoʻshildi',
       },
       footer: {
-        tagline: 'Original krossovkalar autlet narxlarida.', cart: 'Savat', wish: 'Sevimlilar', ask: 'Menejerdan soʻrash', hours: 'Har kuni {hours}', shop: 'Doʻkon', help: 'Yordam', about: 'Biz haqimizda',
+        tagline: 'Original krossovkalar autlet narxlarida.', cart: 'Savat', inn: 'STIR', wish: 'Sevimlilar', ask: 'Menejerdan soʻrash', hours: 'Har kuni {hours}', shop: 'Doʻkon', help: 'Yordam', about: 'Biz haqimizda',
         delivery: 'Yetkazib berish', returns: 'Qaytarish', sizes: 'Oʻlchamlar jadvali', contact: 'Aloqa',
         story: 'Bizning tarix', auth: 'Originallik', stores: 'Doʻkonlar',
         rights: 'Barcha huquqlar himoyalangan.', currency: 'Narxlar soʻmda', photos: 'Vaqtinchalik rasmlar: Unsplash',

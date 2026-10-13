@@ -17,6 +17,7 @@
       OL.renderCart();
       OL.renderWish();
       OL.renderFooter(); // live contact details
+      if (OL.initAnalytics) OL.initAnalytics(); // only when an id is set in the admin panel
       return OL.startRouter();
     })
     .then((api) => loader.then(() => api))

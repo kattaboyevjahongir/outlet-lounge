@@ -330,6 +330,24 @@ export function validateDelivery(d) {
   return { ok: Object.keys(errors).length === 0, errors };
 }
 
+// company details used by the offer, the privacy policy and the footer
+export function validateLegal(l) {
+  const errors = {};
+  if (l.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(l.email).trim())) errors.email = 'email';
+  if (l.inn && !/^\d{9,14}$/.test(String(l.inn).replace(/\s/g, ''))) errors.inn = 'inn';
+  const days = parseMoney(l.return_days);
+  if (l.return_days !== '' && l.return_days != null && (days == null || days < 1 || days > 365)) errors.return_days = 'days';
+  if (String(l.company || '').length > 120) errors.company = 'long';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+// Yandex Metrica counter number and Google Analytics 4 id
+export function validateAnalytics(a) {
+  const errors = {};
+  if (a.yandex_metrica && !/^\d{5,12}$/.test(String(a.yandex_metrica).trim())) errors.yandex_metrica = 'metrica';
+  if (a.ga4 && !/^G-[A-Z0-9]{4,14}$/.test(String(a.ga4).trim().toUpperCase())) errors.ga4 = 'ga4';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+
 /* --------------------------------------------------------------- charts */
 // daily: [{ day, orders, revenue }] oldest first → bars scaled to the tallest day
 export function chartBars(daily, height = 120) {

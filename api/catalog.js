@@ -8,7 +8,7 @@
 // If they are not set the endpoint answers 503 and the site falls back to the
 // built-in placeholder catalog.
 
-const PRODUCT_COLUMNS = [
+export const PRODUCT_COLUMNS = [
   'slug', 'name', 'colorway', 'sku', 'category', 'gender', 'price', 'old_price',
   'description_ru', 'description_uz', 'description_en', 'tags',
   'is_new', 'is_featured', 'created_at',
@@ -69,7 +69,7 @@ export function shapeCatalog(productRows, settingRows, supabaseUrl) {
   return { source: 'live', products, settings, generatedAt: new Date().toISOString() };
 }
 
-async function rest(base, key, path) {
+export async function rest(base, key, path) {
   // legacy anon keys are JWTs and go in Authorization too; new publishable
   // keys (sb_publishable_…) are not JWTs and must only be sent as `apikey`
   const headers = { apikey: key };

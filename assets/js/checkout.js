@@ -359,6 +359,10 @@
       if (!form) return {};
       const $ = (s) => form.querySelector(s);
       const startedAt = Date.now();
+      if (OL.track) {
+        const lines = cartLines();
+        OL.track('begin_checkout', { currency: 'UZS', value: lines.reduce((n, i) => n + OL.P[i.id].price * i.qty, 0), items: lines.map((i) => OL.itemOf(OL.P[i.id], { quantity: i.qty })) });
+      }
       let promo = ss.get(KEY.promo) || '';
       let promoState = '';
       let sending = false;
@@ -550,6 +554,12 @@
           method: m, notified: result.notified,
           items: cartLines().map((i) => ({ name: OL.P[i.id].name, size: i.size, qty: i.qty, price: OL.P[i.id].price, image: OL.P[i.id].images[0] })),
         });
+        if (OL.track) {
+          OL.track('purchase', {
+            transaction_id: result.number, currency: 'UZS', value: result.total, shipping: result.delivery_fee, coupon: promo || undefined,
+            items: cartLines().map((i) => OL.itemOf(OL.P[i.id], { quantity: i.qty })),
+          });
+        }
         OL.state.cart = [];
         OL.saveCart();
         OL.renderCart();

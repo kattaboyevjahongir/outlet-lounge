@@ -727,6 +727,7 @@
     const ex = state.cart.find((i) => i.id === id && i.size === size);
     if (ex) ex.qty += 1; else state.cart.push({ id, size, qty: 1 });
     saveCart();
+    OL.track && OL.track('add_to_cart', { currency: 'UZS', value: OL.P[id].price, items: [OL.itemOf(OL.P[id], { quantity: 1, item_variant: String(size) })] });
     flyToCart(img);
     OL.toast(`${t('cart.added')} · ${OL.P[id].name} · ${size}`);
     if (btn) {
@@ -776,17 +777,18 @@
         <div class="footer-top">
           <div class="footer-brand">${OL.logoMark()}<p class="footer-word">OUTLET LOUNGE</p><p class="footer-tag">${t('footer.tagline')}</p></div>
           <div class="footer-col"><h4>${t('footer.shop')}</h4><a href="/new">${t('nav.new')}</a><a href="/men">${t('nav.men')}</a><a href="/women">${t('nav.women')}</a><a href="/kids">${t('nav.kids')}</a><a href="/sale">${t('nav.deals')}</a></div>
-          <div class="footer-col"><h4>${t('footer.help')}</h4><a href="/shop">${t('ui.shopNow')}</a><a href="/cart">${t('footer.cart')}</a><a href="/wishlist">${t('footer.wish')}</a>${tg ? `<a href="${tg}" ${ext}>${t('footer.ask')}</a>` : ''}</div>
+          <div class="footer-col"><h4>${t('footer.help')}</h4><a href="/delivery">${OL.infoTitle('delivery')}</a><a href="/returns">${OL.infoTitle('returns')}</a><a href="/size-guide">${OL.infoTitle('size-guide')}</a><a href="/authenticity">${OL.infoTitle('authenticity')}</a><a href="/faq">${OL.infoTitle('faq')}</a>${tg ? `<a href="${tg}" ${ext}>${t('footer.ask')}</a>` : ''}</div>
           <div class="footer-col footer-contacts"><h4>${t('footer.contact')}</h4>
             ${tel ? `<a href="${tel}">${esc(c.phone)}</a>` : ''}
             ${c.hours ? `<p>${t('footer.hours', { hours: esc(c.hours) })}</p>` : ''}
             ${tg ? `<a href="${tg}" ${ext}>Telegram</a>` : ''}
             ${insta ? `<a href="${insta}" ${ext}>Instagram</a>` : ''}
+            <a href="/about">${OL.infoTitle('about')}</a><a href="/contacts">${OL.infoTitle('contacts')}</a><a href="/offer">${OL.infoTitle('offer')}</a><a href="/privacy">${OL.infoTitle('privacy')}</a>
           </div>
         </div>
         <div class="footer-big gold-text" aria-hidden="true">OUTLET LOUNGE</div>
         <div class="footer-bottom">
-          <span>© 2026 Outlet Lounge. ${t('footer.rights')}</span>
+          <span>© 2026 Outlet Lounge. ${t('footer.rights')}${OL.legal && OL.legal().company ? ` ${esc(OL.legal().company)}${OL.legal().inn ? `, ${t('footer.inn')} ${esc(OL.legal().inn)}` : ''}` : ''}</span>
           <span>${t('footer.currency')} · ${t('footer.photos')}</span>
           ${insta || tg ? `<div class="footer-social">${insta ? `<a href="${insta}" ${ext} aria-label="Instagram">${ICON.insta}</a>` : ''}${tg ? `<a href="${tg}" ${ext} aria-label="Telegram">${ICON.tg}</a>` : ''}</div>` : ''}
         </div>
@@ -1045,7 +1047,7 @@
       if (e.key === 'Enter' && e.target.id === 'searchInput') {
         const value = e.target.value.trim();
         remember(value);
-        if (value) { closeAll(); OL.navigate('/shop?q=' + encodeURIComponent(value)); }
+        if (value) { OL.track && OL.track('search', { search_term: value }); closeAll(); OL.navigate('/shop?q=' + encodeURIComponent(value)); }
       }
     });
 

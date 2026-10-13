@@ -3,7 +3,7 @@
 import { html, raw, $, $$ } from '../dom.js';
 import { t } from '../i18n.js';
 import {
-  validateContacts, validateDelivery, cleanHandle, parseMoney, fmtMoney, localToIso, isoToLocal, DELIVERY_METHODS,
+  validateContacts, validateDelivery, validateLegal, validateAnalytics, cleanHandle, parseMoney, fmtMoney, localToIso, isoToLocal, DELIVERY_METHODS,
 } from '../logic.js';
 import { toast, errorText, deniedPage } from '../ui.js';
 
@@ -14,6 +14,9 @@ export default async function page({ data, me }) {
   const delivery = settings.delivery || { methods: [], free_threshold: null };
   const home = settings.home || {};
   const tgSetting = settings.telegram || {};
+  const legal = settings.legal || {};
+  const analytics = settings.analytics || {};
+  const site = settings.site || {};
   const feeOf = (id) => {
     const m = (delivery.methods || []).find((x) => x.id === id);
     return m ? fmtMoney(m.fee) : '';
@@ -34,6 +37,7 @@ export default async function page({ data, me }) {
           <div class="grid-2">${input('phone', t('set.phone'), contacts.phone, { mode: 'tel', max: 30 })}${input('hours', t('set.hours'), contacts.hours, { max: 40 })}</div>
           <div class="grid-2">${input('telegram', t('set.telegram'), contacts.telegram, { max: 60 })}${input('telegram_bot', t('set.telegramBot'), contacts.telegram_bot, { max: 60 })}</div>
           <div class="grid-2">${input('instagram', t('set.instagram'), contacts.instagram, { max: 60 })}${input('call_minutes', t('set.callMinutes'), contacts.call_minutes, { mode: 'numeric', max: 3 })}</div>
+          ${input('address', t('set.address'), contacts.address, { max: 160 })}
           <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveContacts')}</button></div>
         </form>
       </section>
@@ -62,6 +66,35 @@ export default async function page({ data, me }) {
               </select></label>
           </div>
           <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveHome')}</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>${t('set.launch')}</h2>
+        <p class="muted">${t('set.launchHint')}</p>
+        <form id="launchForm" class="stack" novalidate>
+          <label class="switch"><input type="checkbox" name="indexing" ${site.indexing === true ? 'checked' : ''}><span>${t('set.indexing')}</span></label>
+          <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveLaunch')}</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>${t('set.legal')}</h2>
+        <p class="muted">${t('set.legalHint')}</p>
+        <form id="legalForm" class="stack" novalidate>
+          <div class="grid-2">${input('company', t('set.company'), legal.company, { max: 120 })}${input('inn', t('set.inn'), legal.inn, { mode: 'numeric', max: 14 })}</div>
+          ${input('legal_address', t('set.legalAddress'), legal.address, { max: 200 })}
+          <div class="grid-2">${input('email', t('set.email'), legal.email, { max: 80 })}${input('return_days', t('set.returnDays'), legal.return_days || 14, { mode: 'numeric', max: 3 })}</div>
+          <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveLegal')}</button></div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>${t('set.analytics')}</h2>
+        <p class="muted">${t('set.analyticsHint')}</p>
+        <form id="analyticsForm" class="stack" novalidate>
+          <div class="grid-2">${input('yandex_metrica', t('set.metrica'), analytics.yandex_metrica, { mode: 'numeric', max: 12 })}${input('ga4', t('set.ga4'), analytics.ga4, { max: 16 })}</div>
+          <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveAnalytics')}</button></div>
         </form>
       </section>
 
@@ -99,6 +132,7 @@ export default async function page({ data, me }) {
             phone: String(v.phone).trim(), hours: String(v.hours).trim(),
             telegram: cleanHandle(v.telegram), telegram_bot: cleanHandle(v.telegram_bot), instagram: cleanHandle(v.instagram),
             call_minutes: minutes || 15,
+            address: String(v.address || '').trim(),
           }, true);
           saved();
         } catch (err) { fail(err); }
@@ -127,6 +161,43 @@ export default async function page({ data, me }) {
         if (f.hero.value) hero.product = f.hero.value; else delete hero.product;
         try {
           await data.saveSetting('home', { ...home, hero, deal_ends: localToIso(f.deal_ends.value) }, true);
+          saved();
+        } catch (err) { fail(err); }
+      });
+
+      $('#launchForm', root).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+          await data.saveSetting('site', { ...site, indexing: e.currentTarget.indexing.checked }, true);
+          saved();
+        } catch (err) { fail(err); }
+      });
+
+      $('#legalForm', root).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.currentTarget;
+        const v = Object.fromEntries(new FormData(f));
+        const { ok, errors } = validateLegal(v);
+        showErrors(f, errors, 'set.err');
+        if (!ok) return;
+        try {
+          await data.saveSetting('legal', {
+            company: String(v.company).trim(), inn: String(v.inn).replace(/\s/g, ''), address: String(v.legal_address).trim(),
+            email: String(v.email).trim(), return_days: parseMoney(v.return_days) || 14,
+          }, true);
+          saved();
+        } catch (err) { fail(err); }
+      });
+
+      $('#analyticsForm', root).addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const f = e.currentTarget;
+        const v = Object.fromEntries(new FormData(f));
+        const { ok, errors } = validateAnalytics(v);
+        showErrors(f, errors, 'set.err');
+        if (!ok) return;
+        try {
+          await data.saveSetting('analytics', { yandex_metrica: String(v.yandex_metrica).trim(), ga4: String(v.ga4).trim().toUpperCase() }, true);
           saved();
         } catch (err) { fail(err); }
       });

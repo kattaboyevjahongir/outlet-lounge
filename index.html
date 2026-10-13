@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="ru" data-theme="dark">
 <head>
   <script>
     // staff invitation / password-reset links land on the site root with the session in the address
@@ -7,8 +7,14 @@
   </script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Outlet Lounge — Original Sneakers</title>
-  <meta name="description" content="Original sneakers from the world's leading brands at outlet prices." />
+  <title>Outlet Lounge — оригинальные кроссовки по ценам аутлета</title>
+  <meta name="description" content="Оригинальные Nike, Jordan, New Balance и другие бренды по ценам аутлета. Доставка по всему Узбекистану, оплата при получении." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ru_RU" />
+  <meta property="og:title" content="Outlet Lounge — оригинальные кроссовки по ценам аутлета" />
+  <meta property="og:description" content="Оригинальные Nike, Jordan, New Balance и другие бренды по ценам аутлета. Доставка по всему Узбекистану." />
+
   <meta name="theme-color" content="#0A0A0A" />
   <meta property="og:site_name" content="Outlet Lounge" />
   <meta name="twitter:card" content="summary_large_image" />
@@ -19,7 +25,12 @@
       var d = document.documentElement, get = function (k) { try { return JSON.parse(localStorage.getItem('ol:' + k)); } catch (e) { return null; } };
       var theme = get('theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       d.dataset.theme = theme;
-      d.lang = get('lang') || 'en';
+      var l = get('lang');
+      if (l !== 'ru' && l !== 'uz' && l !== 'en') {
+        var n = ((navigator.languages && navigator.languages[0]) || navigator.language || 'ru').toLowerCase().slice(0, 2);
+        l = n === 'uz' ? 'uz' : n === 'en' ? 'en' : 'ru';
+      }
+      d.lang = l;
       d.classList.add('js');
       try { if (sessionStorage.getItem('ol:seen') === '1') d.classList.add('no-loader'); } catch (e) { /* private mode */ }
     })();
@@ -30,11 +41,12 @@
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/assets/css/base.css?v=22" />
-  <link rel="stylesheet" href="/assets/css/home.css?v=22" />
-  <link rel="stylesheet" href="/assets/css/shop.css?v=22" />
-  <link rel="stylesheet" href="/assets/css/product.css?v=22" />
-  <link rel="stylesheet" href="/assets/css/checkout.css?v=22" />
+  <link rel="stylesheet" href="/assets/css/base.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/home.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/shop.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/product.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/checkout.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/info.css?v=23" />
 </head>
 <body>
   <!-- Shared SVG gradients for the logo -->
@@ -188,16 +200,19 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 
-  <script src="/assets/js/data.js?v=22"></script>
-  <script src="/assets/js/catalog-logic.js?v=22"></script>
-  <script src="/assets/js/order-logic.js?v=22"></script>
-  <script src="/assets/js/core.js?v=22"></script>
-  <script src="/assets/js/router.js?v=22"></script>
-  <script src="/assets/js/home.js?v=22"></script>
-  <script src="/assets/js/shop.js?v=22"></script>
-  <script src="/assets/js/product.js?v=22"></script>
-  <script src="/assets/js/pages.js?v=22"></script>
-  <script src="/assets/js/checkout.js?v=22"></script>
-  <script src="/assets/js/main.js?v=22"></script>
+  <script src="/assets/js/data.js?v=23"></script>
+  <script src="/assets/js/catalog-logic.js?v=23"></script>
+  <script src="/assets/js/order-logic.js?v=23"></script>
+  <script src="/assets/js/analytics.js?v=23"></script>
+  <script src="/assets/js/core.js?v=23"></script>
+  <script src="/assets/js/router.js?v=23"></script>
+  <script src="/assets/js/home.js?v=23"></script>
+  <script src="/assets/js/shop.js?v=23"></script>
+  <script src="/assets/js/product.js?v=23"></script>
+  <script src="/assets/js/pages.js?v=23"></script>
+  <script src="/assets/js/info-content.js?v=23"></script>
+  <script src="/assets/js/info.js?v=23"></script>
+  <script src="/assets/js/checkout.js?v=23"></script>
+  <script src="/assets/js/main.js?v=23"></script>
 </body>
 </html>

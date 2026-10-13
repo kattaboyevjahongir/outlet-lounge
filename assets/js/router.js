@@ -10,6 +10,7 @@
     { re: /^\/(new|sale|men|women|kids)\/?$/, name: 'shop', params: (m) => ({ collection: m[1] }) },
     { re: /^\/brands\/([a-z0-9-]+)\/?$/, name: 'shop', params: (m) => ({ collection: 'brand', brand: m[1] }) },
     { re: /^\/product\/([a-z0-9-]+)\/?$/, name: 'product', params: (m) => ({ slug: m[1] }) },
+    { re: /^\/(delivery|returns|size-guide|authenticity|about|contacts|faq|offer|privacy)\/?$/, name: 'info', params: (m) => ({ slug: m[1] }) },
     { re: /^\/wishlist\/?$/, name: 'wishlist' },
     { re: /^\/cart\/?$/, name: 'cart' },
     { re: /^\/checkout\/?$/, name: 'checkout' },
@@ -81,6 +82,7 @@
     const page = OL.pages[route.name] || OL.pages.notfound;
     const api = OL.mount({ page: route.name in OL.pages ? route.name : 'notfound', ctx: route, keepScroll });
     OL.setMeta(page.meta ? page.meta(route) : {});
+    if (OL.trackPage) OL.trackPage(route.path);
     markNav(route);
     document.body.dataset.page = route.name;
     return api;
