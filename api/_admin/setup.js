@@ -11,8 +11,8 @@
 // Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN (+ the managers' chat setting)
 
 import { createHash, randomInt, timingSafeEqual } from 'node:crypto';
-import { select, upsert, patch, remove, tg, telegramChat, authAdmin, insert, logActivity, limited, clientIp, sameSite } from './_lib/services.js';
-import { USERNAME_RE, loginEmail, passwordProblem } from '../assets/admin/logic.js';
+import { select, upsert, patch, remove, tg, telegramChat, authAdmin, insert, logActivity, limited, limitedShared, clientIp, sameSite } from '../_lib/services.js';
+import { USERNAME_RE, loginEmail, passwordProblem } from '../../assets/admin/logic.js';
 
 const TTL_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   /* ---- send the code to the managers' chat ---- */
   if (b.action === 'send') {
     if (!chat) return send(res, 503, { error: 'telegram_off' });
-    if (limited(`setup-send:${clientIp(req)}`, 3, 10 * 60 * 1000)) return send(res, 429, { error: 'too_many_requests' });
+    if (limited(`setup-send:${clientIp(req)}`, 3, 10 * 60 * 1000) || await limitedShared(`setup-send:${clientIp(req)}`, 3, 10 * 60 * 1000)) return send(res, 429, { error: 'too_many_requests' });
     const current = await loadSetup();
     if (current && current.sent_at && Date.now() - Date.parse(current.sent_at) < 60 * 1000) {
       return send(res, 429, { error: 'wait' });
@@ -88,7 +88,7 @@ export default async function handler(req, res) {
 
   /* ---- claim the owner account ---- */
   if (b.action === 'claim') {
-    if (limited(`setup-claim:${clientIp(req)}`, 10, 10 * 60 * 1000)) return send(res, 429, { error: 'too_many_requests' });
+    if (limited(`setup-claim:${clientIp(req)}`, 10, 10 * 60 * 1000) || await limitedShared(`setup-claim:${clientIp(req)}`, 10, 10 * 60 * 1000)) return send(res, 429, { error: 'too_many_requests' });
     const username = String(b.username || '').trim().toLowerCase();
     const name = String(b.name || '').replace(/\s+/g, ' ').trim();
     const password = String(b.password || '');

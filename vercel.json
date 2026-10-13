@@ -1,5 +1,10 @@
 {
+  "regions": ["fra1"],
   "rewrites": [
+    {
+      "source": "/api/admin-:fn(config|order-status|setup|staff|telegram)",
+      "destination": "/api/admin?fn=:fn"
+    },
     {
       "source": "/admin/:path*",
       "destination": "/admin/index.html"

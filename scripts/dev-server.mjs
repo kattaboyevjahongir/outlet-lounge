@@ -2,8 +2,8 @@
 //   - real files are served as-is (assets, index.html)
 //   - any other path without a dot (/shop, /product/x …) serves index.html (the router takes over);
 //     /admin and /admin/… serve admin/index.html with the same security headers as production
-//   - /api/catalog runs the real handler, using SUPABASE_URL / SUPABASE_ANON_KEY
-//     from the environment or a git-ignored .env.local
+//   - /api/<name> runs api/<name>.js (/api/admin-<name> goes to api/admin.js, like production),
+//     using SUPABASE_* from the environment or a git-ignored .env.local
 //
 //   node scripts/dev-server.mjs [port]
 import http from 'node:http';
@@ -51,6 +51,15 @@ const adminHeaders = (() => {
   } catch { return []; }
 })();
 
+// /api/admin-<name> → the one admin function (api/admin.js?fn=<name>), as vercel.json rewrites it
+const ADMIN_API = (() => {
+  try {
+    const cfg = JSON.parse(readFileSync(join(root, 'vercel.json'), 'utf8'));
+    const rule = (cfg.rewrites || []).find((r) => r.destination.startsWith('/api/admin?fn='));
+    return rule ? new RegExp(`^/api/admin-(${rule.source.match(/\(([^)]+)\)/)[1]})$`) : null;
+  } catch { return null; }
+})();
+
 // the same public addresses vercel.json rewrites to the SEO functions
 const SEO_ROUTES = [
   [/^\/product\/([a-z0-9-]+)\/?$/, (m) => ['page', `type=product&slug=${m[1]}`]],
@@ -81,8 +90,15 @@ http.createServer(async (req, res) => {
     }
   }
 
-  const api = url.pathname.match(/^\/api\/([a-z0-9_-]+)$/);
+  const adminFn = ADMIN_API && url.pathname.match(ADMIN_API);
+  if (adminFn) {
+    url.searchParams.set('fn', adminFn[1]);
+    url = new URL(`/api/admin${url.search}`, 'http://localhost');
+  }
+
+  const api = url.pathname.match(/^\/api\/([a-z0-9-]+)$/);
   if (api) {
+    req.query = Object.fromEntries(url.searchParams);
     const handler = await loadHandler(api[1]);
     if (!handler) { res.statusCode = 404; return res.end('{"error":"not_found"}'); }
     req.body = req.method === 'POST' ? await readBody(req) : undefined;

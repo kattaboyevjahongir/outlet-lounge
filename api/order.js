@@ -10,7 +10,12 @@
 
 import { parseOrder, parseNotify, parseDbError } from './_lib/validate.js';
 import { orderMessage, keyboard, notifyMessage } from './_lib/format.js';
-import { supabaseConfig, rpc, select, insert, patch, tg, telegramChat, limited, clientIp, sameSite } from './_lib/services.js';
+import { supabaseConfig, rpc, select, insert, patch, tg, telegramChat, limited, limitedShared, clientIp, sameSite } from './_lib/services.js';
+
+// 8 orders / notify requests per IP in 10 minutes: counted in memory for every request and, once a
+// request is valid, in the database too (shared by all server instances)
+const LIMIT_WINDOW = 10 * 60 * 1000;
+const overShared = (ip) => limitedShared(`order:${ip}`, 8, LIMIT_WINDOW);
 
 const send = (res, code, body) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -59,9 +64,10 @@ async function sendOrderToTelegram(placed, payload, chatId) {
   return true;
 }
 
-async function handleNotify(body, res) {
+async function handleNotify(body, res, ip) {
   const parsed = parseNotify(body);
   if (!parsed.ok) return send(res, 400, { error: 'invalid', field: parsed.field, code: parsed.code });
+  if (await overShared(ip)) return send(res, 429, { error: 'too_many_requests' });
   const n = parsed.notify;
 
   const prod = await select(`products?slug=eq.${n.slug}&is_active=eq.true&select=id,name`);
@@ -95,7 +101,7 @@ export default async function handler(req, res) {
     return send(res, 405, { error: 'method_not_allowed' });
   }
   if (!sameSite(req)) return send(res, 403, { error: 'forbidden' });
-  if (limited(`order:${clientIp(req)}`, 8, 10 * 60 * 1000)) return send(res, 429, { error: 'too_many_requests' });
+  if (limited(`order:${clientIp(req)}`, 8, LIMIT_WINDOW)) return send(res, 429, { error: 'too_many_requests' });
   if (!supabaseConfig()) return send(res, 503, { error: 'not_configured' });
 
   let body = req.body;
@@ -104,11 +110,12 @@ export default async function handler(req, res) {
   }
   if (!body || typeof body !== 'object') return send(res, 400, { error: 'invalid', field: 'body' });
 
-  if (body.type === 'notify') return handleNotify(body, res);
+  if (body.type === 'notify') return handleNotify(body, res, clientIp(req));
   if (body.type !== 'order' && body.type !== 'quick') return send(res, 400, { error: 'invalid', field: 'type' });
 
   const parsed = parseOrder(body, body.type);
   if (!parsed.ok) return send(res, 400, { error: 'invalid', field: parsed.field, code: parsed.code });
+  if (await overShared(clientIp(req))) return send(res, 429, { error: 'too_many_requests' });
 
   const placed = await rpc('place_order', { p_payload: parsed.payload });
   if (!placed.ok) {

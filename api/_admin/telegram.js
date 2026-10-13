@@ -2,7 +2,7 @@
 // Sends a test message to the managers' chat, so the owner can check order alerts from the panel.
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN
 
-import { staffFromRequest, tg, telegramChat, limited, clientIp, sameSite } from './_lib/services.js';
+import { staffFromRequest, tg, telegramChat, limited, clientIp, sameSite } from '../_lib/services.js';
 
 const send = (res, code, body) => {
   res.setHeader('Cache-Control', 'no-store');

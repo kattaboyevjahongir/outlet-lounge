@@ -492,3 +492,29 @@ test('order alerts go to the chat saved in settings when TELEGRAM_CHAT_ID is not
     assert.equal(m.calls.find((c) => c.url.includes('sendMessage')).body.chat_id, '-100777');
   } finally { m.restore(); unconfigure(); resetTelegramChatCache(); }
 });
+
+test('order: the shared (database) rate limit refuses even when this instance has not seen the IP', async () => {
+  configure();
+  let over = true;
+  const m = mockFetch({
+    'rpc/rate_limit_hit': () => (over ? { status: 200, json: true } : { status: 500, json: { message: 'down' } }),
+    'rpc/place_order': () => ({ status: 200, json: PLACED }),
+  });
+  try {
+    let r = res(); await orderHandler(req(goodOrder()), r);
+    assert.equal(r.code, 429);
+    assert.ok(!m.calls.some((c) => c.url.includes('rpc/place_order')), 'no order placed');
+    const hit = m.calls.find((c) => c.url.includes('rpc/rate_limit_hit'));
+    assert.match(hit.body.p_key, /^[0-9a-f]{64}$/, 'only a hash of the IP is sent');
+    assert.ok(!JSON.stringify(hit.body).includes('10.0.0.'), 'no raw IP');
+    assert.deepEqual([hit.body.p_max, hit.body.p_window_seconds], [8, 600]);
+
+    over = false; // the counter is unreachable → the order still goes through
+    r = res(); await orderHandler(req(goodOrder()), r);
+    assert.equal(r.code, 200);
+
+    r = res(); await orderHandler(req(goodOrder({ website: 'spam' })), r);
+    assert.equal(r.code, 400);
+    assert.equal(m.calls.filter((c) => c.url.includes('rpc/rate_limit_hit')).length, 2, 'invalid requests are not counted in the database');
+  } finally { m.restore(); unconfigure(); }
+});

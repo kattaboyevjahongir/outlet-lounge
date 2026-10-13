@@ -47,12 +47,17 @@ api/order.js               POST /api/order — checkout, quick order, notify-me 
 api/telegram.js            POST /api/telegram — bot webhook (order status buttons, /id)
 api/page.js                product / collection / brand / info pages with their own title, description, Open Graph and JSON-LD
 api/sitemap.js, robots.js  /sitemap.xml and /robots.txt (follow SITE_URL and the "index the shop" switch)
-api/admin-config.js        GET /api/admin-config — public Supabase URL + anon key for the admin panel
-api/admin-order-status.js  POST — staff changes an order status; the Telegram message is updated too
-api/admin-setup.js         first-run owner creation (code via the managers' Telegram group)
-api/admin-staff.js         owner adds staff / resets passwords / changes roles (needs the service key)
-api/admin-telegram.js      owner sends a test message to the managers' chat
-api/_lib/                  validation, Telegram message format, Supabase/Telegram clients
+api/admin.js               one function for every /api/admin-<name> address (vercel.json rewrites them here):
+api/_admin/config.js         GET /api/admin-config — public Supabase URL + anon key for the admin panel
+api/_admin/order-status.js   POST — staff changes an order status; the Telegram message is updated too
+api/_admin/setup.js          first-run owner creation (code via the managers' Telegram group)
+api/_admin/staff.js          owner adds staff / resets passwords / changes roles (needs the service key)
+api/_admin/telegram.js       owner sends a test message to the managers' chat
+api/_lib/                  validation, Telegram message format, Supabase/Telegram clients, rate limits
+
+Functions run in Frankfurt (`"regions": ["fra1"]` in vercel.json), next to the database. The free
+Vercel plan allows at most 12 functions (one per file in `api/`; `_` folders don't count) — a test
+checks this, so add new endpoints to an existing function or to `api/admin.js`.
 assets/css/base.css        theme tokens, shared components, phone card layout
 assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
 assets/js/data.js          placeholder catalog + settings, EN/RU/UZ translations

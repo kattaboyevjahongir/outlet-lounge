@@ -7,9 +7,9 @@
 //
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, TELEGRAM_BOT_TOKEN
 
-import { ACTION_TO_STATUS } from './_lib/format.js';
-import { select, userRpc, limited, clientIp, sameSite } from './_lib/services.js';
-import { loadOrder, refreshOrderMessage } from './_lib/orders.js';
+import { ACTION_TO_STATUS } from '../_lib/format.js';
+import { select, userRpc, limited, clientIp, sameSite } from '../_lib/services.js';
+import { loadOrder, refreshOrderMessage } from '../_lib/orders.js';
 
 const STATUSES = new Set(Object.values(ACTION_TO_STATUS).concat('new'));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

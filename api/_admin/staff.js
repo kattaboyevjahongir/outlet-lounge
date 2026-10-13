@@ -8,8 +8,8 @@
 //
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 
-import { staffFromRequest, authAdmin, insert, patch, select, logActivity, limited, clientIp, sameSite } from './_lib/services.js';
-import { USERNAME_RE, loginEmail, passwordProblem } from '../assets/admin/logic.js';
+import { staffFromRequest, authAdmin, insert, patch, select, logActivity, limited, clientIp, sameSite } from '../_lib/services.js';
+import { USERNAME_RE, loginEmail, passwordProblem } from '../../assets/admin/logic.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLES = ['owner', 'manager'];

@@ -1,8 +1,13 @@
 // node --test tests/*.test.mjs  — admin endpoints (Supabase + Telegram mocked)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import configHandler from '../api/admin-config.js';
-import statusHandler from '../api/admin-order-status.js';
+import { readFileSync, readdirSync } from 'node:fs';
+import admin, { ADMIN_ROUTES } from '../api/admin.js';
+
+// every admin endpoint is reached through the one /api/admin function, as vercel.json routes it
+const via = (fn) => (req, res) => admin({ ...req, query: { ...(req.query || {}), fn } }, res);
+const configHandler = via('config');
+const statusHandler = via('order-status');
 
 const ENV_KEYS = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
 const configure = (extra = {}) => Object.assign(process.env, {
@@ -165,4 +170,34 @@ test('503 when Supabase is not configured', async () => {
   const r = res();
   await statusHandler(post({ order_id: OID, status: 'confirmed' }), r);
   assert.equal(r.code, 503);
+});
+
+/* ------------------------------------------------- one function for the admin endpoints */
+test('admin dispatcher: unknown or missing endpoint answers 404', async () => {
+  for (const fn of ['', 'nope', 'constructor', '__proto__', 'toString']) {
+    const r = res();
+    await admin({ method: 'GET', headers: {}, query: fn ? { fn } : {} }, r);
+    assert.equal(r.code, 404, `fn=${fn}`);
+  }
+});
+
+test('vercel.json routes every /api/admin-<name> address to the dispatcher', () => {
+  const cfg = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const rule = cfg.rewrites.find((r) => r.destination.startsWith('/api/admin?fn='));
+  assert.ok(rule, 'rewrite exists');
+  assert.ok(cfg.rewrites.indexOf(rule) < cfg.rewrites.length - 1, 'before the catch-all');
+  const names = rule.source.match(/\(([^)]+)\)/)[1].split('|').sort();
+  assert.deepEqual(names, Object.keys(ADMIN_ROUTES).sort());
+  const clientUrls = [
+    ...readFileSync(new URL('../assets/admin/data.js', import.meta.url), 'utf8').matchAll(/\/api\/admin-([a-z-]+)/g),
+    ...readFileSync(new URL('../assets/admin/app.js', import.meta.url), 'utf8').matchAll(/\/api\/admin-([a-z-]+)/g),
+  ].map((m) => m[1]);
+  for (const u of clientUrls) assert.ok(names.includes(u), `client calls /api/admin-${u}`);
+});
+
+test('deployment stays within the Hobby plan: at most 12 functions, all near the database', () => {
+  const fns = readdirSync(new URL('../api/', import.meta.url)).filter((f) => f.endsWith('.js') && !f.startsWith('_'));
+  assert.ok(fns.length <= 12, `${fns.length} functions: ${fns.join(', ')}`);
+  const cfg = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  assert.deepEqual(cfg.regions, ['fra1'], 'functions run in Frankfurt, next to Supabase (eu-central-1)');
 });

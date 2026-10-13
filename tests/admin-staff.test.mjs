@@ -1,9 +1,12 @@
 // node --test tests/*.test.mjs  — owner setup, staff management, Telegram test (a small fake Supabase + Telegram)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import setupHandler from '../api/admin-setup.js';
-import staffHandler from '../api/admin-staff.js';
-import telegramHandler from '../api/admin-telegram.js';
+import admin from '../api/admin.js';
+
+const via = (fn) => (req, res) => admin({ ...req, query: { fn } }, res);
+const setupHandler = via('setup');
+const staffHandler = via('staff');
+const telegramHandler = via('telegram');
 
 const ENV = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
 const OWNER_ID = 'aaaaaaaa-0000-4000-8000-000000000001';

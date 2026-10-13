@@ -671,4 +671,24 @@ await test('report rejects a missing, reversed or huge range', async () => {
   await rejects(one(`select public.admin_report(now() - interval '1 day', now())`), /permission denied/);
 });
 
+console.log('\nShared rate limits');
+await test('rate limit: counts per key, blocks over the max, resets after the window', async () => {
+  await as('service_role');
+  const hit = async (key, max = 3, secs = 600) => (await one('select public.rate_limit_hit($1, $2, $3) as r', [key, max, secs])).r;
+  assert.deepEqual([await hit('k1'), await hit('k1'), await hit('k1'), await hit('k1')], [false, false, false, true]);
+  assert.equal(await hit('k2'), false, 'other keys are counted separately');
+  await asSuper();
+  await db.exec(`update public.rate_limits set window_start = now() - interval '11 minutes' where key = 'k1'`);
+  await as('service_role');
+  assert.equal(await hit('k1'), false, 'a new window starts after the old one ends');
+  await rejects(one('select public.rate_limit_hit($1, 0, 60)', ['k3']), /invalid:rate_limit/);
+});
+await test('rate limit: visitors and staff can neither call it nor read the counters', async () => {
+  for (const [role, id] of [['anon'], ['authenticated', OWNER]]) {
+    await as(role, id);
+    await rejects(one(`select public.rate_limit_hit('x', 5, 60)`), /permission denied/, `${role} call`);
+    await rejects(all('select * from public.rate_limits'), /permission denied/, `${role} read`);
+  }
+});
+
 console.log(`\n${passed} checks passed${process.exitCode ? ' — WITH FAILURES' : ''}\n`);

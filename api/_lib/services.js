@@ -1,5 +1,6 @@
 // Thin clients for Supabase (service role) and the Telegram Bot API, plus a tiny rate limiter.
 // Secrets come only from environment variables and are never logged or returned.
+import { createHash } from 'node:crypto';
 
 const TIMEOUT = 8000;
 
@@ -155,7 +156,8 @@ export async function tg(method, payload) {
 }
 
 /* ------------------------------------------------------------ rate limit */
-// Best effort: serverless instances don't share memory, but it still blunts bursts.
+// In memory, per instance: serverless instances don't share memory, so this only blunts bursts.
+// Public endpoints that matter (orders, owner setup) also use limitedShared below.
 const buckets = new Map();
 export function limited(key, max, windowMs) {
   const now = Date.now();
@@ -164,6 +166,22 @@ export function limited(key, max, windowMs) {
   buckets.set(key, hits);
   if (buckets.size > 5000) for (const [k, v] of buckets) if (!v.some((t) => now - t < windowMs)) buckets.delete(k);
   return hits.length > max;
+}
+// Shared by every instance: a counter in the database (public.rate_limit_hit), keyed by a hash so
+// no raw IP is stored. Call it once the request is valid (just before the real work), after the
+// in-memory check; if the database can't be reached the request is not blocked because of that.
+export async function limitedShared(key, max, windowMs) {
+  if (!supabaseConfig()) return false;
+  try {
+    const r = await rpc('rate_limit_hit', {
+      p_key: createHash('sha256').update(`ol-rate:${key}`).digest('hex'),
+      p_max: max,
+      p_window_seconds: Math.ceil(windowMs / 1000),
+    });
+    return r.ok && r.data === true;
+  } catch {
+    return false;
+  }
 }
 export const clientIp = (req) =>
   String((req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip'])) || (req.socket && req.socket.remoteAddress) || 'unknown')

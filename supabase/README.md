@@ -6,7 +6,12 @@ codes, settings and staff. The storefront reads it through `/api/catalog`.
 ```
 supabase/
 ├─ config.toml                          CLI config (public sign-up is OFF)
-├─ migrations/20261012000000_init.sql   tables, row level security, place_order(), set_order_status(), storage bucket
+├─ migrations/                          applied in name order by `npx supabase db push`
+│  ├─ 20261012000000_init.sql           tables, row level security, place_order(), set_order_status(), storage bucket
+│  ├─ 20261013000000_quote_order.sql    cart totals / promo check
+│  ├─ 20261014000000_admin.sql          admin core: staff invites, order edits, activity log, overview
+│  ├─ 20261015000000_admin_extended.sql usernames, last-owner guard, reports
+│  └─ 20261016000000_rate_limits.sql    rate limits shared by all server instances
 ├─ seed.sql                             placeholder catalog (generated: `npm run seed`)
 └─ tests/                               database tests (in-memory Postgres): `npm run test:db`
 ```
@@ -14,8 +19,12 @@ supabase/
 ## Current project
 
 - Project: `outlet-lounge`, ref `wtuzvultdyyviohxsbez`, region eu-central-1 (Frankfurt)
-- Applied: `20261012000000_init.sql` + `seed.sql`
-- Vercel (production) has `SUPABASE_URL` and `SUPABASE_ANON_KEY`. The `service_role` key is added in phase 3 (orders), not before.
+- Applied: every file in `migrations/` + `seed.sql` (check: `npx supabase migration list --linked`)
+- Vercel (production) has `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY`.
+- **Naming new migrations:** the files above carry timestamps up to `20261016000000`, which are ahead of
+  the real date they were written. A file from `npx supabase migration new` gets today's timestamp and
+  would sort *before* them, so `db push` would refuse it. Until the real date passes 2026-10-16, name
+  new files by hand with a later timestamp (e.g. `20261017000000_<name>.sql`).
 - The generated database password is in the git-ignored `.env.local` (`SUPABASE_DB_PASSWORD`); it can be reset in Dashboard → Project Settings → Database.
 
 ## Setting up from scratch (for a new project)

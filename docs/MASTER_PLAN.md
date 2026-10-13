@@ -17,9 +17,9 @@
 | Catalog `/shop` + collections, product page, wishlist page, mega-menu, 404 | ✅ Phase 2 built (filters, sort, size guide, gallery + zoom, related/recent) |
 | Cart page, checkout, orders → database, quick order, notify-me, Telegram alerts + status buttons | ✅ Phase 3 built and tested end-to-end against the live database; Telegram connected 2026-10-13 (@outlet_lounge_bot → group Outlet_requests) |
 | Phase 1–3 finishing touches: size change in the cart drawer, footer contacts, “Ask a manager” Telegram button (phones), “Track in Telegram” on the thank-you page (bot answers `/start <order no>` with the status), Telegram fallback when checkout fails, hero → `/new` | ✅ Built; contact buttons stay hidden until the `contacts` setting is filled in (owner details, §12) |
-| Admin panel core: sign-in + roles, orders with Telegram status sync, products with photo upload and sizes, stock grid, overview | ✅ Phase 4 built and tested (2026-10-14); owner account pending (§12) |
-| Admin panel extended: dashboard chart + best sellers, reports + Excel/CSV export, site settings (contacts, delivery prices, countdown), promo codes, staff management, activity log, bulk product actions, username + password sign-in with first-run owner setup | ✅ Phase 5 built and tested (2026-10-14); order-item editing and the announcement bar are still to do |
-| Phase 6 (content + SEO + launch tools): information and legal pages, footer links, server-rendered meta + JSON-LD, sitemap.xml, robots.txt, analytics hooks, company/analytics/launch settings, `docs/LAUNCH.md` | ✅ Built and tested (2026-10-14); legal texts are a template for the owner to approve; domain, analytics ids and real products are owner steps |
+| Admin panel core: sign-in + roles, orders with Telegram status sync, products with photo upload and sizes, stock grid, overview | ✅ Phase 4 built and tested (2026-10-13); owner account pending (§12) |
+| Admin panel extended: dashboard chart + best sellers, reports + Excel/CSV export, site settings (contacts, delivery prices, countdown), promo codes, staff management, activity log, bulk product actions, username + password sign-in with first-run owner setup | ✅ Phase 5 built and tested (2026-10-13); order-item editing and the announcement bar are still to do |
+| Phase 6 (content + SEO + launch tools): information and legal pages, footer links, server-rendered meta + JSON-LD, sitemap.xml, robots.txt, analytics hooks, company/analytics/launch settings, `docs/LAUNCH.md` | ✅ Built and tested (2026-10-13); legal texts are a template for the owner to approve; domain, analytics ids and real products are owner steps |
 | Database (Supabase) | ✅ Live: project `outlet-lounge` (Frankfurt), schema + security rules applied, placeholder products seeded, verified as a visitor (reads products only) |
 | Storefront reads live data (`/api/catalog`), search, wishlist, intro once per visit | ✅ Live on https://outlet-lounge.vercel.app (source: database) |
 | Real products/photos | ❌ Placeholders (Unsplash, made-up prices) |
@@ -423,7 +423,7 @@ outlet-lounge/
 - Secrets (`TELEGRAM_BOT_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `TELEGRAM_WEBHOOK_SECRET`) live only in Vercel environment variables, never in code, git or chat.
 - **RLS policies tested** for visitor, manager and owner before launch.
 - Admin: invite-only, `noindex`, blocked in `robots.txt`, auto-logout, rate-limited login. Each staff member gets their own account; no shared passwords.
-- Orders: server-side validation and pricing, honeypot, rate limit per IP, size limits.
+- Orders: server-side validation and pricing, honeypot, rate limit per IP (counted in the database, so it holds across server instances), size limits.
 - Telegram webhook accepts only requests with the secret header.
 - **Daily database backups** (Supabase Pro) + the activity log for who changed what.
 - Customer data (names, phones, addresses) is visible only to staff; covered by the privacy policy.
