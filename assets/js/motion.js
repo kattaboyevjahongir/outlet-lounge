@@ -41,6 +41,8 @@
   let open;
   let gate = new Promise((r) => { open = r; });
   const closeGate = () => { gate = new Promise((r) => { open = r; }); };
+  // pages with their own entrance (the kinetic home) wait for the same moment
+  M.ready = () => gate;
 
   /* ---------- split headlines into words that rise from behind a mask ---------- */
   const split = (el) => {
@@ -110,44 +112,56 @@
 
   /* ---------- home hero: the photograph settles, the copy fades as you scroll away ---------- */
   M.hero = (root) => {
-    const media = $('.h-hero-media img', root);
-    const copy = $('.h-hero-copy', root);
+    const media = $('.h-hero-media img, .h2-bg img', root);
+    const copy = $('.h-hero-copy, .h2.is-full .h2-copy', root);
     if (!media) return;
     gsap.set(media, { scale: 1.22, autoAlpha: 0 });
     gate.then(() => {
       gsap.to(media, { scale: 1.06, autoAlpha: 1, duration: 2.4, ease: 'expo.out' });
-      track(gsap.to(media, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: '.h-hero', start: 'top top', end: 'bottom top', scrub: true } }).scrollTrigger);
-      if (copy) track(gsap.to(copy, { y: -60, autoAlpha: 0, ease: 'none', scrollTrigger: { trigger: '.h-hero', start: '35% top', end: 'bottom top', scrub: true } }).scrollTrigger);
+      const box = media.closest('section');
+      track(gsap.to(media, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: box, start: 'top top', end: 'bottom top', scrub: true } }).scrollTrigger);
+      if (copy) track(gsap.to(copy, { y: -60, autoAlpha: 0, ease: 'none', scrollTrigger: { trigger: box, start: '35% top', end: 'bottom top', scrub: true } }).scrollTrigger);
     });
   };
 
-  /* ---------- intro: the logo draws itself (once per visit) ---------- */
+  /* ---------- intro (once per visit): the gold logo draws itself stroke by stroke, the screen lifts ---------- */
+  // each builder fills the loader, returns its timeline and calls `reveal` when the page should start appearing
+  const INTROS = {
+    draw(L, reveal) {
+      L.className = 'loader is-draw';
+      L.innerHTML = `<div class="loader-inner"><div class="loader-mark">${OL.logoMark()}</div>
+        <p class="loader-word"><span>OUTLET LOUNGE</span></p><div class="loader-line"><i></i></div></div>`;
+      const paths = $$('.loader-mark path', L);
+      paths.forEach((p) => {
+        const len = p.getTotalLength();
+        gsap.set(p, { stroke: 'url(#olGold)', strokeWidth: 1, strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
+      });
+      const tl = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
+      tl.to(paths, { strokeDashoffset: 0, duration: 1.2, stagger: 0.12 })
+        .to(paths, { fillOpacity: 1, strokeWidth: 0, duration: 0.7, stagger: 0.06, ease: 'power2.out' }, '-=0.5')
+        .fromTo($('.loader-word span', L), { letterSpacing: '1.1em', autoAlpha: 0 }, { letterSpacing: '0.42em', autoAlpha: 1, duration: 1.1, ease: EASE }, '-=0.9')
+        .to($('.loader-line i', L), { scaleX: 1, duration: tl.duration(), ease: 'none' }, 0)
+        .to($('.loader-inner', L), { y: -24, autoAlpha: 0, duration: 0.5, ease: 'power2.in' }, '+=0.15')
+        .add(reveal, '-=0.05')
+        .to(L, { yPercent: -100, duration: 1.05, ease: 'expo.inOut' }, '-=0.1');
+      return tl;
+    },
+  };
+
   M.intro = () => new Promise((resolve) => {
     const L = $('#loader');
     let seen = false;
     try { seen = sessionStorage.getItem('ol:seen') === '1'; sessionStorage.setItem('ol:seen', '1'); } catch (e) { /* private mode */ }
     if (!L) { resolve(); return; }
     if (seen) { L.remove(); resolve(); return; }
-    $('.loader-mark', L).innerHTML = OL.logoMark();
-    const paths = $$('.loader-mark path', L);
-    paths.forEach((p) => {
-      const len = p.getTotalLength();
-      gsap.set(p, { stroke: 'url(#olGold)', strokeWidth: 1, strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
-    });
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
-    const tl = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
-    tl.to(paths, { strokeDashoffset: 0, duration: 1.2, stagger: 0.12 })
-      .to(paths, { fillOpacity: 1, strokeWidth: 0, duration: 0.7, stagger: 0.06, ease: 'power2.out' }, '-=0.5')
-      .fromTo('.loader-word span', { letterSpacing: '1.1em', autoAlpha: 0 }, { letterSpacing: '0.42em', autoAlpha: 1, duration: 1.1, ease: EASE }, '-=0.9')
-      .to('.loader-line i', { scaleX: 1, duration: tl.duration(), ease: 'none' }, 0)
-      .to('.loader-inner', { y: -24, autoAlpha: 0, duration: 0.5, ease: 'power2.in' }, '+=0.15')
-      .add(finish, '-=0.05')
-      .to(L, { yPercent: -100, duration: 1.05, ease: 'expo.inOut' }, '-=0.1')
-      .add(() => L.remove());
+    const build = INTROS.draw;
+    const tl = build(L, finish).add(() => L.remove());
+    // a tap skips it
     L.addEventListener('click', () => { tl.progress(1); finish(); }, { once: true });
     // a stalled tab (hidden window) must never keep the shop covered
-    setTimeout(() => { if (!done) { tl.progress(1); finish(); } }, 5000);
+    setTimeout(() => { if (!done) { tl.progress(1); finish(); } }, 6000);
   });
 
   /* ---------- curtain between pages and for the theme switch ---------- */

@@ -1,0 +1,28 @@
+/* =========================================================
+   Opening screen: copy on a solid panel, a tall photograph beside it.
+   No wash over the photograph: the text always sits on a solid surface, so it stays crisp in both themes.
+   ========================================================= */
+.h2 { position: relative; padding-top: var(--header-h); }
+.h2-title { margin: 18px 0 0; font: 400 clamp(46px, 6.2vw, 104px)/.98 var(--font-serif); letter-spacing: -.02em; color: var(--text); }
+.h2-lead { margin-top: 22px; max-width: 46ch; font-size: clamp(16px, 1.3vw, 19px); line-height: 1.6; color: var(--text-2); }
+.h2-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.h2-facts { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0; margin-top: clamp(34px, 5vh, 56px); padding-top: 22px; border-top: 1px solid var(--line); }
+.h2-facts li { display: grid; gap: 4px; padding-right: clamp(18px, 2.6vw, 40px); margin-right: clamp(18px, 2.6vw, 40px); border-right: 1px solid var(--line); }
+.h2-facts li:last-child { border-right: 0; margin-right: 0; }
+.h2-facts b { font: 400 clamp(26px, 2.4vw, 36px)/1 var(--font-serif); color: var(--gold-ink); }
+.h2-facts span { font: 500 11px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+
+/* split: copy on a solid panel, a tall photograph beside it */
+.h2.is-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); min-height: min(100svh, 980px); }
+.is-split .h2-copy { align-self: center; padding: clamp(40px, 7vh, 90px) clamp(24px, 4vw, 72px) clamp(40px, 7vh, 90px) var(--gutter); max-width: 760px; }
+.h2-media { position: relative; margin: 0; overflow: hidden; background: var(--img-bg); }
+.h2-media img { position: absolute; inset: -6% 0; width: 100%; height: 112%; object-fit: cover; object-position: center 25%; }
+.h2-media figcaption { position: absolute; left: 20px; bottom: 18px; padding: 7px 12px; background: rgba(10, 10, 10, .72); color: #F7F4EE; font: 500 10.5px var(--font-body); letter-spacing: .22em; text-transform: uppercase; }
+
+@media (max-width: 900px) {
+  .h2.is-split { grid-template-columns: 1fr; }
+  .h2-media { order: -1; height: 62svh; }
+  .is-split .h2-copy { padding: 32px var(--gutter) 10px; }
+  .h2-facts { grid-template-columns: 1fr 1fr 1fr; }
+  .h2-facts li { padding-right: 12px; margin-right: 12px; }
+}

@@ -161,7 +161,7 @@
   };
 
   /* ---------- Theme ---------- */
-  const BG = { dark: '#0A0A0A', light: '#F6F2EA' };
+  const BG = { dark: '#090909', light: '#FBFAF7' };
   OL.bgFor = (theme) => BG[theme];
   const applyTheme = (theme) => {
     html.dataset.theme = theme;
