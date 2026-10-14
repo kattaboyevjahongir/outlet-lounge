@@ -6,6 +6,12 @@
       "has": [{ "type": "host", "value": "www.outletlounge.uz" }],
       "destination": "https://outletlounge.uz/:path*",
       "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "outlet-lounge.vercel.app" }],
+      "destination": "https://outletlounge.uz/:path*",
+      "permanent": true
     }
   ],
   "rewrites": [

@@ -6,7 +6,7 @@ Homepage for the Outlet Lounge sneaker shop in the **Flight Path** style: oversi
 - English / Русский / O‘zbek, prices in UZS
 - Working cart drawer (front-end only)
 
-Live: <https://outletlounge.uz> (also <https://outlet-lounge.vercel.app>)
+Live: <https://outletlounge.uz> (outlet-lounge.vercel.app and www redirect there)
 
 ## Run locally
 
@@ -114,7 +114,7 @@ Try it locally without an account or database: `npm run dev`, then open
 - **Closed until launch.** The public setting `site.indexing` (admin → Settings → Launch) is off by default:
   pages are `noindex`, `robots.txt` disallows everything and the sitemap is empty. Switch it on on launch day.
 - **Analytics** load only when an id is entered under Settings → Analytics.
-- **Domain:** `outletlounge.uz` (DNS at Eskiz: A `@` → 216.198.79.1 and 64.29.17.1, CNAME `www` → Vercel; www redirects to the bare domain). The code defaults to it; `SITE_URL` in Vercel can override it.
+- **Domain:** `outletlounge.uz` (DNS at Eskiz: A `@` → 216.198.79.1 and 64.29.17.1, CNAME `www` → Vercel; www and outlet-lounge.vercel.app redirect to the bare domain; per-deployment preview URLs don't). The code defaults to it; `SITE_URL` in Vercel can override it.
 
 ## Tests
 
