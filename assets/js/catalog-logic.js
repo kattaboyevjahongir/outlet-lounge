@@ -1,36 +1,58 @@
 /* Outlet Lounge — catalog logic: collections, filters, sorting, URL state.
-   Pure functions (no DOM) so they can be unit-tested in Node (tests/catalog-logic.test.mjs). */
+   Pure functions (no DOM) so they can be unit-tested in Node (tests/catalog-logic.test.mjs).
+
+   A product is "in stock" when some size has stock here, "on order" when sizes can still be ordered
+   from abroad (stock 0, order true), and "sold out" when neither. Sizes carry { s, ok, stock, order }. */
 (function () {
   const OL = (window.OL = window.OL || {});
   const C = (OL.catalog = {});
 
   OL.slug = (s) => String(s || '').toLowerCase().replace(/[“”"’']/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-  const isMen = (p) => p.gender === 'men' || p.gender === 'unisex';
-  const isWomen = (p) => p.gender === 'women' || p.gender === 'unisex';
-  const hasStock = (p) => p.sizes.some((z) => z.ok);
-
   C.SORTS = ['newest', 'price-asc', 'price-desc', 'discount', 'popular'];
-  C.OFF_STEPS = [0, 30, 40, 50];
+  C.OFF_STEPS = [0, 20, 30, 50];
   C.PAGE_SIZE = 24;
+  C.COLOR_GROUPS = ['black', 'white', 'grey', 'navy', 'blue', 'green', 'beige', 'brown', 'red', 'other'];
+  C.AVAIL = ['stock', 'order'];
+  const SIZE_RE = /^[A-Za-z0-9][A-Za-z0-9 ./-]{0,11}$/;
 
-  // The pre-filtered pages (/new, /sale, /men …) are the same catalog with a base set + default sort.
-  C.COLLECTIONS = {
-    all: { test: () => true, sort: 'newest' },
-    new: { test: (p) => p.isNew, sort: 'newest' },
-    sale: { test: (p) => OL.off(p) > 0, sort: 'discount' },
-    men: { test: isMen, sort: 'newest' },
-    women: { test: isWomen, sort: 'newest' },
-    kids: { test: (p) => p.gender === 'kids', sort: 'newest' },
+  /* ------------------------------------------------------- availability */
+  const inStock = (p) => p.sizes.some((z) => z.stock > 0);
+  const onOrder = (p) => p.sizes.some((z) => z.order && z.stock === 0);
+  const buyable = (p) => p.sizes.some((z) => z.ok);
+  C.inStock = inStock;
+  C.buyable = buyable;
+  // 'stock' = something on the shelf here, 'order' = only orderable from abroad, 'sold' = neither
+  C.availability = (p) => (inStock(p) ? 'stock' : buyable(p) ? 'order' : 'sold');
+  // how one size is served: 'stock' (stock here), 'order' (from abroad), 'sold'
+  C.sizeState = (z) => (z.stock > 0 ? 'stock' : z.ok ? 'order' : 'sold');
+
+  /* ---------------------------------------------------------------- sizes */
+  // display order of mixed size labels: letters (XS…4XL), then numbers, then anything else
+  C.sortSizes = (labels) => {
+    const letters = OL.SIZE_SYSTEMS ? OL.SIZE_SYSTEMS.letter : [];
+    const num = (l) => (/^\d+(\.\d+)?$/.test(l) ? Number(l) : null);
+    const rank = (l) => (letters.includes(l) ? 0 : num(l) != null ? 1 : 2);
+    return [...new Set(labels)].sort((a, b) => rank(a) - rank(b)
+      || (rank(a) === 0 ? letters.indexOf(a) - letters.indexOf(b) : rank(a) === 1 ? num(a) - num(b) : String(a).localeCompare(String(b))));
   };
 
-  C.base = (products, collection, brandSlug) => {
-    if (collection === 'brand') return products.filter((p) => OL.slug(p.brand) === brandSlug);
-    return products.filter((C.COLLECTIONS[collection] || C.COLLECTIONS.all).test);
+  /* ---------------------------------------------------------- collections */
+  // collection: all | new | sale | dept (key = clothing|shoes|accessories) | category (key = slug) | brand (key = brand slug)
+  const BASES = {
+    all: () => true,
+    new: (p) => p.isNew,
+    sale: (p) => OL.off(p) > 0,
   };
-  C.defaultSort = (collection) => (C.COLLECTIONS[collection] || C.COLLECTIONS.all).sort;
+  C.base = (products, collection, key) => {
+    if (collection === 'brand') return products.filter((p) => OL.slug(p.brand) === key);
+    if (collection === 'dept') return products.filter((p) => OL.catDept(p.cat) === key);
+    if (collection === 'category') return products.filter((p) => p.cat === key);
+    return products.filter(BASES[collection] || BASES.all);
+  };
+  C.defaultSort = (collection) => (collection === 'sale' ? 'discount' : 'newest');
 
-  // ---------------------------------------------------------------- URL state
+  /* ------------------------------------------------------------- URL state */
   const csv = (v) => (v ? String(v).split(',').map((s) => s.trim()).filter(Boolean) : []);
   const num = (v) => {
     if (v == null || v === '') return null;
@@ -38,16 +60,18 @@
     return Number.isFinite(n) ? n : null;
   };
 
-  C.emptyFilters = () => ({ cat: [], gender: [], brand: [], size: [], min: null, max: null, off: 0, stock: true, sort: null, q: '' });
+  C.emptyFilters = () => ({ cat: [], brand: [], size: [], color: [], origin: [], avail: [], min: null, max: null, off: 0, stock: true, sort: null, q: '' });
 
   C.parseQuery = (search) => {
     const q = new URLSearchParams(search || '');
     const sort = q.get('sort');
     return {
-      cat: csv(q.get('cat')),
-      gender: csv(q.get('gender')).filter((g) => ['men', 'women', 'kids'].includes(g)),
-      brand: csv(q.get('brand')),
-      size: csv(q.get('size')).map(Number).filter(Number.isFinite),
+      cat: csv(q.get('cat')).filter((s) => /^[a-z0-9-]{1,60}$/.test(s)),
+      brand: csv(q.get('brand')).filter((s) => /^[a-z0-9-]{1,60}$/.test(s)),
+      size: csv(q.get('size')).filter((s) => SIZE_RE.test(s)),
+      color: csv(q.get('color')).filter((s) => C.COLOR_GROUPS.includes(s)),
+      origin: csv(q.get('origin')).map((s) => s.toUpperCase()).filter((s) => /^[A-Z]{2}$/.test(s)),
+      avail: csv(q.get('avail')).filter((s) => C.AVAIL.includes(s)),
       min: num(q.get('min')),
       max: num(q.get('max')),
       off: Math.max(0, Math.min(90, num(q.get('off')) || 0)),
@@ -59,10 +83,7 @@
 
   C.toQuery = (f, collection) => {
     const q = new URLSearchParams();
-    if (f.cat.length) q.set('cat', f.cat.join(','));
-    if (f.gender.length) q.set('gender', f.gender.join(','));
-    if (f.brand.length) q.set('brand', f.brand.join(','));
-    if (f.size.length) q.set('size', [...f.size].sort((a, b) => a - b).join(','));
+    ['cat', 'brand', 'size', 'color', 'origin', 'avail'].forEach((k) => { if (f[k].length) q.set(k, f[k].join(',')); });
     if (f.min != null) q.set('min', String(f.min));
     if (f.max != null) q.set('max', String(f.max));
     if (f.off) q.set('off', String(f.off));
@@ -73,22 +94,21 @@
     return s ? `?${s}` : '';
   };
 
-  // ---------------------------------------------------------------- filtering
-  const genderOk = (p, wanted) =>
-    wanted.some((g) => g === p.gender || (p.gender === 'unisex' && (g === 'men' || g === 'women')));
-
+  /* ------------------------------------------------------------- filtering */
   // `skip` leaves one facet out — used to compute "what would I get if I picked X" counts
   C.matches = (p, f, skip) => {
     if (skip !== 'cat' && f.cat.length && !f.cat.includes(p.cat)) return false;
-    if (skip !== 'gender' && f.gender.length && !genderOk(p, f.gender)) return false;
     if (skip !== 'brand' && f.brand.length && !f.brand.includes(OL.slug(p.brand))) return false;
     if (skip !== 'size' && f.size.length && !f.size.some((s) => p.sizes.some((z) => z.s === s && z.ok))) return false;
+    if (skip !== 'color' && f.color.length && !f.color.includes(p.colorGroup || 'other')) return false;
+    if (skip !== 'origin' && f.origin.length && !f.origin.includes(p.origin)) return false;
+    if (skip !== 'avail' && f.avail.length && !f.avail.some((a) => (a === 'stock' ? inStock(p) : onOrder(p)))) return false;
     if (skip !== 'price') {
       if (f.min != null && p.price < f.min) return false;
       if (f.max != null && p.price > f.max) return false;
     }
     if (skip !== 'off' && f.off && OL.off(p) < f.off) return false;
-    if (skip !== 'stock' && f.stock && !hasStock(p)) return false;
+    if (skip !== 'stock' && f.stock && !buyable(p)) return false;
     return true;
   };
 
@@ -116,14 +136,24 @@
       C.filter(base, f, skip).forEach((p) => valuesOf(p).forEach((v) => map.set(v, (map.get(v) || 0) + 1)));
       return map;
     };
-    const allSizes = new Set();
-    base.forEach((p) => p.sizes.forEach((z) => z.ok && allSizes.add(z.s)));
+    const allSizes = [];
+    const colors = new Set();
+    const origins = new Set();
+    base.forEach((p) => {
+      p.sizes.forEach((z) => z.ok && allSizes.push(z.s));
+      colors.add(p.colorGroup || 'other');
+      if (p.origin) origins.add(p.origin);
+    });
     return {
       cat: tally('cat', (p) => [p.cat]),
       brand: tally('brand', (p) => [OL.slug(p.brand)]),
       size: tally('size', (p) => p.sizes.filter((z) => z.ok).map((z) => z.s)),
-      gender: tally('gender', (p) => (p.gender === 'unisex' ? ['men', 'women'] : [p.gender])),
-      sizes: [...allSizes].sort((a, b) => a - b),
+      color: tally('color', (p) => [p.colorGroup || 'other']),
+      origin: tally('origin', (p) => (p.origin ? [p.origin] : [])),
+      avail: tally('avail', (p) => [inStock(p) ? 'stock' : null, onOrder(p) ? 'order' : null].filter(Boolean)),
+      sizes: C.sortSizes(allSizes),
+      colors: C.COLOR_GROUPS.filter((c) => colors.has(c)),
+      origins: [...origins].sort(),
     };
   };
 
@@ -135,7 +165,38 @@
 
   // Number of active (removable) filters
   C.activeCount = (f, bounds) =>
-    f.cat.length + f.gender.length + f.brand.length + f.size.length +
+    f.cat.length + f.brand.length + f.size.length + f.color.length + f.origin.length + f.avail.length +
     (f.min != null && f.min > bounds[0] ? 1 : 0) + (f.max != null && f.max < bounds[1] ? 1 : 0) +
     (f.off ? 1 : 0) + (f.stock ? 0 : 1) + (f.q ? 1 : 0);
+
+  /* ------------------------------------------------- product relationships */
+  // the other colours of the same item (same style code), the product itself excluded
+  C.otherColours = (products, p) => {
+    const code = String(p.styleCode || '').toLowerCase();
+    return code ? products.filter((x) => x !== p && String(x.styleCode || '').toLowerCase() === code) : [];
+  };
+  // Only one product per style code (the first), so a rail does not repeat the same item in three colours
+  C.onePerStyle = (list) => {
+    const seen = new Set();
+    return list.filter((p) => {
+      const k = p.styleCode ? `s:${String(p.styleCode).toLowerCase()}` : `p:${p.slug}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+  // "You may also like": same category first, then same brand; never the item's own colours
+  C.related = (products, p, n = 4) => {
+    const own = new Set([p, ...C.otherColours(products, p)]);
+    const score = (x) => (x.cat === p.cat ? 2 : 0) + (x.brand === p.brand ? 1 : 0) + (OL.catDept(x.cat) === OL.catDept(p.cat) ? 0.5 : 0);
+    return C.onePerStyle(products.filter((x) => !own.has(x) && buyable(x))
+      .map((x, i) => ({ x, i, s: score(x) })).sort((a, b) => b.s - a.s || a.i - b.i).map((r) => r.x)).slice(0, n);
+  };
+  // "Complete the look": other departments, same brand first, then anything popular
+  C.completeLook = (products, p, n = 4) => {
+    const dept = OL.catDept(p.cat);
+    const score = (x) => (x.brand === p.brand ? 2 : 0) + (x.featured ? 1 : 0) + (x.isNew ? 0.5 : 0);
+    return C.onePerStyle(products.filter((x) => x !== p && OL.catDept(x.cat) !== dept && buyable(x))
+      .map((x, i) => ({ x, i, s: score(x) })).sort((a, b) => b.s - a.s || a.i - b.i).map((r) => r.x)).slice(0, n);
+  };
 })();

@@ -20,7 +20,7 @@ export default async function page({ data, me, go }) {
   const lowProducts = new Map();
   (ov.low_stock || []).forEach((r) => {
     const e = lowProducts.get(r.product_id) || { id: r.product_id, name: r.name, sizes: [] };
-    e.sizes.push({ eu: Number(r.eu), stock: r.stock });
+    e.sizes.push({ label: r.label, stock: r.stock, orderable: r.orderable });
     lowProducts.set(r.product_id, e);
   });
   const low = [...lowProducts.values()].slice(0, 8);
@@ -40,6 +40,7 @@ export default async function page({ data, me, go }) {
       ${kpi('/admin/orders?range=today', t('dash.today'), ov.today_orders, `${t('dash.todayHint')} · ${money(ov.today_revenue)}`)}
       ${kpi('/admin/orders?range=7d', t('dash.week'), money(ov.week_revenue), `${ov.week_orders} ${t('dash.weekHint')}`)}
       ${kpi('/admin/stock?low=1', t('dash.lowStock'), (ov.low_stock || []).length, t('dash.lowHint'), (ov.low_stock || []).length ? 'is-warn' : '')}
+      ${ov.to_source ? kpi('/admin/orders?status=new', t('dash.toSource'), ov.to_source, t('dash.toSourceHint'), 'is-warn') : ''}
     </section>
 
     ${daily.length ? html`<section class="card chart-card">
@@ -71,7 +72,7 @@ export default async function page({ data, me, go }) {
           ${low.length ? html`<ul class="list">${low.map((p) => html`
             <li><a class="row-link" href="/admin/products/${p.id}">
               <span class="row-main"><b>${p.name}</b></span>
-              <span class="row-side chips">${p.sizes.map((s) => html`<span class="chip ${s.stock === 0 ? 'is-zero' : 'is-one'}">EU ${s.eu} · ${s.stock === 0 ? t('dash.soldOut') : t('dash.left', { n: s.stock })}</span>`)}</span>
+              <span class="row-side chips">${p.sizes.map((s) => html`<span class="chip ${s.stock === 0 ? 'is-zero' : 'is-one'}">${s.label} · ${s.stock === 0 ? (s.orderable ? t('dash.canOrder') : t('dash.soldOut')) : t('dash.left', { n: s.stock })}</span>`)}</span>
             </a></li>`)}</ul>` : html`<p class="muted pad">${t('dash.lowEmpty')}</p>`}
         </section>
       </div>

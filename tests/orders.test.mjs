@@ -53,14 +53,14 @@ const mockFetch = (handlers = {}) => {
 const PLACED = {
   order_id: '11111111-2222-3333-4444-555555555555', number: 'OL-261013-0042',
   subtotal: 1490000, discount: 0, delivery_fee: 30000, total: 1520000, promo_code: null,
-  items: [{ brand: 'Jordan', name: 'Air Jordan 1 Low “Shattered”', size_eu: 42, qty: 1, unit_price: 1490000 }],
+  items: [{ brand: 'Jordan', name: 'Air Jordan 1 Low “Shattered”', size_label: '42', fulfilment: 'stock', qty: 1, unit_price: 1490000 }],
 };
 const goodOrder = (over = {}) => ({
   type: 'order', website: '', elapsed: 6000, lang: 'ru',
   customer: { name: 'Азиз Р.', phone: '+998 90 123 45 67', telegram: '@aziz_r', contact_pref: 'telegram' },
   delivery: { method: 'courier_tashkent', region: 'Ташкент', city: 'Юнусабад', address: 'ул. Навои, 12, кв 5', landmark: 'Mega Planet' },
   payment: 'cash', comment: 'позвонить после 18:00', promo_code: 'lounge10',
-  items: [{ slug: 'air-jordan-1-low-shattered', size: 42, qty: 1, price: 1 }], // a "price" must be ignored
+  items: [{ slug: 'air-jordan-1-low-shattered', size: '42', qty: 1, price: 1 }], // a "price" must be ignored
   ...over,
 });
 
@@ -90,7 +90,7 @@ test('parseOrder: happy path builds a sanitized payload (no client prices)', () 
   assert.equal(p.customer.phone, '+998901234567');
   assert.equal(p.customer.contact_pref, 'telegram');
   assert.equal(p.promo_code, 'LOUNGE10');
-  assert.deepEqual(p.items, [{ slug: 'air-jordan-1-low-shattered', size: 42, qty: 1 }]);
+  assert.deepEqual(p.items, [{ slug: 'air-jordan-1-low-shattered', size: '42', qty: 1 }]);
   assert.ok(!JSON.stringify(p).includes('"price"'));
 });
 
@@ -104,9 +104,9 @@ test('parseOrder: rejects bots, junk and incomplete forms', () => {
   assert.equal(bad({ delivery: { method: 'callback' } }).field, 'delivery', 'callback only via quick');
   assert.equal(bad({ payment: 'bitcoin' }).field, 'payment');
   assert.equal(bad({ items: [] }).field, 'items');
-  assert.equal(bad({ items: [{ slug: 'ok', size: 42, qty: 99 }] }).field, 'items');
-  assert.equal(bad({ items: [{ slug: 'ok', size: 7, qty: 1 }] }).field, 'items');
-  assert.equal(bad({ items: [{ slug: 'Bad Slug!', size: 42, qty: 1 }] }).field, 'items');
+  assert.equal(bad({ items: [{ slug: 'ok', size: '42', qty: 99 }] }).field, 'items');
+  assert.equal(bad({ items: [{ slug: 'ok', size: 'no!', qty: 1 }] }).field, 'items');
+  assert.equal(bad({ items: [{ slug: 'Bad Slug!', size: '42', qty: 1 }] }).field, 'items');
   assert.equal(bad({ promo_code: 'a b;--' }).field, 'promo_code');
   assert.equal(parseOrder(null, 'order').ok, false);
 });
@@ -114,18 +114,18 @@ test('parseOrder: rejects bots, junk and incomplete forms', () => {
 test('parseOrder: pickup needs no address; quick order needs only name, phone, items', () => {
   const pick = parseOrder(goodOrder({ delivery: { method: 'pickup' } }), 'order');
   assert.ok(pick.ok);
-  const quick = parseOrder({ type: 'quick', website: '', elapsed: 3000, customer: { name: 'Ali', phone: '901234567' }, items: [{ slug: 'x-90-pink-haze', size: 38, qty: 1 }] }, 'quick');
+  const quick = parseOrder({ type: 'quick', website: '', elapsed: 3000, customer: { name: 'Ali', phone: '901234567' }, items: [{ slug: 'x-90-pink-haze', size: '38', qty: 1 }] }, 'quick');
   assert.ok(quick.ok);
   assert.equal(quick.payload.delivery.method, 'callback');
   assert.equal(quick.payload.payment, 'tbd');
 });
 
 test('parseNotify / parseQuote / parseDbError', () => {
-  assert.ok(parseNotify({ website: '', elapsed: 2000, slug: 'kyrie-7-onyx', size: 43, phone: '901234567' }).ok);
+  assert.ok(parseNotify({ website: '', elapsed: 2000, slug: 'kyrie-7-onyx', size: '43', phone: '901234567' }).ok);
   assert.equal(parseNotify({ website: '', elapsed: 2000, slug: 'kyrie-7-onyx' }).field, 'phone');
-  assert.deepEqual(parseQuote({ items: [{ slug: 'a', size: 41, qty: 1 }], promo_code: 'x1', delivery_method: 'regions' }).payload.delivery, { method: 'regions' });
+  assert.deepEqual(parseQuote({ items: [{ slug: 'a', size: '41', qty: 1 }], promo_code: 'x1', delivery_method: 'regions' }).payload.delivery, { method: 'regions' });
   assert.equal(parseQuote({ items: 'nope' }).ok, false);
-  assert.deepEqual(parseDbError('out_of_stock:air-max:41'), { error: 'out_of_stock', slug: 'air-max', size: 41 });
+  assert.deepEqual(parseDbError('out_of_stock:air-max:41'), { error: 'out_of_stock', slug: 'air-max', size: '41' });
   assert.deepEqual(parseDbError('unavailable:nope'), { error: 'unavailable', slug: 'nope', size: null });
   assert.deepEqual(parseDbError('invalid:promo'), { error: 'invalid', field: 'promo' });
   assert.equal(parseDbError('syntax error at or near'), null);
@@ -139,7 +139,7 @@ test('order message escapes customer text and shows the essentials', () => {
     delivery_method: 'courier_tashkent', region: 'Ташкент', city: 'Чиланзар', address: 'ул. <script>', landmark: null,
     payment_method: 'cash', comment: '<a href="x">click</a>',
     subtotal: 2000000, discount: 200000, delivery_fee: 0, total: 1800000, promo_code: 'LOUNGE10',
-    order_items: [{ brand_snapshot: 'Nike', name_snapshot: 'Air Max', size_eu: 42, qty: 2, unit_price: 1000000 }],
+    order_items: [{ brand_snapshot: 'Nike', name_snapshot: 'Air Max', size_label: '42', fulfilment: 'stock', qty: 2, unit_price: 1000000 }],
   });
   assert.ok(!msg.includes('<script>') && !msg.includes('<a href') && !msg.includes('<b>Evil'));
   assert.ok(msg.includes('&lt;b&gt;Evil&lt;/b&gt; &amp; Co'));
@@ -228,7 +228,7 @@ test('order: works (saved) when Telegram is not configured yet', async () => {
 test('order: database business errors map to clear responses', async () => {
   configure();
   const cases = [
-    ['out_of_stock:air-jordan-1-low-shattered:42', 409, { error: 'out_of_stock', slug: 'air-jordan-1-low-shattered', size: 42 }],
+    ['out_of_stock:air-jordan-1-low-shattered:42', 409, { error: 'out_of_stock', slug: 'air-jordan-1-low-shattered', size: '42' }],
     ['unavailable:air-jordan-1-low-shattered', 409, { error: 'unavailable', slug: 'air-jordan-1-low-shattered', size: null }],
     ['invalid:promo', 400, { error: 'invalid', field: 'promo' }],
   ];
@@ -288,41 +288,41 @@ test('quick order and notify requests', async () => {
   });
   try {
     let r = res();
-    await orderHandler(req({ type: 'quick', website: '', elapsed: 4000, lang: 'uz', customer: { name: 'Ali', phone: '901234567' }, items: [{ slug: 'x-90-pink-haze', size: 38, qty: 1 }] }), r);
+    await orderHandler(req({ type: 'quick', website: '', elapsed: 4000, lang: 'uz', customer: { name: 'Ali', phone: '901234567' }, items: [{ slug: 'x-90-pink-haze', size: '38', qty: 1 }] }), r);
     assert.equal(r.code, 200);
     const place = m.calls.find((c) => c.url.includes('place_order'));
     assert.equal(place.body.p_payload.delivery.method, 'callback');
 
     r = res();
-    await orderHandler(req({ type: 'notify', website: '', elapsed: 4000, slug: 'kyrie-7-onyx', size: 43, phone: '+998901234567' }), r);
+    await orderHandler(req({ type: 'notify', website: '', elapsed: 4000, slug: 'kyrie-7-onyx', size: '43', phone: '+998901234567' }), r);
     assert.equal(r.code, 200);
     const saved = m.calls.find((c) => c.method === 'POST' && c.url.includes('notify_requests'));
     assert.deepEqual({ product_id: saved.body.product_id, size_id: saved.body.size_id, phone: saved.body.phone }, { product_id: 'p-1', size_id: 's-1', phone: '+998901234567' });
     const alert = m.calls.filter((c) => c.url.includes('sendMessage')).pop();
-    assert.ok(alert.body.text.includes('Просят уведомить') && alert.body.text.includes('EU 43'));
+    assert.ok(alert.body.text.includes('Просят уведомить') && alert.body.text.includes('· 43'));
   } finally { m.restore(); unconfigure(); }
 });
 
 /* ------------------------------------------------------------ /api/quote */
 test('quote: totals from the database, promo problems reported inline', async () => {
   configure();
-  let reply = { status: 200, json: { subtotal: 1000000, discount: 100000, delivery_fee: 30000, total: 930000, promo_code: 'LOUNGE10', lines: [{ slug: 'a', size_eu: 41, qty: 1, unit_price: 1000000 }] } };
+  let reply = { status: 200, json: { subtotal: 1000000, discount: 100000, delivery_fee: 30000, total: 930000, promo_code: 'LOUNGE10', lines: [{ slug: 'a', size_label: '41', fulfilment: 'stock', qty: 1, unit_price: 1000000 }] } };
   const m = mockFetch({ 'rpc/quote_order': () => reply });
   try {
     let r = res();
-    await quoteHandler(req({ items: [{ slug: 'a', size: 41, qty: 1 }], promo_code: 'lounge10' }), r);
+    await quoteHandler(req({ items: [{ slug: 'a', size: '41', qty: 1 }], promo_code: 'lounge10' }), r);
     assert.equal(r.code, 200);
     assert.deepEqual({ ok: r.body.ok, total: r.body.total, promo: r.body.promo_code }, { ok: true, total: 930000, promo: 'LOUNGE10' });
 
     reply = { status: 400, json: { message: 'invalid:promo' } };
     r = res();
-    await quoteHandler(req({ items: [{ slug: 'a', size: 41, qty: 1 }], promo_code: 'nope' }), r);
+    await quoteHandler(req({ items: [{ slug: 'a', size: '41', qty: 1 }], promo_code: 'nope' }), r);
     assert.deepEqual(r.body, { ok: false, error: 'promo' });
 
     reply = { status: 400, json: { message: 'out_of_stock:a:41' } };
     r = res();
-    await quoteHandler(req({ items: [{ slug: 'a', size: 41, qty: 1 }] }), r);
-    assert.deepEqual(r.body, { ok: false, error: 'out_of_stock', slug: 'a', size: 41 });
+    await quoteHandler(req({ items: [{ slug: 'a', size: '41', qty: 1 }] }), r);
+    assert.deepEqual(r.body, { ok: false, error: 'out_of_stock', slug: 'a', size: '41' });
   } finally { m.restore(); unconfigure(); }
 });
 
@@ -359,7 +359,7 @@ test('webhook: a manager button press changes the status and re-renders the mess
         id: PLACED.order_id, number: 'OL-261013-0042', status: 'confirmed', created_at: '2026-10-13T10:00:00Z', lang: 'ru',
         customer_name: 'Азиз', phone: '+998901234567', contact_pref: 'call', delivery_method: 'courier_tashkent',
         payment_method: 'cash', subtotal: 1000000, discount: 0, delivery_fee: 30000, total: 1030000,
-        order_items: [{ brand_snapshot: 'Nike', name_snapshot: 'Air Max', size_eu: 42, qty: 1, unit_price: 1000000 }],
+        order_items: [{ brand_snapshot: 'Nike', name_snapshot: 'Air Max', size_label: '42', fulfilment: 'stock', qty: 1, unit_price: 1000000 }],
         promo_codes: null,
       }],
     }),
@@ -516,5 +516,57 @@ test('order: the shared (database) rate limit refuses even when this instance ha
     r = res(); await orderHandler(req(goodOrder({ website: 'spam' })), r);
     assert.equal(r.code, 400);
     assert.equal(m.calls.filter((c) => c.url.includes('rpc/rate_limit_hit')).length, 2, 'invalid requests are not counted in the database');
+  } finally { m.restore(); unconfigure(); }
+});
+
+/* ------------------------------------------------------------ sizes + on-order lines */
+test('size labels: letters, numbers, waist/length and ONE SIZE pass; junk is refused', () => {
+  const ok = (size) => parseQuote({ items: [{ slug: 'a', size, qty: 1 }] });
+  for (const good of ['M', 'XXL', '48', 'W32/L34', '42.5', 'ONE SIZE', 43]) {
+    assert.ok(ok(good).ok, String(good));
+  }
+  assert.equal(ok('M').payload.items[0].size, 'M');
+  assert.equal(ok(43).payload.items[0].size, '43', 'numbers become labels');
+  assert.equal(ok('  XL ').payload.items[0].size, 'XL', 'whitespace is trimmed');
+  for (const bad of ['', '   ', 'M!', '<b>', 'a|b', 'x'.repeat(13), '-1', null, undefined, {}]) {
+    assert.equal(ok(bad).ok, false, JSON.stringify(bad));
+  }
+  assert.equal(parseNotify({ website: '', elapsed: 2000, slug: 'a', size: 'XL', phone: '901234567' }).notify.size, 'XL');
+  assert.equal(parseNotify({ website: '', elapsed: 2000, slug: 'a', size: 'XL!', phone: '901234567' }).field, 'size');
+  assert.deepEqual(parseDbError('out_of_stock:gant-denim-jacket-blue:XXL'), { error: 'out_of_stock', slug: 'gant-denim-jacket-blue', size: 'XXL' });
+});
+
+test('Telegram message marks the lines ordered from abroad and counts them', () => {
+  const msg = orderMessage({
+    number: 'OL-2', status: 'new', created_at: '2026-10-13T10:00:00Z', lang: 'ru',
+    customer_name: 'Азиз', phone: '+998901234567', contact_pref: 'call', delivery_method: 'courier_tashkent',
+    payment_method: 'cash', subtotal: 7190000, discount: 0, delivery_fee: 0, total: 7190000,
+    order_items: [
+      { brand_snapshot: 'Lacoste', name_snapshot: 'Classic Fit Polo', size_label: 'M', fulfilment: 'stock', qty: 1, unit_price: 1290000 },
+      { brand_snapshot: 'Diesel', name_snapshot: 'Leather Biker Jacket', size_label: 'L', fulfilment: 'order', qty: 1, unit_price: 5900000 },
+    ],
+  });
+  const lines = msg.split('\n');
+  const polo = lines.find((l) => l.includes('Classic Fit Polo'));
+  const jacket = lines.find((l) => l.includes('Leather Biker Jacket'));
+  assert.ok(polo.includes('— M × 1') && !polo.includes('под заказ'));
+  assert.ok(jacket.includes('— L × 1') && jacket.includes('✈️ под заказ'));
+  assert.ok(msg.includes('Под заказ из-за рубежа: 1 шт.'));
+  const none = orderMessage({ number: 'OL-3', status: 'new', customer_name: 'x', phone: '+998901234567', delivery_method: 'pickup', payment_method: 'cash',
+    order_items: [{ name_snapshot: 'Tee', size_label: 'S', fulfilment: 'stock', qty: 1, unit_price: 1 }], subtotal: 1, discount: 0, delivery_fee: 0, total: 1 });
+  assert.ok(!none.includes('под заказ'), 'nothing to flag when everything is in stock');
+});
+
+test('quote: each line says whether it is in stock here or ordered from abroad', async () => {
+  configure();
+  const m = mockFetch({ 'rpc/quote_order': () => ({ status: 200, json: { subtotal: 1, discount: 0, delivery_fee: 0, total: 1, promo_code: null,
+    lines: [{ slug: 'a', size_label: 'M', qty: 1, unit_price: 1, fulfilment: 'stock' }, { slug: 'b', size_label: 'L', qty: 2, unit_price: 1, fulfilment: 'order' }] } }) });
+  try {
+    const r = res();
+    await quoteHandler(req({ items: [{ slug: 'a', size: 'M', qty: 1 }, { slug: 'b', size: 'L', qty: 2 }] }), r);
+    assert.deepEqual(r.body.lines, [
+      { slug: 'a', size: 'M', qty: 1, unit_price: 1, fulfilment: 'stock' },
+      { slug: 'b', size: 'L', qty: 2, unit_price: 1, fulfilment: 'order' },
+    ]);
   } finally { m.restore(); unconfigure(); }
 });

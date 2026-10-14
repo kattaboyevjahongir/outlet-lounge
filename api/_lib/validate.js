@@ -5,6 +5,12 @@
 export const PAYMENTS = ['cash', 'card_on_delivery', 'transfer', 'tbd'];
 export const NO_ADDRESS_METHODS = ['pickup', 'callback'];
 export const LANGS = ['ru', 'uz', 'en'];
+// size labels: S, XL, 48, W32/L34, 42.5, ONE SIZE (same rule as the database)
+export const SIZE_RE = /^[A-Za-z0-9][A-Za-z0-9 ./-]{0,11}$/;
+export const cleanSize = (v) => {
+  const s = cleanText(v, 20);
+  return SIZE_RE.test(s) ? s : null;
+};
 
 // control characters, zero-width and bidi tricks are removed; whitespace collapsed
 const JUNK = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩﻿]/g;
@@ -32,10 +38,10 @@ function parseItems(items) {
   const out = [];
   for (const it of items) {
     const slug = cleanText(it && it.slug, 80);
-    const size = Number(it && it.size);
+    const size = cleanSize(it && it.size);
     const qty = Number(it && it.qty);
     if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
-    if (!Number.isFinite(size) || size < 30 || size > 50 || (size * 2) % 1 !== 0) return null;
+    if (!size) return null;
     if (!Number.isInteger(qty) || qty < 1 || qty > 10) return null;
     out.push({ slug, size, qty });
   }
@@ -134,8 +140,8 @@ export function parseNotify(body) {
   if (!phone && !telegram) return fail('phone');
   let size = null;
   if (body.size != null && body.size !== '') {
-    size = Number(body.size);
-    if (!Number.isFinite(size) || size < 30 || size > 50) return fail('size');
+    size = cleanSize(body.size);
+    if (!size) return fail('size');
   }
   return { ok: true, notify: { slug, size, phone, telegram: telegram || null } };
 }
@@ -152,11 +158,11 @@ export function parseQuote(body) {
   return { ok: true, payload: { items, promo_code: promo || null, delivery: { method } } };
 }
 
-// "out_of_stock:air-max-1-sunset:41" → { error: 'out_of_stock', slug, size }
+// "out_of_stock:gant-denim-jacket-blue:XXL" → { error: 'out_of_stock', slug, size: 'XXL' }
 export function parseDbError(message) {
   const m = String(message || '').match(/^(out_of_stock|unavailable|invalid):?(.*)$/);
   if (!m) return null;
   const [slugOrField, size] = m[2].split(':');
   if (m[1] === 'invalid') return { error: 'invalid', field: slugOrField || null };
-  return { error: m[1], slug: slugOrField || null, size: size ? Number(size) : null };
+  return { error: m[1], slug: slugOrField || null, size: size || null };
 }

@@ -1,5 +1,5 @@
-/* Catalog page — /shop, /new, /sale, /men, /women, /kids, /brands/<brand>
-   Filters + sort live in the URL (/shop?brand=nike&size=42&sort=price-asc). */
+/* Catalog page — /shop, /new, /sale, /clothing|shoes|accessories, /shop/<category>, /brands/<brand>
+   Filters + sort live in the URL (/shop?brand=gant&size=M&color=navy&sort=price-asc). */
 (function () {
   const OL = window.OL;
   const t = (k, v) => OL.t(k, v);
@@ -7,7 +7,6 @@
   const C = OL.catalog;
   const html = document.documentElement;
 
-  const CATS = ['running', 'lifestyle', 'basketball'];
   let S = null; // state of the mounted catalog page
 
   /* ------------------------------------------------------------ state */
@@ -15,7 +14,13 @@
     const p = OL.PRODUCTS.find((x) => OL.slug(x.brand) === slug);
     return p ? p.brand : slug;
   };
-  const titleOf = (ctx) => (ctx.params.collection === 'brand' ? brandName(ctx.params.brand) : t('shop.title.' + ctx.params.collection));
+  const titleOf = (ctx) => {
+    const { collection, key } = ctx.params;
+    if (collection === 'brand') return brandName(key);
+    if (collection === 'category') return OL.catName(key);
+    if (collection === 'dept') return t('dept.' + key);
+    return t('shop.title.' + collection);
+  };
 
   const compute = () => {
     S.bounds = C.priceBounds(S.base);
@@ -27,8 +32,7 @@
     S = {
       ctx,
       collection: ctx.params.collection,
-      brandSlug: ctx.params.brand || null,
-      base: C.base(OL.PRODUCTS, ctx.params.collection, ctx.params.brand),
+      base: C.base(OL.PRODUCTS, ctx.params.collection, ctx.params.key),
       f: C.parseQuery(ctx.search),
       shown: C.PAGE_SIZE,
       open: S && S.ctx.path === ctx.path ? S.open : {},
@@ -47,19 +51,17 @@
       `<span class="fc-box"></span><span class="fc-label">${label}</span><small>${count}</small></label>`;
   };
 
+  const swatch = (c) => {
+    const p = S.base.find((x) => (x.colorGroup || 'other') === c && /^#[0-9a-fA-F]{6}$/.test(x.colorHex || ''));
+    return p ? p.colorHex : '#999';
+  };
   const groupsA = () => {
     const F = S.facets;
     const out = [];
-    const cats = CATS.filter((c) => S.base.some((p) => p.cat === c));
+    const cats = OL.CATEGORIES.filter((c) => S.base.some((p) => p.cat === c.slug));
     if (cats.length > 1) {
       out.push(group('cat', t('shop.f.cat'),
-        cats.map((c) => check('cat', c, t('cat.' + c), F.cat.get(c) || 0, S.f.cat.includes(c))).join('')));
-    }
-    if (!['men', 'women', 'kids'].includes(S.collection)) {
-      const only = (g) => ({ ...C.emptyFilters(), gender: [g], stock: false });
-      const gens = ['men', 'women', 'kids'].filter((g) => S.base.some((p) => C.matches(p, only(g))));
-      out.push(group('gender', t('shop.f.gender'),
-        gens.map((g) => check('gender', g, t('shop.genders.' + g), F.gender.get(g) || 0, S.f.gender.includes(g))).join('')));
+        cats.map((c) => check('cat', c.slug, esc(OL.catName(c.slug)), F.cat.get(c.slug) || 0, S.f.cat.includes(c.slug))).join('')));
     }
     return out.join('');
   };
@@ -77,12 +79,30 @@
         `<div class="fsizes">${F.sizes.map((z) => {
           const n = F.size.get(z) || 0;
           const on = S.f.size.includes(z);
-          return `<button type="button" class="size${on ? ' is-on' : ''}${!on && !n ? ' is-out' : ''}" data-f-size="${z}" ${!on && !n ? 'disabled' : ''}>${z}</button>`;
+          return `<button type="button" class="fsize${on ? ' is-on' : ''}${!on && !n ? ' is-out' : ''}" data-f-size="${esc(z)}" ${!on && !n ? 'disabled' : ''}>${esc(z)}</button>`;
         }).join('')}</div>`));
     }
-    out.push(group('off', t('shop.f.off'),
-      `<div class="fsizes">${C.OFF_STEPS.map((n) =>
-        `<button type="button" class="size fo${S.f.off === n ? ' is-on' : ''}" data-off="${n}">${n ? t('shop.offFrom', { n }) : t('shop.anyOff')}</button>`).join('')}</div>`, false));
+    if (F.colors.length > 1) {
+      out.push(group('color', t('shop.f.color'),
+        `<div class="fcolors">${F.colors.map((c) => {
+          const n = F.color.get(c) || 0;
+          const on = S.f.color.includes(c);
+          return `<button type="button" class="fcolor${on ? ' is-on' : ''}" data-f-color="${c}" ${!on && !n ? 'disabled' : ''} title="${t('color.' + c)}" aria-label="${t('color.' + c)}" aria-pressed="${on}"><i data-c="${swatch(c)}"></i><span>${t('color.' + c)}</span></button>`;
+        }).join('')}</div>`));
+    }
+    if (F.origins.length > 1) {
+      out.push(group('origin', t('shop.f.origin'),
+        F.origins.map((o) => check('origin', o, esc(OL.country(o)), F.origin.get(o) || 0, S.f.origin.includes(o))).join(''), false));
+    }
+    if (S.base.some((p) => C.inStock(p)) && S.base.some((p) => C.availability(p) === 'order' || p.sizes.some((z) => z.order && z.stock === 0))) {
+      out.push(group('avail', t('shop.f.avail'),
+        C.AVAIL.map((a) => check('avail', a, t('shop.avail.' + a), F.avail.get(a) || 0, S.f.avail.includes(a))).join(''), false));
+    }
+    if (S.base.some((p) => OL.off(p) > 0)) {
+      out.push(group('off', t('shop.f.off'),
+        `<div class="fsizes">${C.OFF_STEPS.map((n) =>
+          `<button type="button" class="fsize fo${S.f.off === n ? ' is-on' : ''}" data-off="${n}">${n ? t('shop.offFrom', { n }) : t('shop.anyOff')}</button>`).join('')}</div>`, false));
+    }
     out.push(`<label class="fc fc-stock"><input type="checkbox" data-f="stock" ${S.f.stock ? 'checked' : ''}><span class="fc-box"></span><span class="fc-label">${t('shop.f.stock')}</span></label>`);
     return out.join('');
   };
@@ -102,10 +122,12 @@
   const chips = () => {
     const [lo, hi] = S.bounds;
     const c = [];
-    S.f.cat.forEach((v) => c.push(['cat', v, t('cat.' + v)]));
-    S.f.gender.forEach((v) => c.push(['gender', v, t('shop.genders.' + v)]));
+    S.f.cat.forEach((v) => c.push(['cat', v, esc(OL.catName(v))]));
     S.f.brand.forEach((v) => c.push(['brand', v, esc(brandName(v))]));
-    S.f.size.forEach((v) => c.push(['size', v, `EU ${v}`]));
+    S.f.size.forEach((v) => c.push(['size', v, esc(v)]));
+    S.f.color.forEach((v) => c.push(['color', v, t('color.' + v)]));
+    S.f.origin.forEach((v) => c.push(['origin', v, esc(OL.country(v))]));
+    S.f.avail.forEach((v) => c.push(['avail', v, t('shop.avail.' + v)]));
     if (S.f.min != null && S.f.min > lo) c.push(['min', '', `${t('shop.priceFrom')} ${OL.num(S.f.min)}`]);
     if (S.f.max != null && S.f.max < hi) c.push(['max', '', `${t('shop.priceTo')} ${OL.num(S.f.max)}`]);
     if (S.f.off) c.push(['off', '', t('shop.offFrom', { n: S.f.off })]);
@@ -150,11 +172,10 @@
     if (grid) {
       const g = $('#shopGrid');
       g.innerHTML = S.list.length ? cards(0, S.shown) : '';
+      if (S.painted) OL.reveal(g); // the first paint is revealed by the page mount
+      S.painted = true;
       $('#shopEmpty').innerHTML = S.list.length ? '' : emptyHTML();
       $('#shopMore').innerHTML = moreHTML();
-      if (OL.anim && window.gsap && S.list.length) {
-        gsap.fromTo(g.children, { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.55, stagger: 0.035, ease: 'power3.out', clearProps: 'transform,opacity,visibility' });
-      }
     }
   };
 
@@ -174,7 +195,7 @@
 
   OL.pages.shop = {
     meta(ctx) {
-      const base = C.base(OL.PRODUCTS, ctx.params.collection, ctx.params.brand);
+      const base = C.base(OL.PRODUCTS, ctx.params.collection, ctx.params.key);
       return {
         title: titleOf(ctx),
         description: `${titleOf(ctx)} — ${base.length} ${t('shop.models')}. ${t('meta.description')}`,
@@ -186,15 +207,18 @@
       init(ctx);
       const title = titleOf(ctx);
       const crumbs = [`<a href="/">${t('crumbs.home')}</a>`];
-      if (ctx.params.collection !== 'all') crumbs.push(`<a href="/shop">${t('crumbs.shop')}</a>`);
+      if (ctx.params.collection === 'category') {
+        const d = OL.catDept(ctx.params.key);
+        if (d) crumbs.push(`<a href="/${d}">${t('dept.' + d)}</a>`);
+      } else if (ctx.params.collection !== 'all' && ctx.params.collection !== 'dept') crumbs.push(`<a href="/shop">${t('crumbs.shop')}</a>`);
       crumbs.push(`<span>${esc(title)}</span>`);
       return `
       <section class="shop">
         <div class="container">
           <nav class="crumbs" aria-label="Breadcrumb">${crumbs.join('<i>/</i>')}</nav>
           <header class="shop-head">
-            <p class="eyebrow" data-reveal="fade"><span class="eyebrow-line"></span>${t('shop.eyebrow')}</p>
-            <h1 class="shop-title">${esc(title)}</h1>
+            <p class="eyebrow"><span class="eyebrow-line"></span>${t('shop.eyebrow')}</p>
+            <h1 class="shop-title" data-split>${esc(title)}</h1>
             <p class="shop-count" id="shopCount"></p>
           </header>
 
@@ -214,7 +238,7 @@
 
           <div class="shop-layout">
             <div class="filters-overlay" data-close-filters></div>
-            <aside class="filters" id="filters" aria-label="${t('shop.filters')}">
+            <aside class="filters" id="filters" data-lenis-prevent aria-label="${t('shop.filters')}">
               <div class="filters-head">
                 <h2>${t('shop.filters')}</h2>
                 <button type="button" class="icon-btn" data-close-filters aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -279,14 +303,15 @@
 
       page.addEventListener('click', (e) => {
         const size = e.target.closest('[data-f-size]');
-        if (size) { S.f.size = toggle(S.f.size, Number(size.dataset.fSize)); return commit(page); }
+        if (size) { S.f.size = toggle(S.f.size, size.dataset.fSize); return commit(page); }
+        const col = e.target.closest('[data-f-color]');
+        if (col) { S.f.color = toggle(S.f.color, col.dataset.fColor); return commit(page); }
         const off = e.target.closest('[data-off]');
         if (off) { S.f.off = Number(off.dataset.off); return commit(page); }
         const rm = e.target.closest('[data-remove]');
         if (rm) {
           const k = rm.dataset.remove;
-          if (['cat', 'gender', 'brand'].includes(k)) S.f[k] = S.f[k].filter((x) => x !== rm.dataset.value);
-          else if (k === 'size') S.f.size = S.f.size.filter((x) => String(x) !== rm.dataset.value);
+          if (['cat', 'brand', 'size', 'color', 'origin', 'avail'].includes(k)) S.f[k] = S.f[k].filter((x) => x !== rm.dataset.value);
           else if (k === 'q') S.f.q = '';
           else S.f[k] = k === 'off' ? 0 : null;
           return commit(page);
@@ -299,11 +324,8 @@
           const from = S.shown;
           S.shown += C.PAGE_SIZE;
           page.querySelector('#shopGrid').insertAdjacentHTML('beforeend', cards(from, S.shown));
+          OL.reveal(page.querySelector('#shopGrid'));
           page.querySelector('#shopMore').innerHTML = moreHTML();
-          if (OL.anim && window.gsap) {
-            const added = [...page.querySelectorAll('#shopGrid > *')].slice(from);
-            gsap.fromTo(added, { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.5, stagger: 0.03, clearProps: 'transform,opacity,visibility' });
-          }
           return;
         }
         if (e.target.closest('[data-open-filters]')) { html.classList.add('filters-open'); return OL.lockScroll && OL.lockScroll(); }
@@ -322,14 +344,6 @@
       const title = titleOf(ctx);
       page.querySelector('.shop-title').textContent = title;
       paint(page);
-    },
-
-    init(root) {
-      const q = (s) => root.querySelector(s);
-      gsap.from(q('.shop-title'), { y: 50, autoAlpha: 0, duration: 1, ease: 'expo.out' });
-      gsap.from(q('.shop-bar'), { y: 20, autoAlpha: 0, duration: 0.8, delay: 0.1, ease: 'expo.out' });
-      gsap.from(q('.filters'), { x: -20, autoAlpha: 0, duration: 0.8, delay: 0.15, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
-      return {};
     },
   };
 })();

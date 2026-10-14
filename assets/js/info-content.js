@@ -27,11 +27,8 @@
   OL.INFO_SLUGS = Object.keys(TITLES.ru);
   OL.INFO_TITLES = TITLES;
 
-  const SIZES = [
-    ['38.5', '6', '5.5', '24'], ['39', '6.5', '6', '24.5'], ['40', '7', '6', '25'], ['40.5', '7.5', '6.5', '25.5'], ['41', '8', '7', '26'],
-    ['42', '8.5', '7.5', '26.5'], ['42.5', '9', '8', '27'], ['43', '9.5', '8.5', '27.5'], ['44', '10', '9', '28'], ['44.5', '10.5', '9.5', '28.5'],
-    ['45', '11', '10', '29'], ['46', '12', '11', '30'],
-  ];
+  // size tables come from the shared charts in data.js (the product page uses the same ones)
+  const chart = (k) => (OL.SIZE_CHARTS && OL.SIZE_CHARTS[k]) || [];
 
   const CONTENT = {
     /* =========================================================== RU */
@@ -41,72 +38,80 @@
         delivery: {
           lead: 'Привозим по всему Узбекистану. Платить можно при получении.',
           blocks: [
+            { h: 'Откуда берётся вещь', ul: [
+              `В наличии в Ташкенте — доставим за ${c.stock} дн.`,
+              `Под заказ из-за рубежа — привезём примерно за ${c.order} дн.; менеджер подтвердит дату и условия.`,
+              'На странице товара у каждого размера указано, где он: у нас в Ташкенте или под заказ.',
+            ] },
             { h: 'Способы и стоимость', table: { head: ['Способ', 'Срок', 'Стоимость'], rows: [
               ['Курьер по Ташкенту', '1–2 дня', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'бесплатно'],
               ['По регионам (БТС / почта)', '2–5 дней', c.fee.regions ? c.money(c.fee.regions) : 'бесплатно'],
               ['Самовывоз', 'по договорённости', c.fee.pickup ? c.money(c.fee.pickup) : 'бесплатно'],
             ] } },
-            { p: [`Стоимость указана за весь заказ; ${free}.`] },
+            { p: [`Стоимость указана за весь заказ; ${free}. Срок доставки считается от момента, когда вещь у нас в Ташкенте.`] },
             { h: 'Как проходит заказ', ul: [
               `Вы оформляете заказ на сайте — менеджер перезвонит в течение ${c.minutes} минут (${c.hours}) и уточнит детали.`,
-              'После подтверждения мы упаковываем заказ и передаём курьеру или в службу доставки.',
+              'После подтверждения мы упаковываем вещи из наличия, а недостающее заказываем из-за рубежа.',
               'Статус заказа можно проверить в Telegram: кнопка на странице «Спасибо за заказ».',
             ] },
             { h: 'Оплата', ul: [
               'Наличными при получении.',
               'Банковской картой при получении (если курьер возит терминал — уточняйте у менеджера).',
               'Переводом на карту после звонка менеджера.',
+              'За вещи под заказ менеджер может попросить предоплату — это обсуждается по телефону до заказа.',
             ] },
             { h: 'Регионы', p: ['Заказы в регионы отправляем службой БТС или почтой. Номер отправления менеджер пришлёт в Telegram или SMS. Проверяйте посылку при получении.'] },
           ],
         },
         returns: {
-          lead: `Если пара не подошла, вы можете вернуть или обменять её в течение ${c.returnDays} дней.`,
+          lead: `Если вещь не подошла, вы можете вернуть или обменять её в течение ${c.returnDays} дней.`,
           blocks: [
             { h: 'Условия', ul: [
-              'Кроссовки не были в носке, нет следов эксплуатации.',
-              'Сохранены коробка, бирки и товарный вид.',
+              'Вещь не надевалась и не стиралась, нет следов носки, запахов и повреждений.',
+              'Сохранены бирки, упаковка и товарный вид.',
               'Есть подтверждение покупки: номер заказа или телефон, на который оформлен заказ.',
             ] },
             { h: 'Как оформить', ul: [
               `Напишите менеджеру в Telegram или позвоните: ${c.phone || 'контакты на странице «Контакты»'}.`,
               'Назовите номер заказа и причину — мы договоримся о передаче товара.',
-              'После проверки вернём деньги тем же способом, которым вы платили, или обменяем на другой размер/модель.',
+              'После проверки вернём деньги тем же способом, которым вы платили, или обменяем на другой размер или цвет.',
             ] },
-            { h: 'Что нельзя вернуть', p: ['Товары со следами носки, повреждённые по вине покупателя и пары без упаковки. Закон о защите прав потребителей при этом не ограничивается: если вы получили товар ненадлежащего качества, мы устраним недостаток или заменим пару.'] },
+            { h: 'Что нельзя вернуть', p: ['Вещи со следами носки или стирки, без бирок, повреждённые по вине покупателя, а также нижнее бельё и носки — по гигиеническим причинам. Вещь, которую мы заказали для вас из-за рубежа, возвращается на тех же условиях, если с менеджером до заказа не оговорено иное. Если вы получили товар ненадлежащего качества, мы устраним недостаток или заменим вещь.'] },
           ],
         },
         'size-guide': {
-          lead: 'Ориентируйтесь на длину стопы — размеры разных брендов могут отличаться на полразмера.',
+          lead: 'Сверьте свои мерки с таблицами. Размеры брендов могут немного отличаться — ориентируйтесь и на описание товара.',
           blocks: [
-            { h: 'Соответствие размеров', table: { head: ['EU', 'US (муж.)', 'UK', 'Длина стопы, см'], rows: SIZES } },
-            { p: ['Женский размер US обычно на 1,5 больше мужского: мужской 8 = женский 9,5.'] },
-            { h: 'Как измерить стопу', ul: [
-              'Встаньте на лист бумаги у стены, пятка касается стены.',
-              'Отметьте самый длинный палец и измерьте расстояние от стены до метки.',
-              'Измеряйте вечером, когда нога чуть увеличивается, и обеими ногами — берите большее значение.',
-              'Если между двумя размерами — выбирайте больший.',
+            { h: 'Верх: футболки, рубашки, куртки', table: { head: ['Размер', 'RU', 'Грудь, см', 'Талия, см'], rows: chart('letter') } },
+            { h: 'Брюки и джинсы', table: { head: ['Размер', 'Талия, см', 'Талия, дюймы'], rows: chart('waist') } },
+            { h: 'Обувь', table: { head: ['EU', 'US', 'UK', 'Длина стопы, см'], rows: chart('shoes') } },
+            { h: 'Ремни', table: { head: ['Размер, см', 'Талия, см'], rows: chart('belt') } },
+            { h: 'Как снять мерки', ul: [
+              'Грудь — по самой выступающей части, лента горизонтально, не стягивая.',
+              'Талия — по самой узкой части торса, на уровне пупка.',
+              'Стопа — встаньте на лист бумаги у стены и отметьте самый длинный палец; измеряйте вечером, берите большее значение.',
+              'Между двумя размерами — выбирайте больший. Для приталенного кроя можно взять на размер больше.',
             ] },
-            { h: 'Нужна помощь?', p: ['Напишите менеджеру в Telegram — подскажем по конкретной модели.'] },
+            { h: 'Нужна помощь?', p: ['Напишите менеджеру в Telegram — подскажем по конкретной вещи.'] },
           ],
         },
         authenticity: {
-          lead: 'Мы продаём только оригинальные кроссовки и отвечаем за каждую пару.',
+          lead: 'Мы привозим только оригинальную одежду, обувь и аксессуары мировых брендов и отвечаем за каждую вещь.',
           blocks: [
             { h: 'Наша гарантия', ul: [
-              'Все пары оригинальные — от официальных брендов, без реплик и «копий».',
-              'Перед отправкой каждую пару осматриваем: швы, материалы, маркировка, коробка.',
+              'Все вещи оригинальные — от известных брендов, без реплик и «копий».',
+              'Мы закупаем у проверенных поставщиков за рубежом; страна происхождения указана на странице товара.',
+              'Каждую вещь осматриваем при получении: швы, материалы, маркировка, упаковка.',
               'Если вы сомневаетесь в оригинальности, возврат возможен в течение срока возврата.',
             ] },
-            { h: 'Почему цены ниже', p: ['Аутлет — это прошлые коллекции, остатки партий и модели, снятые с основных витрин. Это те же оригинальные кроссовки, только дешевле.'] },
-            { h: 'Как проверить самому', ul: ['Сверьте артикул на бирке внутри кроссовка с артикулом на коробке и на сайте.', 'Обратите внимание на ровные швы, чёткие надписи и качество подошвы.'] },
+            { h: 'Как проверить самому', ul: ['Сверьте артикул и состав на бирке с описанием на сайте.', 'Обратите внимание на ровные строчки, чёткую печать и качество фурнитуры.'] },
           ],
         },
         about: {
-          lead: 'Outlet Lounge — магазин оригинальных кроссовок по ценам аутлета.',
+          lead: 'Outlet Lounge — магазин оригинальной мужской одежды, обуви и аксессуаров из-за рубежа.',
           blocks: [
-            { p: ['Мы собрали в одном месте модели Nike, Jordan, New Balance, adidas, Converse, Vans, Puma и других брендов по ценам ниже рыночных. Мы любим кроссовки и знаем, как важно купить пару, которая подойдёт по размеру и не разочарует.'] },
-            { h: 'Что для нас важно', ul: ['Только оригинальные товары.', 'Честные цены и понятные условия.', 'Быстрый ответ менеджера и доставка по всему Узбекистану.'] },
+            { p: ['Мы привозим вещи мировых брендов — от рубашек и джинсов до обуви и ремней. Часть ассортимента лежит у нас в Ташкенте и уезжает к вам за 1–3 дня, остальное мы закажем специально для вас.'] },
+            { h: 'Что для нас важно', ul: ['Только оригинальные товары.', 'Честные цены и понятные сроки: сразу видно, что есть в наличии, а что придётся подождать.', 'Быстрый ответ менеджера и доставка по всему Узбекистану.'] },
             { p: ['Следите за новинками и акциями в Telegram и Instagram — ссылки на странице «Контакты».'] },
           ],
         },
@@ -117,14 +122,15 @@
         faq: {
           lead: 'Короткие ответы на частые вопросы.',
           blocks: [{ faq: [
-            ['Как оформить заказ?', 'Выберите модель и размер, добавьте в корзину и заполните форму. Можно заказать в один клик — оставьте имя и телефон, менеджер перезвонит.'],
-            ['Как оплатить?', 'Наличными или картой при получении, либо переводом на карту после звонка менеджера.'],
-            ['Сколько идёт доставка?', 'По Ташкенту 1–2 дня, по регионам 2–5 дней. Точные сроки уточнит менеджер.'],
-            ['Как выбрать размер?', 'Измерьте длину стопы и сверьтесь с таблицей размеров. Если сомневаетесь, напишите нам.'],
-            ['Это оригинал?', 'Да, мы продаём только оригинальные кроссовки.'],
-            ['Можно ли вернуть или обменять?', `Да, в течение ${c.returnDays} дней, если кроссовки не были в носке и сохранён товарный вид.`],
+            ['Как оформить заказ?', 'Выберите вещь и размер, добавьте в корзину и заполните форму. Можно заказать в один клик — оставьте имя и телефон, менеджер перезвонит.'],
+            ['Чем отличается «в наличии» от «под заказ»?', `«В наличии» — вещь лежит у нас в Ташкенте, доставим за ${c.stock} дн. «Под заказ» — мы закажем её из-за рубежа, это занимает около ${c.order} дн. Менеджер подтвердит дату.`],
+            ['Как оплатить?', 'Наличными или картой при получении, либо переводом на карту после звонка менеджера. За вещи под заказ может потребоваться предоплата.'],
+            ['Сколько идёт доставка?', 'По Ташкенту 1–2 дня, по регионам 2–5 дней — после того, как вещь у нас. Точные сроки уточнит менеджер.'],
+            ['Как выбрать размер?', 'Снимите мерки и сверьтесь с таблицей размеров. Если сомневаетесь, напишите нам.'],
+            ['Это оригинал?', 'Да, мы продаём только оригинальные вещи мировых брендов.'],
+            ['Можно ли вернуть или обменять?', `Да, в течение ${c.returnDays} дней, если вещь не надевалась и сохранены бирки.`],
             ['Как узнать статус заказа?', 'Нажмите «Отследить в Telegram» на странице подтверждения — бот ответит статусом. Также вам позвонит менеджер.'],
-            ['Нужного размера нет в наличии', 'Нажмите «Сообщить о поступлении» на странице товара — мы напишем вам, когда размер появится.'],
+            ['Нужного размера нет', 'Если у размера нет отметки «Под заказ», он закончился. Нажмите «Сообщить о поступлении» на странице товара или напишите менеджеру.'],
           ] }],
         },
         offer: {
@@ -165,61 +171,77 @@
         delivery: {
           lead: 'Butun Oʻzbekiston boʻylab yetkazib beramiz. Qabul qilganda toʻlash mumkin.',
           blocks: [
+            { h: 'Mahsulot qayerdan keladi', ul: [
+              `Toshkentda mavjud boʻlsa — ${c.stock} kun ichida yetkazamiz.`,
+              `Xorijdan buyurtma asosida — taxminan ${c.order} kunda olib kelamiz; menejer sana va shartlarni tasdiqlaydi.`,
+              'Mahsulot sahifasida har bir oʻlcham uchun belgilangan: Toshkentda mavjud yoki buyurtma asosida.',
+            ] },
             { h: 'Usullar va narxlar', table: { head: ['Usul', 'Muddat', 'Narx'], rows: [
               ['Toshkent boʻylab kuryer', '1–2 kun', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'bepul'],
               ['Viloyatlarga (BTS / pochta)', '2–5 kun', c.fee.regions ? c.money(c.fee.regions) : 'bepul'],
               ['Oʻzi olib ketish', 'kelishuv boʻyicha', c.fee.pickup ? c.money(c.fee.pickup) : 'bepul'],
             ] } },
-            { p: [`Narx butun buyurtma uchun; ${free}.`] },
-            { h: 'Buyurtma qanday amalga oshadi', ul: [
-              `Saytda buyurtma berasiz — menejer ${c.minutes} daqiqa ichida (${c.hours}) qoʻngʻiroq qilib tafsilotlarni aniqlaydi.`,
-              'Tasdiqlangandan soʻng buyurtmani qadoqlab, kuryerga yoki yetkazib berish xizmatiga topshiramiz.',
+            { p: [`Narx butun buyurtma uchun; ${free}. Yetkazish muddati mahsulot Toshkentga yetib kelgandan boshlab hisoblanadi.`] },
+            { h: 'Buyurtma qanday oʻtadi', ul: [
+              `Siz saytda buyurtma berasiz — menejer ${c.minutes} daqiqa ichida (${c.hours}) qoʻngʻiroq qilib, tafsilotlarni aniqlaydi.`,
+              'Tasdiqlangach, omborda borini qadoqlaymiz, yetishmaganini xorijdan buyurtma qilamiz.',
               'Buyurtma holatini Telegramda tekshirish mumkin: “Buyurtma uchun rahmat” sahifasidagi tugma.',
             ] },
-            { h: 'Toʻlov', ul: ['Qabul qilganda naqd pul.', 'Qabul qilganda bank kartasi bilan (kuryerda terminal boʻlishini menejerdan soʻrang).', 'Menejer qoʻngʻirogʻidan soʻng kartaga oʻtkazma.'] },
-            { h: 'Viloyatlar', p: ['Viloyatlarga buyurtmalarni BTS yoki pochta orqali joʻnatamiz. Joʻnatma raqamini menejer Telegram yoki SMS orqali yuboradi. Posilkani olayotganda tekshiring.'] },
+            { h: 'Toʻlov', ul: [
+              'Qabul qilganda naqd pul.',
+              'Qabul qilganda bank kartasi (kuryerda terminal boʻlsa — menejerdan soʻrang).',
+              'Menejer qoʻngʻirogʻidan keyin kartaga oʻtkazma.',
+              'Buyurtma asosidagi mahsulotlar uchun menejer oldindan toʻlov soʻrashi mumkin — bu buyurtmadan oldin telefonda kelishiladi.',
+            ] },
+            { h: 'Viloyatlar', p: ['Viloyatlarga buyurtmalarni BTS yoki pochta orqali joʻnatamiz. Joʻnatma raqamini menejer Telegram yoki SMS orqali yuboradi. Posilkani qabul qilganda tekshiring.'] },
           ],
         },
         returns: {
-          lead: `Agar juft mos kelmasa, uni ${c.returnDays} kun ichida qaytarish yoki almashtirish mumkin.`,
+          lead: `Agar kiyim mos kelmasa, uni ${c.returnDays} kun ichida qaytarish yoki almashtirish mumkin.`,
           blocks: [
-            { h: 'Shartlar', ul: ['Krossovkalar kiyilmagan, ishlatilgan izlari yoʻq.', 'Quti, birkalar va tovar koʻrinishi saqlangan.', 'Xaridni tasdiqlovchi maʼlumot bor: buyurtma raqami yoki buyurtma berilgan telefon.'] },
+            { h: 'Shartlar', ul: ['Kiyim kiyilmagan va yuvilmagan, ishlatilgan izlari, hid va shikast yoʻq.', 'Birkalar, qadoq va tovar koʻrinishi saqlangan.', 'Xaridni tasdiqlovchi maʼlumot bor: buyurtma raqami yoki buyurtma rasmiylashtirilgan telefon.'] },
             { h: 'Qanday rasmiylashtiriladi', ul: [
-              `Menejerga Telegramda yozing yoki qoʻngʻiroq qiling: ${c.phone || '“Aloqa” sahifasidagi kontaktlar'}.`,
-              'Buyurtma raqami va sababni ayting — tovarni topshirish tartibini kelishamiz.',
-              'Tekshiruvdan soʻng pulni toʻlov usulingiz boʻyicha qaytaramiz yoki boshqa oʻlcham/modelga almashtiramiz.',
+              `Telegramda menejerga yozing yoki qoʻngʻiroq qiling: ${c.phone || '“Aloqa” sahifasidagi maʼlumotlar'}.`,
+              'Buyurtma raqami va sababni ayting — tovarni topshirish boʻyicha kelishamiz.',
+              'Tekshiruvdan soʻng pulni toʻlov usulingiz boʻyicha qaytaramiz yoki boshqa oʻlcham yoki rangga almashtiramiz.',
             ] },
-            { h: 'Qaytarib boʻlmaydigan holatlar', p: ['Kiyilgan izlari bor, xaridor aybi bilan shikastlangan va qadoqsiz juftlar. Sifatsiz tovar olgan boʻlsangiz, kamchilikni bartaraf etamiz yoki juftni almashtiramiz.'] },
+            { h: 'Qaytarib boʻlmaydigan holatlar', p: ['Kiyilgan yoki yuvilgan izlari bor, birkasiz, xaridor aybi bilan shikastlangan buyumlar, shuningdek ichki kiyim va paypoqlar — gigiyena sabablariga koʻra. Siz uchun xorijdan buyurtma qilingan buyum, menejer bilan oldindan boshqacha kelishilmagan boʻlsa, xuddi shu shartlarda qaytariladi. Sifatsiz tovar olgan boʻlsangiz, nuqsonni bartaraf etamiz yoki buyumni almashtiramiz.'] },
           ],
         },
         'size-guide': {
-          lead: 'Oyoq uzunligiga qarab tanlang — turli brendlarning oʻlchamlari yarim oʻlchamga farq qilishi mumkin.',
+          lead: 'Oʻlchamlaringizni jadvallar bilan solishtiring. Brendlar oʻlchamlari biroz farq qilishi mumkin — mahsulot tavsifiga ham eʼtibor bering.',
           blocks: [
-            { h: 'Oʻlchamlar mosligi', table: { head: ['EU', 'US (erkak)', 'UK', 'Oyoq uzunligi, sm'], rows: SIZES } },
-            { p: ['Ayollar US oʻlchami odatda erkaknikidan 1,5 ga katta: erkak 8 = ayol 9,5.'] },
-            { h: 'Oyoqni qanday oʻlchash', ul: [
-              'Devor yonida qogʻoz varagʻiga turing, tovon devorga tegib tursin.',
-              'Eng uzun barmoqni belgilab, devordan belgigacha masofani oʻlchang.',
-              'Oʻlchashni kechqurun, ikkala oyoqda bajaring — kattasini oling.',
-              'Ikki oʻlcham orasida boʻlsa — kattasini tanlang.',
+            { h: 'Yuqori kiyim: futbolka, koʻylak, kurtka', table: { head: ['Oʻlcham', 'RU', 'Koʻkrak, sm', 'Bel, sm'], rows: chart('letter') } },
+            { h: 'Shim va jinsi', table: { head: ['Oʻlcham', 'Bel, sm', 'Bel, dyuym'], rows: chart('waist') } },
+            { h: 'Poyabzal', table: { head: ['EU', 'US', 'UK', 'Oyoq uzunligi, sm'], rows: chart('shoes') } },
+            { h: 'Kamarlar', table: { head: ['Oʻlcham, sm', 'Bel, sm'], rows: chart('belt') } },
+            { h: 'Oʻlchamni qanday olish kerak', ul: [
+              'Koʻkrak — eng chiqib turgan joyidan, lenta gorizontal, tortmasdan.',
+              'Bel — tananing eng ingichka joyidan, kindik darajasida.',
+              'Oyoq — devor yonida qogʻozga turing va eng uzun barmoqni belgilang; kechqurun oʻlchang, kattasini oling.',
+              'Ikki oʻlcham orasida boʻlsa — kattasini tanlang. Tor fason uchun bir oʻlcham kattasini olish mumkin.',
             ] },
-            { h: 'Yordam kerakmi?', p: ['Menejerga Telegramda yozing — aniq model boʻyicha maslahat beramiz.'] },
+            { h: 'Yordam kerakmi?', p: ['Telegramda menejerga yozing — aniq buyum boʻyicha maslahat beramiz.'] },
           ],
         },
         authenticity: {
-          lead: 'Faqat original krossovkalar sotamiz va har bir juft uchun javob beramiz.',
+          lead: 'Biz faqat jahon brendlarining original kiyim, poyabzal va aksessuarlarini olib kelamiz va har bir buyum uchun javob beramiz.',
           blocks: [
-            { h: 'Bizning kafolat', ul: ['Barcha juftlar original — rasmiy brendlardan, nusxasiz.', 'Joʻnatishdan oldin har bir juft koʻrikdan oʻtadi: choklar, materiallar, markirovka, quti.', 'Originalligiga shubha qilsangiz, qaytarish muddati ichida qaytarish mumkin.'] },
-            { h: 'Narxlar nima uchun past', p: ['Autlet — oldingi kolleksiyalar, partiya qoldiqlari va asosiy vitrinadan olingan modellar. Bular xuddi shu original krossovkalar, faqat arzonroq.'] },
-            { h: 'Oʻzingiz qanday tekshirasiz', ul: ['Krossovka ichidagi birkadagi artikulni quti va sayt bilan solishtiring.', 'Tekis choklar, aniq yozuvlar va taglik sifatiga eʼtibor bering.'] },
+            { h: 'Bizning kafolat', ul: [
+              'Barcha buyumlar original — taniqli brendlardan, nusxasiz.',
+              'Xorijdagi ishonchli yetkazib beruvchilardan xarid qilamiz; kelib chiqqan davlat mahsulot sahifasida koʻrsatilgan.',
+              'Har bir buyumni qabul qilganda koʻrikdan oʻtkazamiz: choklar, materiallar, markirovka, qadoq.',
+              'Originalligiga shubha qilsangiz, qaytarish muddati ichida qaytarish mumkin.',
+            ] },
+            { h: 'Oʻzingiz qanday tekshirasiz', ul: ['Birkadagi artikul va tarkibni saytdagi tavsif bilan solishtiring.', 'Tekis chok, aniq bosma va furnitura sifatiga eʼtibor bering.'] },
           ],
         },
         about: {
-          lead: 'Outlet Lounge — autlet narxlaridagi original krossovkalar doʻkoni.',
+          lead: 'Outlet Lounge — xorijdan olib kelingan original erkaklar kiyimi, poyabzali va aksessuarlari doʻkoni.',
           blocks: [
-            { p: ['Nike, Jordan, New Balance, adidas, Converse, Vans, Puma va boshqa brendlarning modellarini bozordan arzon narxlarda bir joyga jamladik. Biz krossovkalarni sevamiz va oʻlchamiga mos, umidni oqlaydigan juft olish qanchalik muhimligini bilamiz.'] },
-            { h: 'Biz uchun muhim', ul: ['Faqat original tovarlar.', 'Halol narxlar va tushunarli shartlar.', 'Menejerning tez javobi va butun Oʻzbekiston boʻylab yetkazib berish.'] },
-            { p: ['Yangiliklar va aksiyalarni Telegram va Instagramda kuzating — havolalar “Aloqa” sahifasida.'] },
+            { p: ['Biz jahon brendlarining buyumlarini olib kelamiz — koʻylak va jinsidan tortib poyabzal va kamargacha. Assortimentning bir qismi Toshkentdagi omborimizda va 1–3 kunda sizga yetib boradi, qolganini siz uchun maxsus buyurtma qilamiz.'] },
+            { h: 'Biz uchun muhim', ul: ['Faqat original tovarlar.', 'Halol narxlar va aniq muddatlar: nima mavjud va nimani kutish kerakligi darhol koʻrinadi.', 'Menejerning tezkor javobi va butun Oʻzbekiston boʻylab yetkazib berish.'] },
+            { p: ['Yangiliklar va aksiyalarni Telegram va Instagramda kuzatib boring — havolalar “Aloqa” sahifasida.'] },
           ],
         },
         contacts: {
@@ -229,14 +251,15 @@
         faq: {
           lead: 'Tez-tez beriladigan savollarga qisqa javoblar.',
           blocks: [{ faq: [
-            ['Buyurtmani qanday rasmiylashtiraman?', 'Model va oʻlchamni tanlang, savatga qoʻshing va shaklni toʻldiring. Bir bosishda ham buyurtma berish mumkin — ism va telefonni qoldiring, menejer qoʻngʻiroq qiladi.'],
-            ['Qanday toʻlayman?', 'Qabul qilganda naqd yoki karta bilan, yoki menejer qoʻngʻirogʻidan soʻng kartaga oʻtkazma orqali.'],
-            ['Yetkazib berish qancha vaqt oladi?', 'Toshkent boʻylab 1–2 kun, viloyatlarga 2–5 kun. Aniq muddatni menejer aytadi.'],
-            ['Oʻlchamni qanday tanlayman?', 'Oyoq uzunligini oʻlchab, oʻlchamlar jadvaliga qarang. Shubha boʻlsa, bizga yozing.'],
-            ['Bu original-mi?', 'Ha, biz faqat original krossovkalar sotamiz.'],
-            ['Qaytarish yoki almashtirish mumkinmi?', `Ha, ${c.returnDays} kun ichida, krossovkalar kiyilmagan va tovar koʻrinishi saqlangan boʻlsa.`],
-            ['Buyurtma holatini qanday bilaman?', 'Tasdiqlash sahifasidagi “Telegramda kuzatish” tugmasini bosing — bot holatni yozadi. Menejer ham qoʻngʻiroq qiladi.'],
-            ['Kerakli oʻlcham yoʻq', 'Mahsulot sahifasida “Kelganda xabar bering” tugmasini bosing — oʻlcham paydo boʻlsa, yozamiz.'],
+            ['Buyurtmani qanday rasmiylashtiraman?', 'Buyum va oʻlchamni tanlang, savatga qoʻshing va shaklni toʻldiring. Bir bosishda ham buyurtma berish mumkin — ism va telefon qoldiring, menejer qoʻngʻiroq qiladi.'],
+            ['“Mavjud” va “buyurtma asosida” nimasi bilan farq qiladi?', `“Mavjud” — buyum Toshkentdagi omborimizda, ${c.stock} kunda yetkazamiz. “Buyurtma asosida” — uni xorijdan buyurtma qilamiz, bu taxminan ${c.order} kun oladi. Menejer sanani tasdiqlaydi.`],
+            ['Qanday toʻlayman?', 'Qabul qilganda naqd yoki karta orqali, yoki menejer qoʻngʻirogʻidan keyin kartaga oʻtkazma. Buyurtma asosidagi mahsulotlar uchun oldindan toʻlov talab qilinishi mumkin.'],
+            ['Yetkazish qancha vaqt oladi?', 'Toshkent boʻylab 1–2 kun, viloyatlarga 2–5 kun — buyum bizga yetib kelgandan keyin. Aniq muddatni menejer aytadi.'],
+            ['Oʻlchamni qanday tanlayman?', 'Oʻlchamlaringizni olib, oʻlchamlar jadvaliga qarang. Shubha boʻlsa, bizga yozing.'],
+            ['Bu original-mi?', 'Ha, biz faqat jahon brendlarining original buyumlarini sotamiz.'],
+            ['Qaytarish yoki almashtirish mumkinmi?', `Ha, ${c.returnDays} kun ichida, buyum kiyilmagan va birkalar saqlangan boʻlsa.`],
+            ['Buyurtma holatini qanday bilaman?', 'Tasdiqlash sahifasidagi “Telegramda kuzatish” tugmasini bosing — bot holatni aytadi. Menejer ham qoʻngʻiroq qiladi.'],
+            ['Kerakli oʻlcham yoʻq', 'Agar oʻlchamda “Buyurtmaga” belgisi boʻlmasa, u tugagan. Mahsulot sahifasida “Kelganda xabar bering” tugmasini bosing yoki menejerga yozing.'],
           ] }],
         },
         offer: {
@@ -277,61 +300,77 @@
         delivery: {
           lead: 'We deliver across Uzbekistan. You can pay on delivery.',
           blocks: [
+            { h: 'Where your item comes from', ul: [
+              `In stock in Tashkent — delivered in ${c.stock} days.`,
+              `On order from abroad — brought to you in about ${c.order} days; a manager confirms the date and terms.`,
+              'Every size on the product page shows which it is: in stock in Tashkent or on order.',
+            ] },
             { h: 'Methods and prices', table: { head: ['Method', 'Time', 'Price'], rows: [
               ['Courier in Tashkent', '1–2 days', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'free'],
               ['Regions (BTS / post)', '2–5 days', c.fee.regions ? c.money(c.fee.regions) : 'free'],
               ['Pickup', 'by arrangement', c.fee.pickup ? c.money(c.fee.pickup) : 'free'],
             ] } },
-            { p: [`Prices are per order; ${free}.`] },
+            { p: [`Prices are per order; ${free}. Delivery time counts from the moment the item is with us in Tashkent.`] },
             { h: 'How an order goes', ul: [
-              `You place an order — a manager calls within ${c.minutes} minutes (${c.hours}) to confirm the details.`,
-              'Once confirmed, we pack it and hand it to the courier or delivery service.',
-              'You can check the status in Telegram: the button on the “Thank you” page.',
+              `You place the order on the site — a manager calls within ${c.minutes} minutes (${c.hours}) to confirm the details.`,
+              'Once confirmed, we pack what is in stock and order the rest from abroad.',
+              'You can check the order status in Telegram: the button on the “Thank you” page.',
             ] },
-            { h: 'Payment', ul: ['Cash on delivery.', 'Card on delivery (ask the manager whether the courier carries a terminal).', 'Card transfer after the manager’s call.'] },
-            { h: 'Regions', p: ['Orders to the regions go by BTS or post. The manager sends the tracking number via Telegram or SMS. Please check the parcel when you receive it.'] },
+            { h: 'Payment', ul: [
+              'Cash on delivery.',
+              'Bank card on delivery (if the courier carries a terminal — ask the manager).',
+              'Transfer to a card after the manager’s call.',
+              'For items on order a manager may ask for a prepayment — we agree it by phone before ordering.',
+            ] },
+            { h: 'Regions', p: ['Regional orders ship via BTS or post. The manager sends the tracking number by Telegram or SMS. Please check the parcel when you receive it.'] },
           ],
         },
         returns: {
-          lead: `If a pair doesn’t fit, you can return or exchange it within ${c.returnDays} days.`,
+          lead: `If an item doesn’t fit, you can return or exchange it within ${c.returnDays} days.`,
           blocks: [
-            { h: 'Conditions', ul: ['The sneakers were not worn and show no signs of use.', 'The box, tags and presentable condition are intact.', 'You have proof of purchase: the order number or the phone number the order was placed with.'] },
-            { h: 'How to request', ul: [
+            { h: 'Conditions', ul: ['The item was not worn or washed, with no signs of use, odours or damage.', 'Tags, packaging and presentable condition are intact.', 'You have proof of purchase: the order number or the phone number used for the order.'] },
+            { h: 'How to arrange it', ul: [
               `Message the manager on Telegram or call: ${c.phone || 'see the Contacts page'}.`,
-              'Tell us the order number and the reason — we’ll arrange the hand-over.',
-              'After inspection we refund the way you paid, or exchange for another size or model.',
+              'Give the order number and the reason — we will agree how to hand the item over.',
+              'After inspection we refund the way you paid, or exchange for another size or colour.',
             ] },
-            { h: 'What can’t be returned', p: ['Worn pairs, items damaged by the buyer, and pairs without packaging. If you received a faulty item, we will fix the defect or replace the pair.'] },
+            { h: 'What can’t be returned', p: ['Items that were worn or washed, items without tags, items damaged by the buyer, and underwear and socks for hygiene reasons. An item we ordered for you from abroad is returned on the same terms unless you agreed otherwise with the manager before ordering. If you received a faulty item, we will fix the defect or replace it.'] },
           ],
         },
         'size-guide': {
-          lead: 'Go by foot length — sizes of different brands can differ by half a size.',
+          lead: 'Compare your measurements with the tables. Brands can differ slightly — also follow the notes on the product page.',
           blocks: [
-            { h: 'Size conversion', table: { head: ['EU', 'US (men)', 'UK', 'Foot length, cm'], rows: SIZES } },
-            { p: ['A women’s US size is usually 1.5 higher than a men’s: men’s 8 = women’s 9.5.'] },
-            { h: 'How to measure your foot', ul: [
-              'Stand on a sheet of paper against a wall, heel touching the wall.',
-              'Mark the longest toe and measure from the wall to the mark.',
-              'Measure in the evening, on both feet — take the larger value.',
-              'Between two sizes? Choose the bigger one.',
+            { h: 'Tops: T-shirts, shirts, jackets', table: { head: ['Size', 'RU', 'Chest, cm', 'Waist, cm'], rows: chart('letter') } },
+            { h: 'Trousers and jeans', table: { head: ['Size', 'Waist, cm', 'Waist, in'], rows: chart('waist') } },
+            { h: 'Shoes', table: { head: ['EU', 'US', 'UK', 'Foot length, cm'], rows: chart('shoes') } },
+            { h: 'Belts', table: { head: ['Size, cm', 'Waist, cm'], rows: chart('belt') } },
+            { h: 'How to measure', ul: [
+              'Chest — around the fullest part, tape level, not tight.',
+              'Waist — around the narrowest part of the torso, at navel height.',
+              'Foot — stand on a sheet of paper against a wall and mark the longest toe; measure in the evening and take the larger value.',
+              'Between two sizes? Choose the bigger one. For a slim fit you may want one size up.',
             ] },
-            { h: 'Need help?', p: ['Message the manager on Telegram — we’ll advise on the specific model.'] },
+            { h: 'Need help?', p: ['Message a manager on Telegram — we will advise on the exact item.'] },
           ],
         },
         authenticity: {
-          lead: 'We sell only original sneakers and stand behind every pair.',
+          lead: 'We bring only original clothing, shoes and accessories from leading brands, and stand behind every item.',
           blocks: [
-            { h: 'Our guarantee', ul: ['Every pair is original — from official brands, no replicas.', 'Each pair is inspected before shipping: stitching, materials, labels, box.', 'If you doubt the authenticity, you can return it within the return period.'] },
-            { h: 'Why prices are lower', p: ['Outlet means past collections, batch leftovers and models taken off the main shop windows. They are the same original sneakers, just cheaper.'] },
-            { h: 'How to check yourself', ul: ['Compare the article number on the inner label with the box and the website.', 'Look at even stitching, crisp lettering and the quality of the sole.'] },
+            { h: 'Our guarantee', ul: [
+              'Every item is original — from well-known brands, no replicas.',
+              'We buy from trusted suppliers abroad; the country of origin is shown on the product page.',
+              'Each item is inspected on arrival: stitching, materials, labels, packaging.',
+              'If you doubt an item’s authenticity, you can return it within the return period.',
+            ] },
+            { h: 'How to check it yourself', ul: ['Compare the style code and composition on the tag with the description on the site.', 'Look for even stitching, crisp printing and good-quality hardware.'] },
           ],
         },
         about: {
-          lead: 'Outlet Lounge — original sneakers at outlet prices.',
+          lead: 'Outlet Lounge — original menswear, shoes and accessories brought from abroad.',
           blocks: [
-            { p: ['We have gathered Nike, Jordan, New Balance, adidas, Converse, Vans, Puma and other brands in one place at below-market prices. We love sneakers and know how important it is to get a pair that fits and doesn’t disappoint.'] },
-            { h: 'What matters to us', ul: ['Original products only.', 'Honest prices and clear terms.', 'A fast reply from a manager and delivery across Uzbekistan.'] },
-            { p: ['Follow new arrivals and deals on Telegram and Instagram — links are on the Contacts page.'] },
+            { p: ['We bring pieces from leading brands — from shirts and jeans to shoes and belts. Part of the range sits in our Tashkent stock and reaches you in 1–3 days; the rest we order specially for you.'] },
+            { h: 'What matters to us', ul: ['Only original goods.', 'Honest prices and clear timing: you see at once what is in stock and what you will wait for.', 'A quick answer from a manager and delivery across Uzbekistan.'] },
+            { p: ['Follow new arrivals and offers on Telegram and Instagram — links on the Contacts page.'] },
           ],
         },
         contacts: {
@@ -341,14 +380,15 @@
         faq: {
           lead: 'Short answers to common questions.',
           blocks: [{ faq: [
-            ['How do I place an order?', 'Choose a model and size, add it to the cart and fill in the form. You can also buy in one click — leave your name and phone and a manager will call.'],
-            ['How do I pay?', 'Cash or card on delivery, or a card transfer after the manager’s call.'],
-            ['How long does delivery take?', 'In Tashkent 1–2 days, to the regions 2–5 days. The manager will confirm exact timing.'],
-            ['How do I choose a size?', 'Measure your foot length and check the size guide. If in doubt, message us.'],
-            ['Are they original?', 'Yes, we sell only original sneakers.'],
-            ['Can I return or exchange?', `Yes, within ${c.returnDays} days if the sneakers were not worn and are in presentable condition.`],
+            ['How do I place an order?', 'Choose an item and size, add it to the cart and fill in the form. You can also buy in one click — leave your name and phone and a manager will call.'],
+            ['What is the difference between “in stock” and “on order”?', `“In stock” means the item is in our Tashkent stock and arrives in ${c.stock} days. “On order” means we order it from abroad for you, which takes about ${c.order} days. A manager confirms the date.`],
+            ['How do I pay?', 'Cash or card on delivery, or a transfer to a card after the manager’s call. Items on order may need a prepayment.'],
+            ['How long does delivery take?', 'Tashkent 1–2 days, regions 2–5 days — counted from the moment the item is with us. The manager confirms exact timing.'],
+            ['How do I choose a size?', 'Take your measurements and check the size guide. If in doubt, message us.'],
+            ['Are they original?', 'Yes, we sell only original items from leading brands.'],
+            ['Can I return or exchange?', `Yes, within ${c.returnDays} days if the item was not worn and the tags are intact.`],
             ['How do I check my order status?', 'Press “Track in Telegram” on the confirmation page — the bot replies with the status. A manager will also call you.'],
-            ['My size is out of stock', 'Press “Notify me” on the product page — we’ll message you when the size is back.'],
+            ['My size is not available', 'If a size has no “On order” mark, it is sold out. Press “Notify me” on the product page or message a manager.'],
           ] }],
         },
         offer: {

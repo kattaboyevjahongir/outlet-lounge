@@ -28,7 +28,7 @@
     const v = t('pd.methods.' + id);
     return v.startsWith('pd.methods') ? id : v;
   };
-  const cartLines = () => OL.state.cart.filter((i) => OL.P[i.id]);
+  const cartLines = () => OL.cartLines();
 
   /* ------------------------------------------------------------ quote */
   let seq = 0;
@@ -54,7 +54,7 @@
     if (!p.enabled) return '';
     return `<div class="free-bar${p.free ? ' is-free' : ''}">
       <p>${p.free ? t('cp.freeDone') : t('cp.freeFrom', { n: OL.price(p.left) })}</p>
-      <div><i style="width:${p.pct}%"></i></div></div>`;
+      <div><i data-w="${p.pct}"></i></div></div>`;
   };
 
   const lineName = (slug) => (OL.P[slug] ? OL.P[slug].name : slug);
@@ -73,6 +73,7 @@
           </label>
           <div class="qty"><button type="button" data-qty="-1" aria-label="−">−</button><span>${i.qty}</span><button type="button" data-qty="1" aria-label="+">+</button></div>
         </div>
+        ${OL.lineBadge(p, i.size, i.qty)}
         <p class="cp-warn" hidden></p>
       </div>
       <div class="cp-end">
@@ -106,6 +107,7 @@
             <div class="cp-list" id="cpList">${items.map(cartRow).join('')}</div>
             <aside class="cp-summary" id="cpSummary">
               <h2>${t('ck.summary')}</h2>
+              ${OL.abroadCount() ? `<p class="cf-abroad">${OL.ICON.plane}<span>${t('ck.abroad', { n: OL.abroadCount(), days: OL.abroadDays() })}</span></p>` : ''}
               <div class="sum-row"><span>${t('cp.subtotal')}</span><b data-sum="subtotal">…</b></div>
               <div class="sum-row sum-discount" hidden><span>${t('cp.discount')}</span><b data-sum="discount"></b></div>
               <div class="sum-row"><span>${t('cp.delivery')}</span><em>${t('cp.deliveryNote')}</em></div>
@@ -219,7 +221,7 @@
         if (!sel) return;
         const line = cartLines()[Number(sel.closest('.cp-row').dataset.key)];
         if (!line) return;
-        OL.setCartSize(line, Number(sel.value));
+        OL.setCartSize(line, sel.value);
         persist(); redraw();
       });
       $('#cpPromo').addEventListener('submit', (e) => {
@@ -231,11 +233,6 @@
 
       $('#promoInput').value = promo;
       refresh();
-      return {};
-    },
-
-    init(root) {
-      gsap.from(root.querySelectorAll('.cp-row, .cp-summary'), { y: 30, autoAlpha: 0, stagger: 0.07, duration: 0.8, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
       return {};
     },
   };
@@ -331,9 +328,10 @@
               <ul class="ck-items">
                 ${items.map((i) => {
     const p = OL.P[i.id];
-    return `<li><img src="${OL.pimg(p.images[0], 120, 150)}" alt=""><span><b>${esc(p.name)}</b><small>EU ${i.size} × ${i.qty}</small></span><em>${OL.price(p.price * i.qty)}</em></li>`;
+    return `<li><img src="${OL.pimg(p.images[0], 120, 150)}" alt=""><span><b>${esc(p.name)}</b><small>${esc(i.size)} × ${i.qty}</small>${OL.lineBadge(p, i.size, i.qty)}</span><em>${OL.price(p.price * i.qty)}</em></li>`;
   }).join('')}
               </ul>
+              ${OL.abroadCount() ? `<p class="cf-abroad">${OL.ICON.plane}<span>${t('ck.abroad', { n: OL.abroadCount(), days: OL.abroadDays() })}</span></p>` : ''}
               <div class="sum-row"><span>${t('cp.subtotal')}</span><b data-sum="subtotal">…</b></div>
               <div class="sum-row sum-discount" hidden><span>${t('cp.discount')}</span><b data-sum="discount"></b></div>
               <div class="sum-row"><span>${t('cp.delivery')}</span><b data-sum="fee">…</b></div>
@@ -552,7 +550,8 @@
           number: result.number, total: result.total, subtotal: result.subtotal, discount: result.discount,
           delivery_fee: result.delivery_fee, name: payload.customer.name, phone: payload.customer.phone,
           method: m, notified: result.notified,
-          items: cartLines().map((i) => ({ name: OL.P[i.id].name, size: i.size, qty: i.qty, price: OL.P[i.id].price, image: OL.P[i.id].images[0] })),
+          items: cartLines().map((i) => ({ name: OL.P[i.id].name, size: i.size, qty: i.qty, price: OL.P[i.id].price, image: OL.P[i.id].images[0],
+            abroad: OL.lineState(OL.P[i.id], i.size, i.qty) === 'order', days: OL.orderDays(OL.P[i.id]) })),
         });
         if (OL.track) {
           OL.track('purchase', {
@@ -571,11 +570,6 @@
       applyMethod();
       $('#ckPromo').value = promo;
       refresh();
-      return {};
-    },
-
-    init(root) {
-      gsap.from(root.querySelectorAll('.ck-card, .ck-summary'), { y: 30, autoAlpha: 0, stagger: 0.07, duration: 0.8, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
       return {};
     },
   };
@@ -602,30 +596,19 @@
           <div class="ok-card">
             <div class="ok-no"><span>${t('ok.number')}</span><b>${esc(o.number)}</b></div>
             <ul class="ck-items">
-              ${(o.items || []).map((i) => `<li><img src="${OL.pimg(i.image, 120, 150)}" alt=""><span><b>${esc(i.name)}</b><small>EU ${i.size} × ${i.qty}</small></span><em>${OL.price(i.price * i.qty)}</em></li>`).join('')}
+              ${(o.items || []).map((i) => `<li><img src="${OL.pimg(i.image, 120, 150)}" alt=""><span><b>${esc(i.name)}</b><small>${esc(i.size)} × ${i.qty}</small>${i.abroad ? `<span class="ful is-order">${OL.ICON.plane}${t('ful.order')} · ${esc(i.days || '')} ${t('ui.daysShort')}</span>` : ''}</span><em>${OL.price(i.price * i.qty)}</em></li>`).join('')}
             </ul>
             ${o.discount > 0 ? `<div class="sum-row"><span>${t('cp.discount')}</span><b>−${OL.price(o.discount)}</b></div>` : ''}
             <div class="sum-row"><span>${t('cp.delivery')}</span><b>${o.delivery_fee > 0 ? OL.price(o.delivery_fee) : t('cp.free')}</b></div>
             <div class="sum-total"><span>${t('ok.total')}</span><b>${OL.price(o.total)}</b></div>
           </div>
+          ${(o.items || []).some((i) => i.abroad) ? `<p class="cf-abroad ok-abroad">${OL.ICON.plane}<span>${t('ful.note')}</span></p>` : ''}
           <div class="ok-actions">
             ${follow ? `<a class="btn btn-ghost" href="${follow}" target="_blank" rel="noopener">${OL.ICON.tg}<span>${t('ok.follow')}</span></a>` : ''}
             <a class="btn btn-gold" href="/shop"><span>${t('ok.continue')}</span>${OL.ICON.arrow}</a>
           </div>
         </div>
       </section>`;
-    },
-
-    init(root) {
-      const circle = root.querySelector('.ok-mark circle');
-      const tick = root.querySelector('.ok-mark path');
-      if (circle && tick) {
-        [circle, tick].forEach((el) => { const l = el.getTotalLength(); el.style.strokeDasharray = l; el.style.strokeDashoffset = l; });
-        gsap.to(circle, { strokeDashoffset: 0, duration: 0.9, ease: 'power2.inOut' });
-        gsap.to(tick, { strokeDashoffset: 0, duration: 0.6, delay: 0.7, ease: 'power2.out' });
-      }
-      gsap.from(root.querySelectorAll('.ok-wrap > :not(.ok-mark)'), { y: 30, autoAlpha: 0, stagger: 0.09, duration: 0.9, delay: 0.3, ease: 'expo.out', clearProps: 'transform,opacity,visibility' });
-      return {};
     },
   };
 })();

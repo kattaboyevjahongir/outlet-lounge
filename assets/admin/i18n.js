@@ -2,6 +2,7 @@
 // Uzbek uses ʻ (U+02BB) in oʻ / gʻ and ʼ (U+02BC) for the tutuq belgisi.
 
 import { EXTRA } from './i18n-extra.js';
+import { MENSWEAR } from './i18n-menswear.js';
 
 const ru = {
   'app.name': 'Outlet Lounge · Админка',
@@ -327,6 +328,8 @@ const en = {
 export const DICT = { ru, uz, en };
 // texts added in phase 5 live in their own file
 for (const l of Object.keys(DICT)) Object.assign(DICT[l], EXTRA[l]);
+// the menswear texts replace the sneaker-era ones with the same keys
+for (const l of Object.keys(DICT)) Object.assign(DICT[l], MENSWEAR[l]);
 export const LANGS = ['ru', 'uz', 'en'];
 
 let lang = 'ru';

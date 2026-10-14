@@ -38,7 +38,7 @@ const phoneView = (p) => {
 /**
  * order: { number, status, created_at, lang, customer_name, phone, telegram, contact_pref,
  *          delivery_method, region, city, address, landmark, payment_method, comment,
- *          subtotal, discount, delivery_fee, total, promo_code?, order_items:[{brand_snapshot,name_snapshot,size_eu,qty,unit_price}] }
+ *          subtotal, discount, delivery_fee, total, promo_code?, order_items:[{brand_snapshot,name_snapshot,size_label,fulfilment,qty,unit_price}] }
  * last: optional { actor, at } of the latest status change
  */
 export function orderMessage(order, last) {
@@ -59,9 +59,12 @@ export function orderMessage(order, last) {
   L.push('');
   (order.order_items || []).forEach((it, i) => {
     const brand = it.brand_snapshot ? `${it.brand_snapshot} ` : '';
-    L.push(`${i + 1}) ${esc(brand + it.name_snapshot)} — EU ${esc(it.size_eu)} × ${it.qty} — ${esc(money(it.unit_price * it.qty))}`);
+    const abroad = it.fulfilment === 'order' ? ' ✈️ под заказ' : '';
+    L.push(`${i + 1}) ${esc(brand + it.name_snapshot)} — ${esc(it.size_label)} × ${it.qty} — ${esc(money(it.unit_price * it.qty))}${abroad}`);
   });
   L.push('');
+  const abroadLines = (order.order_items || []).filter((it) => it.fulfilment === 'order');
+  if (abroadLines.length) L.push(`✈️ Под заказ из-за рубежа: ${abroadLines.reduce((n, it) => n + it.qty, 0)} шт. (сообщить срок клиенту)`);
   L.push(`Сумма: ${esc(money(order.subtotal))}`);
   if (order.discount > 0) L.push(`Промокод${order.promo_code ? ` ${esc(order.promo_code)}` : ''}: −${esc(money(order.discount))}`);
   if (!quick) L.push(`Доставка: ${order.delivery_fee > 0 ? esc(money(order.delivery_fee)) : 'бесплатно'}`);
@@ -108,7 +111,7 @@ export const ACTION_TO_STATUS = {
 
 export function notifyMessage(n) {
   const L = ['🔔 <b>Просят уведомить о поступлении</b>', ''];
-  L.push(`Модель: ${esc(n.name || n.slug)}${n.size ? ` · EU ${esc(n.size)}` : ''}`);
+  L.push(`Модель: ${esc(n.name || n.slug)}${n.size ? ` · ${esc(n.size)}` : ''}`);
   if (n.phone) L.push(`📞 ${esc(phoneView(n.phone))}`);
   if (n.telegram) L.push(`✈️ ${esc(n.telegram)}`);
   return L.join('\n');

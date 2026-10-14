@@ -1,6 +1,6 @@
-# Outlet Lounge — homepage
+# Outlet Lounge
 
-Homepage for the Outlet Lounge sneaker shop in the **Flight Path** style: oversized type, the logo's gold arrow driving the motion (scroll-progress line, swoosh, add-to-cart arc), a sideways-scrolling New Drops section and velocity-reactive brand ribbons.
+Online shop for original **menswear, shoes and accessories imported from abroad**. Editorial look (Cormorant Garamond + Inter, black and gold, large 4:5 photographs). Each size is either **in stock in Tashkent** (1–3 days) or **on order from abroad** (about 10–18 days); colours are separate products linked by a style code ("Other colours"). No animation library: scroll reveals and transitions are CSS only.
 
 - Light and dark mode
 - English / Русский / O‘zbek, prices in UZS
@@ -25,9 +25,9 @@ page uses its built-in placeholder catalog (`OL.STATIC_PRODUCTS` in `assets/js/d
 | URL | What |
 |---|---|
 | `/` | Home |
-| `/shop` | All sneakers — filters, sort, search (`?q=`), URL-synced state |
-| `/new` `/sale` `/men` `/women` `/kids` `/brands/<brand>` | Pre-filtered catalog |
-| `/product/<slug>` | Product page: gallery + zoom, sizes (EU/US/cm), size guide, related, recently viewed |
+| `/shop` | All items — filters (category, brand, size, colour, price, country, availability, discount), sort, search (`?q=`), URL-synced state |
+| `/clothing` `/shoes` `/accessories` `/shop/<category>` `/new` `/sale` `/brands/<brand>` | Pre-filtered catalog (categories are edited in Admin → Categories) |
+| `/product/<slug>` | Product page: gallery + zoom, size labels with in-stock / on-order state, other colours, size guide for the category, complete the look, related, recently viewed |
 | `/wishlist` | Saved items |
 | `/cart` `/checkout` `/order/success` | Cart page, checkout (no account), thank-you page |
 | `/delivery` `/returns` `/size-guide` `/authenticity` `/about` `/contacts` `/faq` `/offer` `/privacy` | Information and legal pages (RU / UZ / EN; prices and details come from the admin settings) |
@@ -60,9 +60,10 @@ Vercel plan allows at most 12 functions (one per file in `api/`; `_` folders don
 checks this, so add new endpoints to an existing function or to `api/admin.js`.
 assets/css/base.css        theme tokens, shared components, phone card layout
 assets/css/home.css        homepage      shop.css  catalog + 404      product.css  product page
-assets/js/data.js          placeholder catalog + settings, EN/RU/UZ translations
+assets/js/data.js          placeholder catalog + categories + size systems and size-guide tables
+assets/js/i18n.js          EN/RU/UZ translations (Uzbek uses oʻ gʻ with ʻ; tests/i18n.test.mjs keeps the three in step)
 assets/js/catalog-logic.js collections, filters, sort, URL state (pure, unit-tested)
-assets/js/core.js          logo, theme/language, cart, wishlist, search, mega-menu, live catalog loader
+assets/js/core.js          logo, theme/language, cart, wishlist, search, mega-menu, product card, live catalog loader, CSS-only reveals
 assets/js/router.js        URL → page, history, transitions, per-page meta
 assets/js/home.js | shop.js | product.js | checkout.js | pages.js    the pages
 assets/js/order-logic.js   phone mask, form validation, local totals (pure, unit-tested)

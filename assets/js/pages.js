@@ -56,7 +56,7 @@
       <section class="nf">
         <div class="container">
           <p class="nf-code" aria-hidden="true">404</p>
-          <h1 class="nf-title">${t('nf.title')}</h1>
+          <h1 class="nf-title" data-split>${t('nf.title')}</h1>
           <p class="nf-text">${t('nf.text')}</p>
           <div class="nf-actions">
             <a class="btn btn-gold" href="/shop"><span>${t('nf.shop')}</span>${OL.ICON.arrow}</a>
@@ -64,10 +64,5 @@
           </div>
         </div>
       </section>`;
-    },
-    init(root) {
-      gsap.from(root.querySelectorAll('.nf .container > *'), { y: 40, autoAlpha: 0, stagger: 0.08, duration: 1, ease: 'expo.out' });
-      return {};
-    },
-  };
+    },  };
 })();

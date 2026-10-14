@@ -6,18 +6,20 @@ import handler, { shapeCatalog, imageUrl } from '../api/catalog.js';
 const BASE = 'https://abc.supabase.co';
 
 const row = (over = {}) => ({
-  slug: 'air-max-1-sunset', name: 'Air Max 1 “Sunset”', colorway: null, sku: 'AM1-001',
-  category: 'running', gender: 'unisex', price: 1390000, old_price: 2190000,
-  description_ru: 'Описание', description_uz: null, description_en: null, tags: ['найк'],
+  slug: 'lacoste-classic-fit-polo-black', name: 'Classic Fit Polo', color: 'Black', color_hex: '#141414', color_group: 'black',
+  style_code: 'LC-L1212', sku: 'L1212-031', category: 'polos', price: 1290000, old_price: 1590000,
+  origin: 'FR', material: '100% cotton', fit: 'regular', model_info: 'Model is 186 cm and wears M', order_lead: null,
+  description_ru: 'Описание', description_uz: null, description_en: null, tags: ['лакост'],
   is_new: false, is_featured: false, created_at: '2026-10-12T10:00:00Z',
-  brands: { name: 'Nike' },
+  brands: { name: 'Lacoste' },
   product_images: [
     { path: 'b.webp', sort: 1, is_main: false },
     { path: 'a.webp', sort: 0, is_main: true },
   ],
   product_sizes: [
-    { eu: '42', us: '8.5', cm: '26.5', stock: 2 },
-    { eu: '41', us: '8', cm: '26', stock: 0 },
+    { label: 'L', sort: 2, stock: 2, orderable: true },
+    { label: 'M', sort: 1, stock: 0, orderable: false },
+    { label: 'XL', sort: 3, stock: 0, orderable: true },
   ],
   ...over,
 });
@@ -39,17 +41,23 @@ test('shapeCatalog: shapes products like the storefront expects', () => {
   const c = shapeCatalog([row()], [{ key: 'home', value: { deal_ends: null } }], BASE);
   const p = c.products[0];
   assert.equal(c.source, 'live');
-  assert.equal(p.id, 'air-max-1-sunset');
-  assert.equal(p.brand, 'Nike');
-  assert.equal(p.cat, 'running');
-  assert.equal(p.sku, 'AM1-001');
-  assert.equal(p.was, 2190000);
+  assert.equal(p.id, 'lacoste-classic-fit-polo-black');
+  assert.equal(p.brand, 'Lacoste');
+  assert.equal(p.cat, 'polos');
+  assert.equal(p.sku, 'L1212-031');
+  assert.equal(p.was, 1590000);
+  assert.deepEqual(
+    [p.color, p.colorHex, p.colorGroup, p.styleCode, p.origin, p.material, p.fit, p.model, p.orderLead],
+    ['Black', '#141414', 'black', 'LC-L1212', 'FR', '100% cotton', 'regular', 'Model is 186 cm and wears M', null]);
+  assert.ok(!('gender' in p) && !('colorway' in p), 'sneaker-era fields are gone');
   assert.deepEqual(p.images, [
     `${BASE}/storage/v1/object/public/product-images/a.webp`,
     `${BASE}/storage/v1/object/public/product-images/b.webp`,
   ], 'main image first');
-  assert.deepEqual(p.sizes.map((z) => [z.s, z.ok, z.stock]), [[41, false, 0], [42, true, 2]], 'sorted, numeric');
-  assert.equal(p.tag, 'last', 'low stock → last pairs');
+  assert.deepEqual(p.sizes.map((z) => [z.s, z.ok, z.stock, z.order]),
+    [['M', false, 0, false], ['L', true, 2, true], ['XL', true, 0, true]],
+    'display order; ok = in stock here or orderable from abroad; M is sold out for good');
+  assert.equal(p.tag, 'last', 'low stock → last pieces');
   assert.equal(c.settings.home.deal_ends, null);
 });
 
@@ -57,7 +65,30 @@ test('shapeCatalog: tag precedence new > hot > last', () => {
   const t = (over) => shapeCatalog([row(over)], [], BASE).products[0].tag;
   assert.equal(t({ is_new: true, is_featured: true }), 'new');
   assert.equal(t({ is_featured: true }), 'hot');
-  assert.equal(t({ product_sizes: [{ eu: '42', stock: 50 }] }), null);
+  assert.equal(t({ product_sizes: [{ label: 'M', sort: 0, stock: 50, orderable: true }] }), null);
+});
+
+test('sizes are ordered by the saved position, then naturally (2XL after XL, 9 before 10)', () => {
+  const sizes = (list) => shapeCatalog([row({ product_sizes: list.map((label) => ({ label, sort: 0, stock: 1, orderable: true })) })], [], BASE)
+    .products[0].sizes.map((z) => z.s);
+  assert.deepEqual(sizes(['10', '9', '8']), ['8', '9', '10']);
+  assert.deepEqual(sizes(['W32', 'W30']), ['W30', 'W32']);
+  const saved = shapeCatalog([row({ product_sizes: [
+    { label: 'XL', sort: 0, stock: 1, orderable: true }, { label: 'S', sort: 1, stock: 1, orderable: true }] })], [], BASE);
+  assert.deepEqual(saved.products[0].sizes.map((z) => z.s), ['XL', 'S'], 'the saved order wins');
+});
+
+test('shapeCatalog: categories come with names in three languages, their department and size system', () => {
+  const c = shapeCatalog([row()], [], BASE, [
+    { slug: 'polos', department: 'clothing', name_ru: 'Поло', name_uz: 'Polo', name_en: 'Polos', size_system: 'letter', image_path: 'cats/polos.webp', sort: 2 },
+    { slug: 'belts', department: 'accessories', name_ru: 'Ремни', name_uz: 'Kamarlar', name_en: 'Belts', size_system: 'belt', image_path: null, sort: 15 },
+  ]);
+  assert.deepEqual(c.categories[0], {
+    slug: 'polos', dept: 'clothing', name: { ru: 'Поло', uz: 'Polo', en: 'Polos' }, sizes: 'letter',
+    image: `${BASE}/storage/v1/object/public/product-images/cats/polos.webp`, sort: 2,
+  });
+  assert.equal(c.categories[1].image, null);
+  assert.deepEqual(shapeCatalog([row()], [], BASE).categories, [], 'no categories given → empty list (the storefront uses its built-in ones)');
 });
 
 test('shapeCatalog: drops products with no image or no price; no old price → was = price', () => {
@@ -88,7 +119,7 @@ test('handler: queries Supabase with the anon key and caches the response', asyn
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     calls.push({ url, init });
-    const body = url.includes('/products?') ? [row()] : [{ key: 'home', value: {} }];
+    const body = url.includes('/products?') ? [row()] : url.includes('/categories?') ? [] : [{ key: 'home', value: {} }];
     return { ok: true, status: 200, json: async () => body };
   };
   try {
@@ -97,9 +128,10 @@ test('handler: queries Supabase with the anon key and caches the response', asyn
     assert.equal(res.code, 200);
     assert.equal(res.body.products.length, 1);
     assert.match(res.headers['Cache-Control'], /s-maxage=60/);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.ok(calls[0].url.includes('is_active=eq.true'));
     assert.ok(calls[1].url.includes('is_public=eq.true'), 'only public settings');
+    assert.ok(calls[2].url.includes('/categories?') && calls[2].url.includes('is_active=eq.true'), 'only visible categories');
     assert.equal(calls[0].init.headers.apikey, 'anon-key');
   } finally {
     globalThis.fetch = realFetch;

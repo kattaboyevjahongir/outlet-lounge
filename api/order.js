@@ -45,7 +45,7 @@ async function sendOrderToTelegram(placed, payload, chatId) {
     total: placed.total,
     promo_code: placed.promo_code,
     order_items: (placed.items || []).map((l) => ({
-      brand_snapshot: l.brand, name_snapshot: l.name, size_eu: l.size_eu, qty: l.qty, unit_price: l.unit_price,
+      brand_snapshot: l.brand, name_snapshot: l.name, size_label: l.size_label, fulfilment: l.fulfilment, qty: l.qty, unit_price: l.unit_price,
     })),
   };
   const sent = await tg('sendMessage', {
@@ -74,7 +74,7 @@ async function handleNotify(body, res, ip) {
   if (!prod.ok || !Array.isArray(prod.data) || !prod.data.length) return send(res, 404, { error: 'unavailable' });
   let sizeId = null;
   if (n.size != null) {
-    const sz = await select(`product_sizes?product_id=eq.${prod.data[0].id}&eu=eq.${n.size}&select=id`);
+    const sz = await select(`product_sizes?product_id=eq.${prod.data[0].id}&label=eq.${encodeURIComponent(n.size)}&select=id`);
     if (sz.ok && sz.data.length) sizeId = sz.data[0].id;
   }
   const saved = await insert('notify_requests', {

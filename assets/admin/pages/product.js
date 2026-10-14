@@ -1,24 +1,37 @@
-// Product form: basics, price, flags, descriptions, photos, sizes & stock. One save button;
+// Product form: basics, colour, price, flags, photos, sizes & stock, details, descriptions. One save button;
 // the database function admin_save_product() stores everything in a single transaction.
 import { html, raw, $, $$, esc } from '../dom.js';
-import { t } from '../i18n.js';
+import { t, getLang } from '../i18n.js';
 import {
   emptyProduct, validateProduct, toPayload, slugify, discountPct, parseMoney, fmtMoney, moveItem,
-  CATEGORIES, GENDERS, SIZE_PRESETS, isUploadedPath,
+  DEPARTMENTS, SIZE_SYSTEMS, SIZE_SYSTEM_IDS, COLOR_GROUPS, FITS, COUNTRIES,
+  sizeRows, systemOfCategory, duplicateAsColour, colourSiblings, isUploadedPath,
 } from '../logic.js';
 import { ICON, toast, errorText, confirmDialog } from '../ui.js';
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`);
 const field = (name) => name; // keeps template names greppable
 
+// a product as the form holds it (everything is text)
+const toForm = (p) => ({
+  ...emptyProduct(), ...p,
+  price: String(p.price), old_price: p.old_price ? String(p.old_price) : '',
+  tags: (p.tags || []).join(', '),
+  sizes: p.sizes.map((s) => ({ id: s.id, label: s.label, stock: String(s.stock), orderable: s.orderable !== false, dirty: false })),
+  images: p.images.map((i) => ({ path: i.path })),
+});
+
 export default async function page({ data, me, params, query, go }) {
-  const [brands, all] = await Promise.all([data.listBrands(), data.listProducts()]);
+  const [brands, all, categories] = await Promise.all([data.listBrands(), data.listProducts(), data.listCategories()]);
   const isOwner = me.role === 'owner';
+  const lang = getLang();
+  const catName = (c) => c['name_' + lang] || c.name_en;
 
   /* ---- load or prepare the form ---- */
   let form;
   let isNew = !params.id;
   let loaded = null;
+  let tagOriginal = null; // when a new colour is made from a product without a style code, the original gets the code too
   if (params.id) {
     loaded = await data.getProduct(params.id);
     if (!loaded) {
@@ -27,22 +40,17 @@ export default async function page({ data, me, params, query, go }) {
         body: html`<div class="empty-state"><p>${t('pf.notFound')}</p><a class="btn btn-ghost" href="/admin/products">${t('common.back')}</a></div>`,
       };
     }
-    form = { ...emptyProduct(), ...loaded, slugTouched: true, price: String(loaded.price), old_price: loaded.old_price ? String(loaded.old_price) : '',
-      tags: (loaded.tags || []).join(', '), sizes: loaded.sizes.map((s) => ({ ...s, eu: String(s.eu), us: s.us == null ? '' : String(s.us), cm: s.cm == null ? '' : String(s.cm), stock: String(s.stock), dirty: false })),
-      images: loaded.images.map((i) => ({ path: i.path })) };
+    form = { ...toForm(loaded), slugTouched: true };
   } else {
     form = emptyProduct();
     form.id = newId();
     const src = query.get('from') && all.find((p) => p.id === query.get('from'));
     if (src) {
-      // a copy starts hidden and without photos (photos are files owned by the original)
-      Object.assign(form, {
-        brand_id: src.brand_id, name: src.name, colorway: src.colorway, sku: '', category: src.category, gender: src.gender,
-        price: String(src.price), old_price: src.old_price ? String(src.old_price) : '', description_ru: src.description_ru,
-        description_uz: src.description_uz, description_en: src.description_en, tags: (src.tags || []).join(', '),
-        is_new: src.is_new, is_featured: src.is_featured, is_active: false, slug: `${src.slug}-copy`, slugTouched: true,
-        sizes: src.sizes.map((s) => ({ eu: String(s.eu), us: s.us == null ? '' : String(s.us), cm: s.cm == null ? '' : String(s.cm), stock: '0', dirty: true })),
-      });
+      // another colour of an item: same texts, price and size rows, no photos, no stock, hidden until finished
+      const base = toForm(src);
+      const copy = duplicateAsColour(base);
+      Object.assign(form, copy, { id: form.id, brand_id: src.brand_id, brand_name: '' });
+      if (!src.style_code) tagOriginal = { id: src.id, code: copy.style_code };
     }
   }
   const originalPaths = new Set(form.images.map((i) => i.path));
@@ -63,16 +71,21 @@ export default async function page({ data, me, params, query, go }) {
   const textInput = (name, label, opts = {}) => html`
     <label class="field ${opts.cls || ''}"><span>${label}${opts.required ? html` <i class="req">*</i>` : ''}</span>
       <input data-f="${field(name)}" name="${name}" value="${form[name]}" ${opts.ph ? raw(`placeholder="${esc(opts.ph)}"`) : ''}
-        ${opts.mode ? raw(`inputmode="${opts.mode}"`) : ''} autocomplete="off" maxlength="${opts.max || 200}">
+        ${opts.mode ? raw(`inputmode="${opts.mode}"`) : ''} ${opts.list ? raw(`list="${opts.list}"`) : ''} autocomplete="off" maxlength="${opts.max || 200}">
       <small class="err-msg" data-err="${name}"></small>${opts.hint ? html`<small class="hint">${opts.hint}</small>` : ''}</label>`;
 
   const flag = (name, label) => html`<label class="switch"><input type="checkbox" data-f="${name}" ${form[name] ? 'checked' : ''}><span>${label}</span></label>`;
+  const select = (name, label, options, opts = {}) => html`
+    <label class="field"><span>${label}</span>
+      <select data-f="${name}">${opts.blank ? html`<option value="">${t('pf.noneOption')}</option>` : ''}
+        ${options.map(([v, text]) => html`<option value="${v}" ${v === form[name] ? 'selected' : ''}>${text}</option>`)}</select>
+      <small class="err-msg" data-err="${name}"></small></label>`;
 
   const body = html`
     <div class="page-head">
       <div class="head-main">
         <a class="back" href="/admin/products">${ICON.left}<span>${t('nav.products')}</span></a>
-        <h1>${isNew ? t('pf.newTitle') : form.name || t('pf.editTitle')}</h1>
+        <h1>${isNew ? t('pf.newTitle') : [form.name, form.color].filter(Boolean).join(' · ') || t('pf.editTitle')}</h1>
       </div>
       ${!isNew && form.is_active ? html`<a class="btn btn-ghost btn-sm" href="/product/${form.slug}" target="_blank" rel="noopener">${ICON.external}<span>${t('pf.view')}</span></a>` : ''}
     </div>
@@ -87,16 +100,29 @@ export default async function page({ data, me, params, query, go }) {
             <input data-f="brand_name" value="${form.brand_name}" maxlength="60" autocomplete="off"></label>
         </div>
         ${textInput('name', t('pf.name'), { required: true, ph: t('pf.nameHint'), max: 160 })}
+        <label class="field"><span>${t('pf.category')} <i class="req">*</i></span>
+          <select data-f="category" id="categorySelect">
+            <option value="" ${form.category ? '' : 'selected'} disabled>${t('pf.pickCategory')}</option>
+            ${DEPARTMENTS.map((d) => html`<optgroup label="${t(`dept.${d}`)}">${categories.filter((c) => c.department === d).map((c) =>
+              html`<option value="${c.slug}" ${c.slug === form.category ? 'selected' : ''}>${catName(c)}${c.is_active ? '' : ` (${t('cats.hiddenNote')})`}</option>`)}</optgroup>`)}
+          </select><small class="err-msg" data-err="category"></small></label>
         <div class="grid-2">
-          ${textInput('colorway', t('pf.colorway'), { max: 80 })}
           ${textInput('sku', t('pf.sku'), { max: 60 })}
+          ${textInput('style_code', t('pf.styleCode'), { max: 40, hint: t('pf.styleHint') })}
         </div>
+      </section>
+
+      <section class="card">
+        <h2>${t('pf.color')}</h2>
         <div class="grid-2">
-          <label class="field"><span>${t('pf.category')}</span>
-            <select data-f="category">${CATEGORIES.map((c) => html`<option value="${c}" ${c === form.category ? 'selected' : ''}>${t(`cat.${c}`)}</option>`)}</select></label>
-          <label class="field"><span>${t('pf.gender')}</span>
-            <select data-f="gender">${GENDERS.map((g) => html`<option value="${g}" ${g === form.gender ? 'selected' : ''}>${t(`gender.${g}`)}</option>`)}</select></label>
+          ${textInput('color', t('pf.color'), { ph: t('pf.colorHint'), max: 60 })}
+          <label class="field"><span>${t('pf.colorHex')}</span>
+            <span class="color-row"><input type="color" id="colorPicker" value="${/^#[0-9a-fA-F]{6}$/.test(form.color_hex) ? form.color_hex : '#888888'}" aria-label="${t('pf.colorHex')}">
+              <input data-f="color_hex" value="${form.color_hex}" maxlength="7" placeholder="#1F2A44" autocomplete="off"></span>
+            <small class="err-msg" data-err="color_hex"></small></label>
         </div>
+        ${select('color_group', t('pf.colorGroup'), COLOR_GROUPS.map((g) => [g, t(`cg.${g}`)]), { blank: true })}
+        <div id="coloursBox"></div>
       </section>
 
       <section class="card">
@@ -123,6 +149,18 @@ export default async function page({ data, me, params, query, go }) {
         <h2>${t('pf.sizes')}</h2>
         <p class="muted">${t('pf.sizesHint')}</p>
         <div id="sizesBox"></div>
+      </section>
+
+      <section class="card">
+        <h2>${t('pf.details')}</h2>
+        <div class="grid-2">
+          ${textInput('origin', t('pf.origin'), { max: 2, list: 'countryList', hint: t('pf.originHint') })}
+          ${select('fit', t('pf.fit'), FITS.map((x) => [x, t(`fit.${x}`)]), { blank: true })}
+        </div>
+        <datalist id="countryList">${COUNTRIES.map((c) => html`<option value="${c}"></option>`)}</datalist>
+        ${textInput('material', t('pf.material'), { max: 160, ph: t('pf.materialHint') })}
+        ${textInput('model_info', t('pf.modelInfo'), { max: 160, ph: t('pf.modelHint') })}
+        ${textInput('order_lead', t('pf.orderLead'), { max: 8, hint: t('pf.orderLeadHint') })}
       </section>
 
       <section class="card">
@@ -170,6 +208,7 @@ export default async function page({ data, me, params, query, go }) {
       const formEl = $('#productForm', root);
       const photosBox = $('#photosBox', root);
       const sizesBox = $('#sizesBox', root);
+      const coloursBox = $('#coloursBox', root);
       const msg = $('#formMsg', root);
 
       /* -- validation display -- */
@@ -190,6 +229,20 @@ export default async function page({ data, me, params, query, go }) {
       };
       const revalidate = () => {
         if (formEl.dataset.touched) showErrors(validateProduct(form).errors);
+      };
+
+      /* -- other colours of this item (products that share the style code) -- */
+      const renderColours = () => {
+        const sibs = colourSiblings(all, form);
+        coloursBox.innerHTML = String(html`
+          <div class="colours">
+            <h3>${t('pf.colours')}</h3>
+            ${sibs.length ? html`<ul class="swatches">${sibs.map((s) => html`<li><a href="/admin/products/${s.id}" title="${s.color || s.name}">
+                <i class="sw" style="background:${/^#[0-9a-fA-F]{6}$/.test(s.color_hex) ? s.color_hex : '#999'}"></i><span>${s.color || s.name}</span></a></li>`)}</ul>`
+              : html`<p class="muted">${t('pf.coloursNone')}</p>`}
+            ${isNew ? '' : html`<button type="button" class="btn btn-ghost btn-sm" data-act="add-colour">${ICON.plus}<span>${t('pf.addColour')}</span></button>
+              <small class="hint">${t('pf.coloursHint')}</small>`}
+          </div>`);
       };
 
       /* -- photos -- */
@@ -273,71 +326,82 @@ export default async function page({ data, me, params, query, go }) {
         dragFrom = null;
       });
 
-      /* -- sizes -- */
+      /* -- sizes: one row per label, in the order the shop shows them -- */
+      const currentSystem = () => systemOfCategory(categories, form.category);
+      // add the labels of a size system that are not there yet, keeping the system's own order
+      const addSystem = (id) => {
+        const have = new Set(form.sizes.map((s) => s.label));
+        const fresh = sizeRows(id).filter((r) => !have.has(r.label)).map((r) => ({ ...r, dirty: true }));
+        const order = SIZE_SYSTEMS[id];
+        const merged = [...form.sizes, ...fresh];
+        const rank = (s) => (order.includes(s.label) ? order.indexOf(s.label) : 1000);
+        // rows of this system line up in its order; custom labels keep their place after them
+        form.sizes = merged.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map((x) => x.s);
+      };
       const renderSizes = () => {
-        const present = new Set(form.sizes.map((s) => Number(s.eu)));
         const others = all.filter((p) => p.id !== form.id && p.sizes.length);
+        const sys = currentSystem();
         sizesBox.innerHTML = String(html`
           ${form.sizes.length ? html`<table class="sizes"><thead><tr>
-              <th>${t('pf.eu')}</th><th>${t('pf.us')}</th><th>${t('pf.cm')}</th><th>${t('pf.qty')}</th><th></th></tr></thead>
+              <th>${t('pf.label')}</th><th>${t('pf.qty')}</th><th title="${t('pf.orderableHint')}">${t('pf.orderable')}</th><th></th></tr></thead>
             <tbody>${form.sizes.map((s, i) => html`<tr data-size-row="${i}">
-              <td><input data-sf="eu" value="${s.eu}" inputmode="decimal" aria-label="${t('pf.eu')}" ${s.id ? 'readonly' : ''}></td>
-              <td><input data-sf="us" value="${s.us}" inputmode="decimal" aria-label="${t('pf.us')}"></td>
-              <td><input data-sf="cm" value="${s.cm}" inputmode="decimal" aria-label="${t('pf.cm')}"></td>
+              <td><input data-sf="label" value="${s.label}" maxlength="12" aria-label="${t('pf.label')}" ${s.id ? 'readonly' : ''}></td>
               <td><input data-sf="stock" value="${s.stock}" inputmode="numeric" aria-label="${t('pf.qty')}" class="qty-in"></td>
-              <td><button type="button" class="icon-btn" data-size-remove="${i}" aria-label="${t('common.remove')}">${ICON.x}</button>
-                <small class="err-msg" data-err="size.${i}.eu"></small><small class="err-msg" data-err="size.${i}.stock"></small></td>
+              <td><label class="switch tight"><input type="checkbox" data-sf="orderable" ${s.orderable ? 'checked' : ''} aria-label="${t('pf.orderableHint')}"><span class="sr-only">${t('pf.orderable')}</span></label></td>
+              <td class="row-tools">
+                <button type="button" class="icon-btn" data-size-move="${i}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="${t('pf.moveUp')}" title="${t('pf.moveUp')}">${ICON.up || '↑'}</button>
+                <button type="button" class="icon-btn" data-size-move="${i}" data-dir="1" ${i === form.sizes.length - 1 ? 'disabled' : ''} aria-label="${t('pf.moveDown')}" title="${t('pf.moveDown')}">${ICON.down || '↓'}</button>
+                <button type="button" class="icon-btn" data-size-remove="${i}" aria-label="${t('common.remove')}">${ICON.x}</button>
+                <small class="err-msg" data-err="size.${i}.label"></small><small class="err-msg" data-err="size.${i}.stock"></small></td>
             </tr>`)}</tbody></table>` : html`<p class="muted">${t('pf.noSizes')}</p>`}
           <div class="size-tools">
+            <span class="muted">${t('pf.preset')}</span>
+            ${SIZE_SYSTEM_IDS.map((id) => html`<button type="button" class="chip-btn ${id === sys && form.category ? 'is-suggested' : ''}" data-preset="${id}">${t(`sys.${id}`)}</button>`)}
             <button type="button" class="btn btn-ghost btn-sm" data-act="add-size">${ICON.plus}<span>${t('pf.addSize')}</span></button>
-            <span class="muted">${t('pf.preset')}:</span>
-            <button type="button" class="chip-btn" data-preset="men">${t('pf.presetMen')}</button>
-            <button type="button" class="chip-btn" data-preset="women">${t('pf.presetWomen')}</button>
-            <button type="button" class="chip-btn" data-preset="kids">${t('pf.presetKids')}</button>
             ${others.length ? html`<select id="copySizes" aria-label="${t('pf.copySizes')}"><option value="">${t('pf.copySizes')}</option>
-              ${others.map((p) => html`<option value="${p.id}">${p.name}</option>`)}</select>` : ''}
+              ${others.map((p) => html`<option value="${p.id}">${p.name}${p.color ? ` · ${p.color}` : ''}</option>`)}</select>` : ''}
           </div>`);
-        sizesBox.dataset.present = [...present].join(',');
       };
 
       sizesBox.addEventListener('input', (e) => {
         const inp = e.target.closest('[data-sf]');
-        if (!inp) return;
+        if (!inp || inp.type === 'checkbox') return;
         const row = form.sizes[Number(inp.closest('tr').dataset.sizeRow)];
-        row[inp.dataset.sf] = inp.value;
+        row[inp.dataset.sf] = inp.dataset.sf === 'label' ? inp.value.trim() : inp.value;
         if (inp.dataset.sf === 'stock') row.dirty = true;
         inp.classList.remove('has-error');
       });
       sizesBox.addEventListener('click', (e) => {
         const rm = e.target.closest('[data-size-remove]');
         if (rm) { form.sizes.splice(Number(rm.dataset.sizeRemove), 1); renderSizes(); revalidate(); return; }
+        const mv = e.target.closest('[data-size-move]');
+        if (mv) {
+          const i = Number(mv.dataset.sizeMove);
+          form.sizes = moveItem(form.sizes, i, i + Number(mv.dataset.dir));
+          renderSizes();
+          return;
+        }
         const add = e.target.closest('[data-act=add-size]');
         if (add) {
-          form.sizes.push({ eu: '', us: '', cm: '', stock: '', dirty: true });
+          form.sizes.push({ label: '', stock: '', orderable: true, dirty: true });
           renderSizes();
           const last = $$('[data-size-row]', sizesBox).pop();
-          if (last) $('[data-sf=eu]', last).focus();
+          if (last) $('[data-sf=label]', last).focus();
           return;
         }
         const pre = e.target.closest('[data-preset]');
-        if (pre) {
-          const have = new Set(form.sizes.map((s) => Number(s.eu)));
-          SIZE_PRESETS[pre.dataset.preset].forEach((eu) => {
-            if (!have.has(eu)) form.sizes.push({ eu: String(eu), us: '', cm: '', stock: '0', dirty: true });
-          });
-          form.sizes.sort((a, b) => Number(a.eu) - Number(b.eu));
-          renderSizes();
-        }
+        if (pre) { addSystem(pre.dataset.preset); renderSizes(); revalidate(); }
       });
       sizesBox.addEventListener('change', (e) => {
+        const box = e.target.closest('[data-sf=orderable]');
+        if (box) { form.sizes[Number(box.closest('tr').dataset.sizeRow)].orderable = box.checked; return; }
         if (e.target.id !== 'copySizes' || !e.target.value) return;
         const src = all.find((p) => p.id === e.target.value);
         if (!src) return;
-        const have = new Set(form.sizes.map((s) => Number(s.eu)));
+        const have = new Set(form.sizes.map((s) => s.label));
         src.sizes.forEach((s) => {
-          if (!have.has(s.eu)) form.sizes.push({ eu: String(s.eu), us: s.us == null ? '' : String(s.us), cm: s.cm == null ? '' : String(s.cm), stock: '0', dirty: true });
+          if (!have.has(s.label)) form.sizes.push({ label: s.label, stock: '0', orderable: s.orderable !== false, dirty: true });
         });
-        form.sizes.sort((a, b) => Number(a.eu) - Number(b.eu));
         renderSizes();
       });
 
@@ -349,29 +413,49 @@ export default async function page({ data, me, params, query, go }) {
         pill.textContent = pct ? t('pf.discount', { n: pct }) : '';
       };
       const slugInput = () => $('[data-f=slug]', root);
+      // the page address follows brand + name + colour until the owner edits it by hand
+      const suggestSlug = () => {
+        if (form.slugTouched) return;
+        const brand = form.brand_id ? (brands.find((b) => b.id === form.brand_id) || {}).name : form.brand_name;
+        form.slug = slugify([brand, form.name, form.color].filter(Boolean).join(' '));
+        slugInput().value = form.slug;
+      };
+      const picker = $('#colorPicker', root);
 
       formEl.addEventListener('input', (e) => {
         const el = e.target.closest('[data-f]');
-        if (!el) return;
-        const key = el.dataset.f;
-        form[key] = el.type === 'checkbox' ? el.checked : el.value;
-        if (key === 'name' && !form.slugTouched) {
-          form.slug = slugify(form.name);
-          slugInput().value = form.slug;
+        if (el) {
+          const key = el.dataset.f;
+          form[key] = el.type === 'checkbox' ? el.checked : el.value;
+          if (key === 'name' || key === 'color') suggestSlug();
+          if (key === 'slug') form.slugTouched = true;
+          if (key === 'price' || key === 'old_price') discount();
+          if (key === 'color_hex' && /^#[0-9a-fA-F]{6}$/.test(el.value)) picker.value = el.value;
+          if (key === 'style_code') renderColours();
+          revalidate();
+          return;
         }
-        if (key === 'slug') form.slugTouched = true;
-        if (key === 'price' || key === 'old_price') discount();
-        revalidate();
+        if (e.target === picker) {
+          form.color_hex = picker.value.toUpperCase();
+          $('[data-f=color_hex]', root).value = form.color_hex;
+          revalidate();
+        }
       });
       formEl.addEventListener('change', (e) => {
         const el = e.target.closest('[data-f]');
         if (el && el.type === 'checkbox') form[el.dataset.f] = el.checked;
         if (el && el.tagName === 'SELECT') form[el.dataset.f] = el.value;
+        if (e.target.id === 'categorySelect') {
+          // a product without sizes gets the usual set of its category
+          if (!form.sizes.length && form.category) { addSystem(currentSystem()); }
+          renderSizes();
+        }
         if (e.target.id === 'brandSelect') {
           const v = e.target.value;
           $('#newBrandBox', root).hidden = v !== '__new__';
           form.brand_id = v === '__new__' ? '' : v;
           if (v !== '__new__') form.brand_name = '';
+          suggestSlug();
           revalidate();
         }
       });
@@ -386,6 +470,11 @@ export default async function page({ data, me, params, query, go }) {
         }
         if (el.dataset.f === 'slug') {
           el.value = form.slug = slugify(el.value) || slugify(form.name);
+        }
+        if (el.dataset.f === 'origin') el.value = form.origin = el.value.trim().toUpperCase();
+        if (el.dataset.f === 'color_hex' && /^#?[0-9a-fA-F]{6}$/.test(el.value.trim())) {
+          el.value = form.color_hex = `#${el.value.trim().replace('#', '').toUpperCase()}`;
+          picker.value = form.color_hex;
         }
       });
       $$('.tab', root).forEach((b) => b.addEventListener('click', () => {
@@ -402,19 +491,17 @@ export default async function page({ data, me, params, query, go }) {
       };
       const say = (text) => { msg.textContent = text; msg.hidden = !text; };
 
-      formEl.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (saving || uploading) return;
+      // Saves the form (validated). Returns the saved { id, slug }, or null when something is wrong.
+      const save = async () => {
         formEl.dataset.touched = '1';
         say('');
-        // numbers typed with spaces are fine; prices are re-read from the text
         const { ok, errors } = validateProduct(form);
         showErrors(errors);
         if (!ok) {
           say(t('pf.fixErrors'));
           const first = $('.has-error, .err-msg:not(:empty)', root);
           if (first) first.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          return;
+          return null;
         }
         setBusy(true);
         try {
@@ -423,9 +510,12 @@ export default async function page({ data, me, params, query, go }) {
           if (removed.length) await data.deletePhotos(removed);
           sessionUploads.clear();
           original = snapshot();
-          toast(t('pf.saved'));
-          if (isNew) await go(`/admin/products/${saved.id}`, { replace: true, force: true });
-          else await go(location.pathname, { force: true });
+          if (tagOriginal) {
+            // the product this colour was made from gets the same style code, so the two are linked
+            await data.setStyleCode(tagOriginal.id, form.style_code).catch(() => {});
+            tagOriginal = null;
+          }
+          return saved;
         } catch (err) {
           setBusy(false);
           if (err.code === 'slug_taken') {
@@ -438,10 +528,35 @@ export default async function page({ data, me, params, query, go }) {
           } else {
             say(errorText(err));
           }
+          return null;
         }
+      };
+
+      formEl.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (saving || uploading) return;
+        const saved = await save();
+        if (!saved) return;
+        toast(t('pf.saved'));
+        if (isNew) await go(`/admin/products/${saved.id}`, { replace: true, force: true });
+        else await go(location.pathname, { force: true });
       });
 
       root.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-act=add-colour]')) {
+          if (saving || uploading) return;
+          // save first so the copy starts from what is on screen; a product without a style code gets one
+          if (!form.style_code) {
+            form.style_code = duplicateAsColour(form).style_code;
+            $('[data-f=style_code]', root).value = form.style_code;
+          }
+          if (isDirty()) {
+            const saved = await save();
+            if (!saved) return;
+          }
+          await go(`/admin/products/new?from=${form.id}`, { force: true });
+          return;
+        }
         if (!e.target.closest('[data-act=delete]')) return;
         const used = await data.productOrderCount(form.id).catch(() => 0);
         const ok = await confirmDialog({
@@ -460,6 +575,7 @@ export default async function page({ data, me, params, query, go }) {
         }
       });
 
+      renderColours();
       renderPhotos();
       renderSizes();
       discount();

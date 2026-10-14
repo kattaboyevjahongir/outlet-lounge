@@ -461,7 +461,56 @@ input[type='checkbox'] { width: 18px; height: 18px; min-height: 0; accent-color:
 .table.plain tbody tr { cursor: default; }
 .table.plain tbody tr:hover { background: none; }
 
+/* ---------- menswear: colours, size rows, orderable switch, categories ---------- */
+.sv-on_order { --b: var(--info); }
+.ful-stock { --b: var(--ok); } .ful-order { --b: var(--info); }
+.badge.ful-order svg, .badge.ful-stock svg { width: 13px; height: 13px; margin-right: 5px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.badge.ful-stock svg { display: none; }
+.notice { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; padding: 12px 14px; border-radius: 12px; font-size: 14px;
+  background: color-mix(in srgb, var(--info) 12%, transparent); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent); color: var(--text); }
+.notice svg { flex: none; width: 18px; height: 18px; margin-top: 2px; fill: none; stroke: var(--info); stroke-width: 1.8; }
+
+.color-row { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; align-items: center; }
+.color-row input[type='color'] { width: 52px; height: 44px; padding: 3px; cursor: pointer; border-radius: 12px; }
+.colours { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 10px; justify-items: start; }
+.colours h3 { font: 600 11px var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); margin: 0; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.swatches a { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 7px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 13px; color: var(--text-2); }
+.swatches a:hover { border-color: var(--gold-2); color: var(--gold-ink); }
+.sw { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line-strong); display: inline-block; }
+
+.chip-btn.is-suggested { border-color: var(--gold-2); color: var(--gold-ink); }
+.size-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.sizes td.row-tools { white-space: nowrap; text-align: right; }
+.sizes .row-tools .icon-btn { width: 36px; height: 36px; display: inline-grid; place-items: center; }
+.sizes .row-tools .icon-btn[disabled] { opacity: .3; cursor: default; }
+.sizes .row-tools .err-msg { display: block; text-align: right; }
+.sizes input[data-sf='label'] { min-width: 96px; font-weight: 600; letter-spacing: .03em; }
+.switch.tight { min-height: 40px; justify-content: center; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+
+.cellbox { position: relative; display: inline-block; }
+.orderable { position: absolute; right: -6px; top: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--line-strong); color: var(--text-3); transition: color .2s, border-color .2s, background .2s; }
+.orderable svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; }
+.orderable.is-on { color: var(--on-gold); background: var(--gold-grad); border-color: transparent; }
+.orderable.saved { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 30%, transparent); }
+.group-title { font: 600 12px var(--font-display); letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); margin: 26px 0 10px; }
+.group-title:first-child { margin-top: 0; }
+
+.cat-list { display: grid; padding: 4px 22px; list-style: none; margin: 0; }
+.cat-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 14px; align-items: center; padding: 13px 0; }
+.cat-row + .cat-row { border-top: 1px solid var(--line); }
+.cat-row.is-hidden { opacity: .6; }
+.cat-main b { display: block; font-weight: 600; }
+.cat-main small, .cat-meta small { color: var(--text-3); font-size: 12.5px; }
+.cat-actions { display: flex; gap: 6px; }
+
 @media (max-width: 860px) {
+  .grid-3 { grid-template-columns: 1fr; }
+  .cat-list { padding: 4px 16px; }
+  .cat-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .cat-meta { grid-column: 1 / -1; order: 3; }
   .tabbar { grid-template-columns: repeat(5, 1fr); }
   .staff-list, .promo-list, .act-list, .more-list { padding: 4px 16px; }
   .staff-row { grid-template-columns: minmax(0, 1fr) auto; }

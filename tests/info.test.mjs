@@ -15,7 +15,7 @@ const plain = (x) => JSON.parse(JSON.stringify(x));
 const ctx = (over = {}) => ({
   fee: { courier_tashkent: 30000, regions: 50000, pickup: 0 }, free: 1500000, money: (n) => `${n} UZS`, hours: '10:00–21:00',
   minutes: 15, phone: '+998 90 123 45 67', email: 'shop@example.uz', company: 'ООО Лаунж', inn: '123456789', legalAddress: 'Ташкент',
-  returnDays: 14, ...over,
+  returnDays: 14, stock: '1–3', order: '10–18', ...over,
 });
 const LANGS = ['ru', 'uz', 'en'];
 

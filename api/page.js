@@ -8,9 +8,9 @@
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY, optional SITE_URL
 
 import { readFileSync } from 'node:fs';
-import { PRODUCT_COLUMNS, rest, shapeProduct } from './catalog.js';
+import { PRODUCT_COLUMNS, CATEGORY_COLUMNS, rest, shapeProduct, shapeCategory } from './catalog.js';
 import {
-  siteUrl, isIndexing, COLLECTION_META, INFO_META, HOME_META, productMeta, productJsonLd, breadcrumbJsonLd, organizationJsonLd,
+  siteUrl, isIndexing, DEPARTMENTS, COLLECTION_META, INFO_META, HOME_META, productMeta, productJsonLd, breadcrumbJsonLd, organizationJsonLd,
   injectHead, injectBody, noscriptBlock, money,
 } from './_lib/seo.js';
 
@@ -28,14 +28,23 @@ const supabase = () => {
   return base && key ? { base, key } : null;
 };
 
-const COLLECTION_FILTER = {
-  shop: () => true,
-  new: (p) => p.isNew,
-  sale: (p) => p.was > p.price,
-  men: (p) => p.gender === 'men' || p.gender === 'unisex',
-  women: (p) => p.gender === 'women' || p.gender === 'unisex',
-  kids: (p) => p.gender === 'kids',
+// a collection is /shop, /new, /sale or a department (/clothing …); `cats` maps category slug → department
+const collectionFilter = (slug, cats) => {
+  if (slug === 'shop') return () => true;
+  if (slug === 'new') return (p) => p.isNew;
+  if (slug === 'sale') return (p) => p.was > p.price;
+  return (p) => cats[p.cat] === slug;
 };
+const isCollection = (slug) => slug === 'shop' || slug === 'new' || slug === 'sale' || DEPARTMENTS.includes(slug);
+
+async function loadCategories(db) {
+  try {
+    const rows = await rest(db.base, db.key, `categories?select=${CATEGORY_COLUMNS}&is_active=eq.true&order=sort`);
+    return rows.map((r) => shapeCategory(r, db.base));
+  } catch {
+    return [];
+  }
+}
 
 async function allProducts(db) {
   const rows = await rest(db.base, db.key, `products?select=${encodeURIComponent(PRODUCT_COLUMNS)}&is_active=eq.true&order=created_at.desc`);
@@ -86,18 +95,18 @@ export default async function handler(req, res) {
         meta.jsonLd = [
           productJsonLd(p, base),
           breadcrumbJsonLd([
-            { name: 'Главная', path: '/' }, { name: 'Магазин', path: '/shop' }, { name: meta.name, path: `/product/${p.slug}` },
+            { name: 'Главная', path: '/' }, { name: 'Каталог', path: '/shop' }, { name: meta.name, path: `/product/${p.slug}` },
           ], base),
         ];
         block = noscriptBlock({
           heading: meta.name,
-          text: `${p.colorway ? `${p.colorway}. ` : ''}Цена ${money(p.price)}. Размеры EU: ${p.sizes.filter((s) => s.ok).map((s) => s.s).join(', ') || 'нет в наличии'}.`,
+          text: `${p.color ? `${p.color}. ` : ''}Цена ${money(p.price)}. Размеры: ${p.sizes.filter((s) => s.ok).map((s) => s.s).join(', ') || 'нет в наличии'}.`,
         });
       } else {
         status = 404;
         meta = { title: 'Страница не найдена — Outlet Lounge', description: 'Такой страницы нет. Вернитесь в каталог.', path: `/product/${slug}`, robots: 'noindex,follow' };
       }
-    } else if (type === 'collection' && COLLECTION_FILTER[slug]) {
+    } else if (type === 'collection' && isCollection(slug)) {
       const [title, description] = COLLECTION_META[slug];
       const path = slug === 'shop' ? '/shop' : `/${slug}`;
       meta = {
@@ -106,9 +115,33 @@ export default async function handler(req, res) {
       };
       let links = [];
       if (db) {
-        try { links = productLinks((await allProducts(db)).filter(COLLECTION_FILTER[slug])); } catch { /* the shell still works */ }
+        try {
+          const cats = Object.fromEntries((await loadCategories(db)).map((c) => [c.slug, c.dept]));
+          links = productLinks((await allProducts(db)).filter(collectionFilter(slug, cats)));
+        } catch { /* the shell still works */ }
       }
       block = noscriptBlock({ heading: title, text: description, links });
+    } else if (type === 'category' && db) {
+      const cat = !SLUG.test(slug) ? null : (await loadCategories(db)).find((c) => c.slug === slug);
+      if (cat) {
+        const title = cat.name.ru;
+        const deptTitle = COLLECTION_META[cat.dept][0];
+        const path = `/shop/${cat.slug}`;
+        const list = (await allProducts(db)).filter((p) => p.cat === cat.slug);
+        meta = {
+          title: `${title} — купить оригинал — Outlet Lounge`,
+          description: `${title}: оригинальные мужские товары мировых брендов. ${list.length ? `Моделей в каталоге: ${list.length}. ` : ''}В наличии в Ташкенте и под заказ, доставка по Узбекистану.`,
+          path,
+          image: list[0] && list[0].images[0],
+          jsonLd: [breadcrumbJsonLd([
+            { name: 'Главная', path: '/' }, { name: deptTitle, path: `/${cat.dept}` }, { name: title, path },
+          ], base)],
+        };
+        block = noscriptBlock({ heading: title, text: meta.description, links: productLinks(list) });
+      } else {
+        status = 404;
+        meta = { title: 'Страница не найдена — Outlet Lounge', description: 'Такой категории нет.', path: `/shop/${slug}`, robots: 'noindex,follow' };
+      }
     } else if (type === 'brand' && db) {
       const brands = !SLUG.test(slug) ? [] : await rest(db.base, db.key, `brands?select=name,slug&slug=eq.${encodeURIComponent(slug)}&limit=1`);
       if (brands[0]) {
@@ -116,11 +149,11 @@ export default async function handler(req, res) {
         const list = (await allProducts(db)).filter((p) => p.brand === name);
         const path = `/brands/${slug}`;
         meta = {
-          title: `${name} — оригинальные кроссовки — Outlet Lounge`,
-          description: `Оригинальные кроссовки ${name} по ценам аутлета. ${list.length ? `В наличии моделей: ${list.length}. ` : ''}Доставка по Узбекистану.`,
+          title: `${name} — оригинальная мужская одежда и обувь — Outlet Lounge`,
+          description: `Оригинальные товары ${name}: одежда, обувь, аксессуары. ${list.length ? `Моделей в каталоге: ${list.length}. ` : ''}Доставка по Узбекистану.`,
           path,
           image: list[0] && list[0].images[0],
-          jsonLd: [breadcrumbJsonLd([{ name: 'Главная', path: '/' }, { name: 'Магазин', path: '/shop' }, { name, path }], base)],
+          jsonLd: [breadcrumbJsonLd([{ name: 'Главная', path: '/' }, { name: 'Каталог', path: '/shop' }, { name, path }], base)],
         };
         block = noscriptBlock({ heading: name, text: meta.description, links: productLinks(list) });
       } else {

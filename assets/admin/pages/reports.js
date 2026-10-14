@@ -1,6 +1,6 @@
 // Reports (owner): numbers for a period, a daily chart, breakdown tables, Excel / CSV export.
 import { html, $, $$ } from '../dom.js';
-import { t } from '../i18n.js';
+import { t, getLang } from '../i18n.js';
 import { reportRange, chartBars, fmtMoney, stockState } from '../logic.js';
 import { buildXlsx, toCsv } from '../export.js';
 import { money, toast, errorText, deniedPage, downloadBlob, dateTimeFull } from '../ui.js';
@@ -84,7 +84,7 @@ export default async function page({ data, me, query }) {
       o.number, dateTimeFull(o.created_at), t(`status.${o.status}`), o.customer_name, o.phone, o.telegram || '',
       t(`delivery.${o.delivery_method}`), o.region || '', [o.city, o.address, o.landmark].filter(Boolean).join(', '),
       t(`payment.${o.payment_method}`),
-      o.items.map((i) => `${[i.brand_snapshot, i.name_snapshot].filter(Boolean).join(' ')} EU ${i.size_eu} ×${i.qty}`).join('; '),
+      o.items.map((i) => `${[i.brand_snapshot, i.name_snapshot].filter(Boolean).join(' ')} ${i.size_label} ×${i.qty}${i.fulfilment === 'order' ? ` (${t('order.fulfil.order')})` : ''}`).join('; '),
       o.subtotal, o.discount, o.delivery_fee, o.total, o.promo_code || '', o.comment || '', o.tracking_no || '',
     ]);
     return [head, ...rows];
@@ -108,10 +108,15 @@ export default async function page({ data, me, query }) {
             downloadBlob(`orders-${stamp}.csv`, new Blob([toCsv(await orderRows())], { type: 'text/csv;charset=utf-8' }));
           } else {
             const products = await data.listProducts();
-            const head = ['brand', 'product', 'colorway', 'sku', 'category', 'gender', 'price', 'oldPrice', 'stock', 'shown', 'sizes'].map((k) => t(`rep.col.${k}`));
+            const categories = await data.listCategories();
+            const cat = Object.fromEntries(categories.map((c) => [c.slug, c]));
+            const catName = (slug) => (cat[slug] ? cat[slug][`name_${getLang()}`] || cat[slug].name_en : slug);
+            const head = ['brand', 'product', 'color', 'styleCode', 'sku', 'dept', 'category', 'origin', 'price', 'oldPrice', 'stock', 'shown', 'sizes'].map((k) => t(`rep.col.${k}`));
             const rows = products.map((p) => [
-              p.brand_name, p.name, p.colorway, p.sku, t(`cat.${p.category}`), t(`gender.${p.gender}`), p.price, p.old_price || '',
-              stockState(p).total, p.is_active ? t('common.yes') : t('common.no'), p.sizes.map((s) => `${s.eu}: ${s.stock}`).join(', '),
+              p.brand_name, p.name, p.color, p.style_code, p.sku, cat[p.category] ? t(`dept.${cat[p.category].department}`) : '', catName(p.category),
+              p.origin, p.price, p.old_price || '',
+              stockState(p).total, p.is_active ? t('common.yes') : t('common.no'),
+              p.sizes.map((s) => `${s.label}: ${s.stock}${s.orderable ? '*' : ''}`).join(', '),
             ]);
             downloadBlob(`products-${stamp}.xlsx`, new Blob([buildXlsx([{ name: t('nav.products'), rows: [head, ...rows] }])], { type: XLSX_MIME }));
           }

@@ -17,6 +17,8 @@
     return {
       fee,
       free: Number(d.free_threshold) || 0,
+      stock: d.stock_days || '1–3',
+      order: d.order_days || '10–18',
       money: (n) => OL.price(n),
       hours: c.hours || '10:00–21:00',
       minutes: c.call_minutes || 15,
@@ -85,7 +87,7 @@
           </aside>
           <article class="info-main">
             <nav class="crumbs" aria-label="Breadcrumb"><a href="/">${esc(OL.t('crumbs.home'))}</a><i>/</i><span>${esc(OL.infoTitle(slug))}</span></nav>
-            <h1 class="info-title">${esc(OL.infoTitle(slug))}</h1>
+            <h1 class="info-title" data-split>${esc(OL.infoTitle(slug))}</h1>
             <p class="info-lead">${esc(page.lead)}</p>
             ${page.blocks.map(block).join('')}
             <div class="info-cta">
@@ -94,11 +96,6 @@
           </article>
         </div>
       </section>`;
-    },
-
-    init(root) {
-      if (window.gsap) gsap.from(root.querySelectorAll('.info-main > *'), { y: 24, autoAlpha: 0, stagger: 0.05, duration: 0.8, ease: 'expo.out', clearProps: 'all' });
-      return {};
     },
   };
 })();

@@ -18,7 +18,7 @@
 .info-block ul { display: grid; gap: 10px; padding-left: 0; list-style: none; }
 .info-block li { position: relative; padding-left: 22px; color: var(--text-2); line-height: 1.6; }
 .info-block li::before { content: ''; position: absolute; left: 2px; top: .72em; width: 8px; height: 1px; background: var(--gold-2); }
-.info-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+.info-table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 3px; }
 .info-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 .info-table th { text-align: left; padding: 13px 18px; font: 600 11.5px var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--text-3); border-bottom: 1px solid var(--line); white-space: nowrap; }
 .info-table td { padding: 13px 18px; border-bottom: 1px solid var(--line); color: var(--text); }

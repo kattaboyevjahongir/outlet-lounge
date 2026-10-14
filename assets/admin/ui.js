@@ -23,6 +23,10 @@ export const ICON = {
   telegram: svg('<path d="M21 4 3 11.2l5.6 2 2.2 6.3 3.2-3.6 4.8 3.6L21 4Z"/><path d="m8.6 13.2 8.4-5.6"/>'),
   print: svg('<path d="M7 9V3.5h10V9M7 17.5H4.5a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1h15a1 1 0 0 1 1 1v6.500a1 1 0 0 1-1 1H17"/><rect x="7" y="14" width="10" height="6.500" rx="1"/>'),
   image: svg('<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17.500 5-4.500 4 3.500 3-2.500 4.500 4"/>'),
+  up: svg('<path d="m6 14.500 6-6 6 6"/>'),
+  down: svg('<path d="m6 9.500 6 6 6-6"/>'),
+  plane: svg('<path d="M21 3.500 3 10.500l6.500 2.500L12 20l2-5.500 4 3.500L21 3.500Z"/><path d="m9.500 13 11-9.500"/>'),
+  categories: svg('<rect x="3.500" y="3.500" width="7" height="7" rx="1.500"/><rect x="13.500" y="3.500" width="7" height="7" rx="1.500"/><rect x="3.500" y="13.500" width="7" height="7" rx="1.500"/><rect x="13.500" y="13.500" width="7" height="7" rx="1.500"/>'),
   left: svg('<path d="m14.500 6-6 6 6 6"/>'),
   right: svg('<path d="m9.500 6 6 6-6 6"/>'),
   check: svg('<path d="m5 12.500 4.500 4.500L19 7.500"/>'),
@@ -151,5 +155,6 @@ export const errorText = (e) => {
   const code = e && e.code;
   if (code === 'offline') return t('common.offline');
   if (code === 'denied') return t('common.denied');
+  if (code === 'category_in_use' || code === 'category_taken') return t(`err.${code}`);
   return t('common.error');
 };

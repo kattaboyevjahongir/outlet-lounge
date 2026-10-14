@@ -49,6 +49,14 @@ export default async function page({ data, me }) {
             ${DELIVERY_METHODS.map((id) => input(id, t(`set.fee.${id}`), feeOf(id), { mode: 'numeric', max: 12 }))}
             ${input('free_threshold', t('set.freeFrom'), delivery.free_threshold ? fmtMoney(delivery.free_threshold) : '', { mode: 'numeric', max: 12, hint: t('set.freeHint') })}
           </div>
+          <div class="grid-2">
+            ${input('stock_days', t('set.stockDays'), delivery.stock_days, { max: 8 })}
+            ${input('order_days', t('set.orderDays'), delivery.order_days, { max: 8, hint: t('set.orderDaysHint') })}
+          </div>
+          <h3>${t('set.orderNote')}</h3>
+          <p class="muted">${t('set.orderNoteHint')}</p>
+          ${['ru', 'uz', 'en'].map((l) => html`<label class="field"><span>${l.toUpperCase()}</span>
+            <textarea name="order_note_${l}" rows="2" maxlength="300">${(delivery.order_note && delivery.order_note[l]) || ''}</textarea>${err(`order_note_${l}`)}</label>`)}
           <div class="btn-row"><button class="btn btn-gold" type="submit">${t('set.saveDelivery')}</button></div>
         </form>
       </section>
@@ -149,6 +157,9 @@ export default async function page({ data, me }) {
         const methods = (delivery.methods || []).map((m) => (DELIVERY_METHODS.includes(m.id) ? { ...m, fee: parseMoney(v[m.id]) } : m));
         DELIVERY_METHODS.forEach((id) => { if (!known.has(id)) methods.push({ id, fee: parseMoney(v[id]) }); });
         const next = { ...delivery, methods };
+        next.stock_days = String(v.stock_days || '').trim() || '1–3';
+        next.order_days = String(v.order_days || '').trim() || '10–18';
+        next.order_note = Object.fromEntries(['ru', 'uz', 'en'].map((l) => [l, String(v[`order_note_${l}`] || '').trim()]).filter(([, text]) => text));
         const free = parseMoney(v.free_threshold);
         if (free) next.free_threshold = free; else delete next.free_threshold;
         try { await data.saveSetting('delivery', next, true); saved(); } catch (err) { fail(err); }

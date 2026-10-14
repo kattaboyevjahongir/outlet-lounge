@@ -9,15 +9,18 @@
 // built-in placeholder catalog.
 
 export const PRODUCT_COLUMNS = [
-  'slug', 'name', 'colorway', 'sku', 'category', 'gender', 'price', 'old_price',
+  'slug', 'name', 'color', 'color_hex', 'color_group', 'style_code', 'sku', 'category', 'price', 'old_price',
+  'origin', 'material', 'fit', 'model_info', 'order_lead',
   'description_ru', 'description_uz', 'description_en', 'tags',
   'is_new', 'is_featured', 'created_at',
   'brands(name)',
   'product_images(path,sort,is_main)',
-  'product_sizes(eu,us,cm,stock)',
+  'product_sizes(label,sort,stock,orderable)',
 ].join(',');
 
-const LAST_PAIRS_AT_OR_BELOW = 3;
+export const CATEGORY_COLUMNS = 'slug,department,name_ru,name_uz,name_en,size_system,image_path,sort';
+
+const LAST_PIECES_AT_OR_BELOW = 3;
 
 export function imageUrl(path, supabaseUrl) {
   if (!path) return '';
@@ -29,25 +32,33 @@ export function shapeProduct(row, supabaseUrl) {
   const images = [...(row.product_images || [])]
     .sort((a, b) => Number(b.is_main) - Number(a.is_main) || a.sort - b.sort)
     .map((i) => imageUrl(i.path, supabaseUrl));
+  // `ok` = can be bought now (in stock here, or can be ordered from abroad); `order` = can be ordered from abroad
   const sizes = [...(row.product_sizes || [])]
-    .sort((a, b) => Number(a.eu) - Number(b.eu))
-    .map((z) => ({ s: Number(z.eu), us: z.us == null ? null : Number(z.us), cm: z.cm == null ? null : Number(z.cm), ok: z.stock > 0, stock: z.stock }));
+    .sort((a, b) => a.sort - b.sort || String(a.label).localeCompare(String(b.label), 'en', { numeric: true }))
+    .map((z) => ({ s: z.label, ok: z.stock > 0 || !!z.orderable, stock: z.stock, order: !!z.orderable }));
   const totalStock = sizes.reduce((n, z) => n + z.stock, 0);
 
   let tag = null;
   if (row.is_new) tag = 'new';
   else if (row.is_featured) tag = 'hot';
-  else if (totalStock > 0 && totalStock <= LAST_PAIRS_AT_OR_BELOW) tag = 'last';
+  else if (totalStock > 0 && totalStock <= LAST_PIECES_AT_OR_BELOW) tag = 'last';
 
   return {
     id: row.slug,
     slug: row.slug,
     brand: row.brands ? row.brands.name : '',
     name: row.name,
-    colorway: row.colorway || null,
+    color: row.color || null,
+    colorHex: row.color_hex || null,
+    colorGroup: row.color_group || null,
+    styleCode: row.style_code || null,
     sku: row.sku || null,
     cat: row.category,
-    gender: row.gender,
+    origin: row.origin || null,
+    material: row.material || null,
+    fit: row.fit || null,
+    model: row.model_info || null,
+    orderLead: row.order_lead || null,
     price: row.price,
     was: row.old_price || row.price,
     images,
@@ -60,13 +71,25 @@ export function shapeProduct(row, supabaseUrl) {
   };
 }
 
-export function shapeCatalog(productRows, settingRows, supabaseUrl) {
+export function shapeCategory(row, supabaseUrl) {
+  return {
+    slug: row.slug,
+    dept: row.department,
+    name: { ru: row.name_ru, uz: row.name_uz, en: row.name_en },
+    sizes: row.size_system,
+    image: row.image_path ? imageUrl(row.image_path, supabaseUrl) : null,
+    sort: row.sort,
+  };
+}
+
+export function shapeCatalog(productRows, settingRows, supabaseUrl, categoryRows) {
   const products = productRows
     .map((r) => shapeProduct(r, supabaseUrl))
     // a product with no photo or no price can't be shown properly yet
     .filter((p) => p.images.length > 0 && p.price > 0);
   const settings = Object.fromEntries((settingRows || []).map((s) => [s.key, s.value]));
-  return { source: 'live', products, settings, generatedAt: new Date().toISOString() };
+  const categories = (categoryRows || []).map((c) => shapeCategory(c, supabaseUrl));
+  return { source: 'live', products, categories, settings, generatedAt: new Date().toISOString() };
 }
 
 export async function rest(base, key, path) {
@@ -93,12 +116,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    const [products, settings] = await Promise.all([
+    const [products, settings, categories] = await Promise.all([
       rest(base, key, `products?select=${encodeURIComponent(PRODUCT_COLUMNS)}&is_active=eq.true&order=created_at.desc`),
       rest(base, key, 'settings?select=key,value&is_public=eq.true'),
+      rest(base, key, `categories?select=${CATEGORY_COLUMNS}&is_active=eq.true&order=sort`),
     ]);
     res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
-    return res.status(200).json(shapeCatalog(products, settings, base));
+    return res.status(200).json(shapeCatalog(products, settings, base, categories));
   } catch (e) {
     // never leak upstream details to the browser
     console.error('catalog failed:', e.message);
