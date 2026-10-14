@@ -10,7 +10,7 @@
   const html = document.documentElement;
 
   const DEPTS = ['clothing', 'shoes', 'accessories'];
-  const kinetic = () => html.dataset.home !== 'editorial';
+  const kinetic = () => html.dataset.home === 'kinetic';
   const motion = () => (OL.motion && OL.motion.on ? OL.motion : null);
 
   // the first product photo of a department (shown on its tile); the newest item of the department
@@ -345,6 +345,47 @@
     }
   };
 
+  /* --- the editorial opening screen: three layouts while the owner chooses (html[data-hero]) --- */
+  const heroBlock = () => {
+    const esc = OL.esc;
+    const di = OL.deliveryInfo();
+    const own = (OL.SETTINGS.home && OL.SETTINGS.home.hero && OL.SETTINGS.home.hero.image) || '';
+    const main = own ? OL.pimg(own, 1400, 1750) : OL.img('look-1', 1400, 1750);
+    const copy = (cls = '') => `
+      <div class="h2-copy ${cls}">
+        <span class="eyebrow" data-reveal><i class="eyebrow-line"></i>${t('home.eyebrow')}</span>
+        <h1 class="h2-title" data-split data-delay="1">${esc(t('home.title'))}</h1>
+        <p class="h2-lead" data-reveal data-delay="3">${esc(t('home.lead'))}</p>
+        <div class="h2-cta" data-reveal data-delay="4">
+          <a href="/new" class="btn btn-gold"><span>${t('home.cta')}</span>${OL.ICON.arrow}</a>
+          <a href="/clothing" class="btn btn-ghost"><span>${t('home.cta2')}</span></a>
+        </div>
+        <ul class="h2-facts" data-stagger>
+          <li><b>${esc(di.stock_days || '1–3')}</b><span>${t('home.stockTitle')}</span></li>
+          <li><b>${esc(di.order_days || '10–18')}</b><span>${t('home.orderTitle')}</span></li>
+          <li><b>100%</b><span>${esc(t('home.trust')[0].t.replace(/^100%\s*/, ''))}</span></li>
+        </ul>
+      </div>`;
+    const kind = html.dataset.hero || 'split';
+    if (kind === 'triptych') {
+      const pics = [['look-1', '01'], ['suit-1', '02'], ['blazer-1', '03']];
+      return `<section class="h2 is-tri">
+        <div class="h2-tri">${pics.map(([k, n], i) => `<figure class="h2-fig" data-img><img src="${OL.img(k, 900, 1200)}" alt="" ${i ? '' : 'fetchpriority="high"'}><figcaption>${n}</figcaption></figure>`).join('')}</div>
+        ${copy('is-center')}
+      </section>`;
+    }
+    if (kind === 'full') {
+      return `<section class="h2 is-full">
+        <figure class="h2-bg"><img src="${own ? OL.pimg(own, 2000, 1300) : OL.img('suit-1', 2000, 1300)}" alt="" fetchpriority="high"></figure>
+        <div class="container h2-full-inner">${copy('is-plate')}</div>
+      </section>`;
+    }
+    return `<section class="h2 is-split">
+      ${copy()}
+      <figure class="h2-media" data-img><img src="${main}" alt="" fetchpriority="high" data-parallax="5"><figcaption>01 — ${t('home.eyebrow')}</figcaption></figure>
+    </section>`;
+  };
+
   /* ============================================================= editorial */
   const editorialTop = () => {
     const esc = OL.esc;
@@ -354,20 +395,7 @@
     const cats = OL.CATEGORIES.filter((c) => counts.cat[c.slug] > 0);
     const brands = OL.BRANDS.slice(0, 12);
     return `
-      <section class="h-hero">
-        <div class="h-hero-media">${hero.image ? `<img src="${OL.pimg(hero.image, 1600, 1200)}" alt="${esc(hero.product ? `${hero.product.brand} ${hero.product.name}` : '')}" fetchpriority="high">` : ''}</div>
-        <div class="container h-hero-inner">
-          <div class="h-hero-copy">
-            <span class="eyebrow" data-reveal><i class="eyebrow-line"></i>${t('home.eyebrow')}</span>
-            <h1 class="h-serif h-hero-title" data-split data-delay="2">${esc(t('home.title'))}</h1>
-            <p class="h-hero-lead" data-reveal data-delay="4">${esc(t('home.lead'))}</p>
-            <div class="h-hero-cta" data-reveal data-delay="5">
-              <a href="/new" class="btn btn-gold"><span>${t('home.cta')}</span>${OL.ICON.arrow}</a>
-              <a href="/clothing" class="btn btn-ghost"><span>${t('home.cta2')}</span></a>
-            </div>
-          </div>
-        </div>
-      </section>
+      ${heroBlock()}
 
       <section class="h-depts container" data-stagger>
         ${DEPTS.map((d) => `

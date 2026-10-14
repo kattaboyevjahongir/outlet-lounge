@@ -1,0 +1,65 @@
+/* =========================================================
+   Editorial opening screen — three layouts (html[data-hero]: split | triptych | full).
+   No wash over the photographs: text always sits on a solid surface, so it stays crisp in both themes.
+   ========================================================= */
+.h2 { position: relative; padding-top: var(--header-h); }
+.h2-title { margin: 18px 0 0; font: 400 clamp(46px, 6.2vw, 104px)/.98 var(--font-serif); letter-spacing: -.02em; color: var(--text); }
+.h2-lead { margin-top: 22px; max-width: 46ch; font-size: clamp(16px, 1.3vw, 19px); line-height: 1.6; color: var(--text-2); }
+.h2-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.h2-facts { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0; margin-top: clamp(34px, 5vh, 56px); padding-top: 22px; border-top: 1px solid var(--line); }
+.h2-facts li { display: grid; gap: 4px; padding-right: clamp(18px, 2.6vw, 40px); margin-right: clamp(18px, 2.6vw, 40px); border-right: 1px solid var(--line); }
+.h2-facts li:last-child { border-right: 0; margin-right: 0; }
+.h2-facts b { font: 400 clamp(26px, 2.4vw, 36px)/1 var(--font-serif); color: var(--gold-ink); }
+.h2-facts span { font: 500 11px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: var(--text-3); }
+
+/* split: copy on a solid panel, a tall photograph beside it */
+.h2.is-split { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); min-height: min(100svh, 980px); }
+.is-split .h2-copy { align-self: center; padding: clamp(40px, 7vh, 90px) clamp(24px, 4vw, 72px) clamp(40px, 7vh, 90px) var(--gutter); max-width: 760px; }
+.h2-media { position: relative; margin: 0; overflow: hidden; background: var(--img-bg); }
+.h2-media img { position: absolute; inset: -6% 0; width: 100%; height: 112%; object-fit: cover; object-position: center 25%; }
+.h2-media figcaption, .h2-fig figcaption { position: absolute; left: 20px; bottom: 18px; padding: 7px 12px; background: rgba(10, 10, 10, .72); color: #F7F4EE; font: 500 10.5px var(--font-body); letter-spacing: .22em; text-transform: uppercase; }
+
+/* triptych: three looks, the title centred below */
+.h2-tri { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; height: min(72svh, 760px); padding: 0 6px; }
+.h2-fig { position: relative; margin: 0; overflow: hidden; background: var(--img-bg); }
+.h2-fig img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; transition: scale 1.4s var(--ease-out); }
+.h2-fig:hover img { scale: 1.04; }
+.h2-copy.is-center { display: grid; justify-items: center; text-align: center; padding: clamp(36px, 6vw, 80px) var(--gutter) 0; }
+.h2-copy.is-center .h2-lead { margin-inline: auto; }
+.h2-copy.is-center .h2-cta, .h2-copy.is-center .h2-facts { justify-content: center; }
+
+/* full: one bright photograph, the copy on a solid plate */
+.h2.is-full { min-height: min(100svh, 980px); display: flex; align-items: flex-end; overflow: hidden; }
+.h2-bg { position: absolute; inset: 0; margin: 0; background: var(--img-bg); }
+.h2-bg img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; }
+.h2-full-inner { position: relative; padding-block: clamp(30px, 6vh, 70px); }
+.h2-copy.is-plate { max-width: 640px; padding: clamp(26px, 3vw, 44px); background: var(--bg); }
+.is-plate .h2-title { font-size: clamp(40px, 4.6vw, 76px); }
+
+@media (max-width: 900px) {
+  .h2.is-split { grid-template-columns: 1fr; }
+  .h2-media { order: -1; height: 62svh; }
+  .is-split .h2-copy { padding: 32px var(--gutter) 10px; }
+  .h2-tri { grid-template-columns: 1.4fr 1fr; height: 58svh; }
+  .h2-tri .h2-fig:nth-child(3) { display: none; }
+  .h2-facts { grid-template-columns: 1fr 1fr 1fr; }
+  .h2-facts li { padding-right: 12px; margin-right: 12px; }
+}
+
+/* =========================================================
+   Crisper colours (html[data-tone="crisp"]): brighter ink, livelier champagne gold
+   ========================================================= */
+:root[data-tone="crisp"][data-theme="dark"], :root[data-tone="crisp"]:not([data-theme]) {
+  --bg: #090909; --bg-2: #101010; --surface: #141414; --surface-2: #1E1C19;
+  --line: rgba(255, 255, 255, .1); --line-strong: rgba(255, 255, 255, .24);
+  --text: #FAF8F4; --text-2: #D3CDC2; --text-3: #A09888;
+  --gold-1: #F6E3B4; --gold-2: #DDB76C; --gold-3: #B88E47; --gold-ink: #EDCB86; --on-gold: #14100A;
+  --img-bg: #171614;
+}
+:root[data-tone="crisp"][data-theme="light"][data-light="current"] {
+  --bg: #FBFAF7; --bg-2: #F3F1EC; --surface: #FFFFFF; --surface-2: #ECE8E0;
+  --line: rgba(20, 18, 15, .1); --line-strong: rgba(20, 18, 15, .24);
+  --text: #121110; --text-2: #46413A; --text-3: #7E776C;
+  --gold-1: #D6B06A; --gold-2: #B58B3F; --gold-3: #8A6526; --gold-ink: #946E2E; --on-gold: #FFFFFF;
+  --img-bg: #EEEBE4;
+}

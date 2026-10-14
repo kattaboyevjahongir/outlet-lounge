@@ -112,14 +112,15 @@
 
   /* ---------- home hero: the photograph settles, the copy fades as you scroll away ---------- */
   M.hero = (root) => {
-    const media = $('.h-hero-media img', root);
-    const copy = $('.h-hero-copy', root);
+    const media = $('.h-hero-media img, .h2-bg img', root);
+    const copy = $('.h-hero-copy, .h2.is-full .h2-copy', root);
     if (!media) return;
     gsap.set(media, { scale: 1.22, autoAlpha: 0 });
     gate.then(() => {
       gsap.to(media, { scale: 1.06, autoAlpha: 1, duration: 2.4, ease: 'expo.out' });
-      track(gsap.to(media, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: '.h-hero', start: 'top top', end: 'bottom top', scrub: true } }).scrollTrigger);
-      if (copy) track(gsap.to(copy, { y: -60, autoAlpha: 0, ease: 'none', scrollTrigger: { trigger: '.h-hero', start: '35% top', end: 'bottom top', scrub: true } }).scrollTrigger);
+      const box = media.closest('section');
+      track(gsap.to(media, { yPercent: 14, ease: 'none', scrollTrigger: { trigger: box, start: 'top top', end: 'bottom top', scrub: true } }).scrollTrigger);
+      if (copy) track(gsap.to(copy, { y: -60, autoAlpha: 0, ease: 'none', scrollTrigger: { trigger: box, start: '35% top', end: 'bottom top', scrub: true } }).scrollTrigger);
     });
   };
 
