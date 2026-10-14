@@ -6,6 +6,7 @@ import { ICON } from '../ui.js';
 export default async function page({ me }) {
   const owner = me.role === 'owner';
   const links = [
+    owner && { href: '/admin/categories', label: t('nav.categories') },
     owner && { href: '/admin/promo', label: t('nav.promo') },
     owner && { href: '/admin/reports', label: t('nav.reports') },
     owner && { href: '/admin/settings', label: t('nav.settings') },

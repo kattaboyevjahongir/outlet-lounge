@@ -4,7 +4,7 @@ import { t } from '../i18n.js';
 import { activityView } from '../logic.js';
 import { money, dateTimeFull, errorText, deniedPage } from '../ui.js';
 
-const ENTITIES = ['products', 'product_sizes', 'promo_codes', 'settings', 'staff'];
+const ENTITIES = ['products', 'product_sizes', 'categories', 'promo_codes', 'settings', 'staff'];
 const PAGE = 40;
 const MONEY_FIELDS = new Set(['price', 'old_price', 'min_order', 'value']);
 
@@ -41,7 +41,7 @@ export default async function page({ data, me, query }) {
 
       const line = (row) => {
         const v = activityView(row);
-        const what = row.entity === 'product_sizes' && v.eu ? `${t('act.e.product_sizes')} ${t('act.size', { eu: v.eu })}` : t(`act.e.${row.entity}`);
+        const what = row.entity === 'product_sizes' && v.size ? `${t('act.e.product_sizes')} ${t('act.size', { size: v.size })}` : t(`act.e.${row.entity}`);
         return html`<li>
           <div class="act-head"><b>${row.actor}</b> ${t(`act.${row.action}`)} ${what} <b>«${v.label}»</b>
             <small>${dateTimeFull(row.created_at)}</small></div>

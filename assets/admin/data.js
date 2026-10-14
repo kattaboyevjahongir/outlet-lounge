@@ -21,6 +21,7 @@ export function mapError(e) {
   const code = String((e && e.code) || '');
   if (/last_owner/.test(msg)) return new AdminError('last_owner', msg);
   if ((code === '23505' || /duplicate key|unique/i.test(msg)) && /promo_codes/.test(msg)) return new AdminError('promo_taken', msg);
+  if ((code === '23505' || /duplicate key|unique/i.test(msg)) && /categories/.test(msg)) return new AdminError('category_taken', msg);
   if (code === '23505' || /duplicate key|unique/i.test(msg)) return new AdminError('slug_taken', msg);
   if (code === '42501' || /permission denied|row-level security|forbidden/i.test(msg)) return new AdminError('denied', msg);
   if (code === 'PGRST301' || /jwt|not authenticated|invalid refresh token/i.test(msg)) return new AdminError('auth', msg);
@@ -32,21 +33,27 @@ export function mapError(e) {
 
 const ORDER_LIST_COLUMNS =
   'id,number,status,customer_name,phone,total,delivery_method,payment_method,created_at,order_items(qty)';
+const SIZE_COLUMNS = 'id,label,sort,stock,orderable';
 const PRODUCT_LIST_COLUMNS =
-  'id,slug,name,colorway,sku,category,gender,price,old_price,is_active,is_new,is_featured,created_at,tags,' +
-  'brand_id,brands(name),product_images(path,sort,is_main),product_sizes(id,eu,us,cm,stock)';
-
-const asNumber = (v) => (v == null ? null : Number(v));
+  'id,slug,name,color,color_hex,color_group,style_code,sku,category,price,old_price,origin,is_active,is_new,is_featured,created_at,tags,' +
+  `brand_id,brands(name),product_images(path,sort,is_main),product_sizes(${SIZE_COLUMNS})`;
 
 export function normalizeProduct(r) {
   return {
     id: r.id,
     slug: r.slug,
     name: r.name,
-    colorway: r.colorway || '',
+    color: r.color || '',
+    color_hex: r.color_hex || '',
+    color_group: r.color_group || '',
+    style_code: r.style_code || '',
     sku: r.sku || '',
     category: r.category,
-    gender: r.gender,
+    origin: r.origin || '',
+    material: r.material || '',
+    fit: r.fit || '',
+    model_info: r.model_info || '',
+    order_lead: r.order_lead || '',
     price: r.price,
     old_price: r.old_price,
     is_active: !!r.is_active,
@@ -65,8 +72,8 @@ export function normalizeProduct(r) {
       .sort((a, b) => a.sort - b.sort)
       .map((i) => ({ path: i.path })),
     sizes: [...(r.product_sizes || [])]
-      .sort((a, b) => Number(a.eu) - Number(b.eu))
-      .map((s) => ({ id: s.id, eu: Number(s.eu), us: asNumber(s.us), cm: asNumber(s.cm), stock: s.stock })),
+      .sort((a, b) => a.sort - b.sort || String(a.label).localeCompare(String(b.label), 'en', { numeric: true }))
+      .map((s) => ({ id: s.id, label: s.label, stock: s.stock, orderable: s.orderable !== false })),
   };
 }
 
@@ -181,7 +188,8 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
             id: i.id,
             brand: i.brand_snapshot || '',
             name: i.name_snapshot,
-            size_eu: Number(i.size_eu),
+            size_label: i.size_label,
+            fulfilment: i.fulfilment || 'stock',
             qty: i.qty,
             unit_price: i.unit_price,
             product_id: i.product_id,
@@ -230,7 +238,7 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
     async getProduct(id) {
       const res = await client
         .from('products')
-        .select('*,brands(name),product_images(path,sort,is_main),product_sizes(id,eu,us,cm,stock)')
+        .select(`*,brands(name),product_images(path,sort,is_main),product_sizes(${SIZE_COLUMNS})`)
         .eq('id', id)
         .maybeSingle();
       const row = check(res);
@@ -247,6 +255,11 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
     },
     async saveProduct(payload) {
       return check(await client.rpc('admin_save_product', { p: payload }));
+    },
+    // links a product to the colours of the same item (shared style code)
+    async setStyleCode(id, code) {
+      const res = await client.from('products').update({ style_code: code || null }).eq('id', id).select('id');
+      if (check(res).length === 0) throw new AdminError('denied');
     },
     async setProductActive(id, active) {
       const res = await client.from('products').update({ is_active: !!active }).eq('id', id).select('id');
@@ -266,10 +279,54 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
       if (!rows.length) throw new AdminError('denied');
       return rows[0].stock;
     },
-    async addSize(productId, { eu, us = null, cm = null, stock = 0 }) {
-      const res = await client.from('product_sizes').insert({ product_id: productId, eu, us, cm, stock }).select('id,eu,us,cm,stock');
+    // new display positions after a size was added in the middle: [{ id, sort }]
+    async setSizeSorts(list) {
+      for (const { id, sort } of list) {
+        const res = await client.from('product_sizes').update({ sort }).eq('id', id).select('id');
+        if (check(res).length === 0) throw new AdminError('denied');
+      }
+    },
+    async setOrderable(sizeId, orderable) {
+      const res = await client.from('product_sizes').update({ orderable: !!orderable }).eq('id', sizeId).select('id,orderable');
       const rows = check(res);
-      return { id: rows[0].id, eu: Number(rows[0].eu), us: asNumber(rows[0].us), cm: asNumber(rows[0].cm), stock: rows[0].stock };
+      if (!rows.length) throw new AdminError('denied');
+      return rows[0].orderable;
+    },
+    // a new size goes to the end of the product's list
+    async addSize(productId, { label, stock = 0, orderable = true, sort = 0 }) {
+      const res = await client.from('product_sizes').insert({ product_id: productId, label, stock, orderable, sort }).select(SIZE_COLUMNS);
+      const rows = check(res);
+      return { id: rows[0].id, label: rows[0].label, stock: rows[0].stock, orderable: rows[0].orderable !== false };
+    },
+
+    /* ------------------------------------------------------ categories */
+    async listCategories() {
+      const res = await client.from('categories').select('slug,department,name_ru,name_uz,name_en,size_system,image_path,sort,is_active').order('sort');
+      return check(res);
+    },
+    // number of products per category slug (all, including hidden)
+    async categoryCounts() {
+      const res = check(await client.from('products').select('category'));
+      const n = {};
+      for (const r of res) n[r.category] = (n[r.category] || 0) + 1;
+      return n;
+    },
+    // `slug` = the current slug when editing (it may be renamed), null when creating
+    async saveCategory(row, slug) {
+      const q = slug
+        ? client.from('categories').update(row).eq('slug', slug).select('slug')
+        : client.from('categories').insert(row).select('slug');
+      const res = await q;
+      if (res.error) throw mapError(res.error);
+      if (!res.data.length) throw new AdminError('denied');
+    },
+    async deleteCategory(slug) {
+      const res = await client.from('categories').delete().eq('slug', slug).select('slug');
+      if (res.error) {
+        if (res.error.code === '23503' || /foreign key/i.test(res.error.message || '')) throw new AdminError('category_in_use');
+        throw mapError(res.error);
+      }
+      if (res.data.length === 0) throw new AdminError('denied');
     },
 
     /* ---------------------------------------------------------- photos */
@@ -377,7 +434,7 @@ export function createData({ client, supabaseUrl, apiBase = '' }) {
       const rows = [];
       for (let offset = 0; offset < 20000; offset += 500) {
         const res = await client.from('orders')
-          .select('number,status,created_at,customer_name,phone,telegram,delivery_method,region,city,address,landmark,payment_method,subtotal,discount,delivery_fee,total,comment,tracking_no,promo_codes(code),order_items(brand_snapshot,name_snapshot,size_eu,qty,unit_price)')
+          .select('number,status,created_at,customer_name,phone,telegram,delivery_method,region,city,address,landmark,payment_method,subtotal,discount,delivery_fee,total,comment,tracking_no,promo_codes(code),order_items(brand_snapshot,name_snapshot,size_label,fulfilment,qty,unit_price)')
           .gte('created_at', from).lt('created_at', to).order('created_at').range(offset, offset + 499);
         const page = check(res);
         rows.push(...page);

@@ -26,6 +26,8 @@ export default async function page({ data, params, go, requestOverview }) {
   const tel = telHref(o.phone);
   const tg = tgHref(o.telegram);
   const next = nextStatuses(o.status);
+  // pieces of this order that still have to be bought abroad (only while the order is open)
+  const abroad = isFinal(o.status) ? 0 : o.items.filter((i) => i.fulfilment === 'order').reduce((n, i) => n + i.qty, 0);
 
   const statusButtons = next.length ? html`<div class="status-actions">${next.map((s) => html`
       <button type="button" class="btn ${s === 'cancelled' ? 'btn-danger-ghost' : s === 'no_answer' ? 'btn-ghost' : 'btn-gold'}" data-status="${s}">${t(`status.${s}`)}</button>`)}</div>`
@@ -49,12 +51,14 @@ export default async function page({ data, params, go, requestOverview }) {
         </section>
         <section class="card">
           <h2>${t('order.items')}</h2>
+          ${abroad ? html`<p class="notice">${ICON.plane}<span>${t('order.abroad', { n: abroad })}</span></p>` : ''}
           <ul class="lines">${o.items.map((i) => html`<li>
             <span class="thumb">${photo(data, i.image, 200, '')}</span>
             <span class="line-main">
               ${i.product_id ? html`<a href="/admin/products/${i.product_id}"><b>${[i.brand, i.name].filter(Boolean).join(' ')}</b></a>`
                 : html`<b>${[i.brand, i.name].filter(Boolean).join(' ')}</b>`}
-              <small>EU ${i.size_eu} · ${i.qty} × ${money(i.unit_price)}${i.product_id ? '' : ` · ${t('order.productGone')}`}</small>
+              <small>${i.size_label} · ${i.qty} × ${money(i.unit_price)}${i.product_id ? '' : ` · ${t('order.productGone')}`}</small>
+              <small><span class="badge ful-${i.fulfilment}">${ICON.plane}${t(`order.fulfil.${i.fulfilment}`)}</span></small>
             </span>
             <b class="nowrap">${money(i.unit_price * i.qty)}</b>
           </li>`)}</ul>
@@ -152,7 +156,7 @@ export default async function page({ data, params, go, requestOverview }) {
         if (act.dataset.act === 'courier') {
           const L = {};
           ['order', 'customer', 'delivery', 'landmark', 'total', 'comment'].forEach((k) => { L[k] = t(`order.courierLabels.${k}`); });
-          const text = courierText(o, { ...L, deliveryName: t(`delivery.${o.delivery_method}`), paymentName: t(`payment.${o.payment_method}`) });
+          const text = courierText(o, { ...L, onOrder: t('order.fulfil.order'), deliveryName: t(`delivery.${o.delivery_method}`), paymentName: t(`payment.${o.payment_method}`) });
           try {
             await navigator.clipboard.writeText(text);
             toast(t('common.copied'));

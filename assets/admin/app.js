@@ -31,6 +31,7 @@ const NAV = [
 ];
 // owner-only screens (the database refuses managers anyway; this just keeps the menu short for them)
 const NAV_OWNER = [
+  { id: 'categories', path: '/admin/categories', icon: ICON.categories },
   { id: 'promo', path: '/admin/promo', icon: ICON.tag },
   { id: 'reports', path: '/admin/reports', icon: ICON.chart },
   { id: 'settings', path: '/admin/settings', icon: ICON.cog },
@@ -45,6 +46,7 @@ const PAGES = {
   products: () => import('./pages/products.js'),
   product: () => import('./pages/product.js'),
   stock: () => import('./pages/stock.js'),
+  categories: () => import('./pages/categories.js'),
   promo: () => import('./pages/promo.js'),
   reports: () => import('./pages/reports.js'),
   settings: () => import('./pages/settings.js'),
@@ -78,7 +80,7 @@ function resolve(pathname) {
   if (p === '/admin/products/new') return { name: 'product', nav: 'products', params: { id: null } };
   if ((m = p.match(/^\/admin\/products\/([0-9a-zA-Z-]+)$/))) return { name: 'product', nav: 'products', params: { id: m[1] } };
   if (p === '/admin/stock') return { name: 'stock', nav: 'stock', params: {} };
-  if ((m = p.match(/^\/admin\/(promo|reports|settings|staff|activity|account|more)$/))) return { name: m[1], nav: m[1], params: {} };
+  if ((m = p.match(/^\/admin\/(categories|promo|reports|settings|staff|activity|account|more)$/))) return { name: m[1], nav: m[1], params: {} };
   return null;
 }
 

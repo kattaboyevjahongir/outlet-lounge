@@ -48,18 +48,64 @@ export const slugify = (s) =>
 export const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /* ------------------------------------------------------------ products */
-export const CATEGORIES = ['running', 'lifestyle', 'basketball'];
-export const GENDERS = ['men', 'women', 'kids', 'unisex'];
-export const SIZE_PRESETS = {
-  adult: [36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46],
-  women: [35, 36, 37, 38, 39, 40, 41],
-  men: [39, 40, 41, 42, 43, 44, 45, 46],
-  kids: [28, 29, 30, 31, 32, 33, 34, 35],
+export const DEPARTMENTS = ['clothing', 'shoes', 'accessories'];
+
+// Size labels per size system, in display order. The storefront has the same lists
+// (assets/js/data.js OL.SIZE_SYSTEMS); a test keeps them identical.
+export const SIZE_SYSTEMS = {
+  letter: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
+  ru: ['44', '46', '48', '50', '52', '54', '56', '58', '60', '62'],
+  waist: ['28', '29', '30', '31', '32', '33', '34', '36', '38', '40'],
+  shoes: ['38', '39', '40', '41', '42', '43', '44', '45', '46', '47'],
+  belt: ['85', '90', '95', '100', '105', '110', '115'],
+  one: ['ONE SIZE'],
 };
+export const SIZE_SYSTEM_IDS = Object.keys(SIZE_SYSTEMS);
+export const SIZE_LABEL_RE = /^[A-Za-z0-9][A-Za-z0-9 ./-]{0,11}$/;
+export const COLOR_GROUPS = ['black', 'white', 'grey', 'navy', 'blue', 'green', 'beige', 'brown', 'red', 'other'];
+export const FITS = ['slim', 'regular', 'relaxed', 'oversized'];
+// countries items are usually imported from (ISO codes; any other 2-letter code can be typed)
+export const COUNTRIES = ['IT', 'FR', 'US', 'GB', 'DE', 'NL', 'ES', 'PT', 'PL', 'TR', 'AE', 'CN', 'VN', 'ID', 'KR', 'JP'];
+export const LEAD_RE = /^[0-9]{1,3}([–-][0-9]{1,3})?$/;
+export const STYLE_RE = /^[A-Za-z0-9._-]{1,40}$/;
+
+// the labels of one size system as form rows (sold out until the owner types a quantity)
+export const sizeRows = (system) => (SIZE_SYSTEMS[system] || SIZE_SYSTEMS.letter).map((label) => ({ label, stock: '', orderable: true }));
+// position of a label in its size system (labels the system does not know come last)
+const rankIn = (system, label) => {
+  const i = (SIZE_SYSTEMS[system] || []).indexOf(label);
+  return i < 0 ? 1000 : i;
+};
+const natural = (a, b) => String(a).localeCompare(String(b), 'en', { numeric: true });
+// columns of the stock grid: a system's own order first, any other label after, in natural order
+export const sortLabels = (labels, system) =>
+  [...new Set(labels)].sort((a, b) => rankIn(system, a) - rankIn(system, b) || natural(a, b));
+// where a new label goes in a product's own list: after the last label that comes before it in the
+// system; a label the system does not know goes to the end. Returns the new list of labels.
+export function placeLabel(labels, label, system) {
+  const r = rankIn(system, label);
+  if (r === 1000) return [...labels, label];
+  let at = 0;
+  labels.forEach((l, i) => { if (rankIn(system, l) < r) at = i + 1; });
+  return [...labels.slice(0, at), label, ...labels.slice(at)];
+}
+export const systemOfCategory = (categories, slug) => {
+  const c = (categories || []).find((x) => x.slug === slug);
+  return c ? c.size_system : 'letter';
+};
+export const categoryDepartment = (categories, slug) => {
+  const c = (categories || []).find((x) => x.slug === slug);
+  return c ? c.department : '';
+};
+// a style code the owner would recognise, from brand + name ("Lacoste Classic Fit Polo" → LACOSTE-CLASSIC-FIT-POLO)
+export const styleCodeFor = (brand, name) =>
+  slugify(`${brand || ''} ${name || ''}`).toUpperCase().slice(0, 30).replace(/-+$/, '');
 
 export const emptyProduct = () => ({
-  id: null, slug: '', slugTouched: false, brand_id: '', brand_name: '', name: '', colorway: '', sku: '',
-  category: 'lifestyle', gender: 'unisex', price: '', old_price: '',
+  id: null, slug: '', slugTouched: false, brand_id: '', brand_name: '', name: '',
+  color: '', color_hex: '', color_group: '', style_code: '', sku: '',
+  category: '', price: '', old_price: '',
+  origin: '', material: '', fit: '', model_info: '', order_lead: '',
   description_ru: '', description_uz: '', description_en: '', tags: '',
   is_new: false, is_featured: false, is_active: true, seo_title: '', seo_description: '',
   sizes: [], images: [],
@@ -83,19 +129,22 @@ export function validateProduct(f) {
   const old = parseMoney(f.old_price);
   if (old != null && price != null && old <= price) errors.old_price = 'above_price';
   if (!f.slug || !SLUG_RE.test(f.slug)) errors.slug = 'slug';
+  if (f.color_hex && !/^#[0-9A-Fa-f]{6}$/.test(String(f.color_hex).trim())) errors.color_hex = 'hex';
+  if (f.color_group && !COLOR_GROUPS.includes(f.color_group)) errors.color_group = 'invalid';
+  if (f.style_code && !STYLE_RE.test(String(f.style_code).trim())) errors.style_code = 'style';
+  if (f.origin && !/^[A-Za-z]{2}$/.test(String(f.origin).trim())) errors.origin = 'origin';
+  if (f.fit && !FITS.includes(f.fit)) errors.fit = 'invalid';
+  if (f.order_lead && !LEAD_RE.test(String(f.order_lead).trim())) errors.order_lead = 'lead';
+  for (const k of ['material', 'model_info']) if (String(f[k] || '').length > 160) errors[k] = 'long';
   const seen = new Set();
   (f.sizes || []).forEach((s, i) => {
-    const eu = num(s.eu);
-    if (eu == null || Number.isNaN(eu) || eu < 16 || eu > 60 || (eu * 2) % 1 !== 0) errors[`size.${i}.eu`] = 'size';
-    else if (seen.has(eu)) errors[`size.${i}.eu`] = 'duplicate';
-    else seen.add(eu);
+    const label = String(s.label == null ? '' : s.label).trim();
+    if (!SIZE_LABEL_RE.test(label)) errors[`size.${i}.label`] = 'size';
+    else if (seen.has(label)) errors[`size.${i}.label`] = 'duplicate';
+    else seen.add(label);
     const st = num(s.stock);
     if (Number.isNaN(st) || (st != null && (st < 0 || !Number.isInteger(st)))) errors[`size.${i}.stock`] = 'stock';
-    if (st == null && !s.id) errors[`size.${i}.stock`] = 'stock'; // a new size needs a quantity
-    for (const k of ['us', 'cm']) {
-      const v = num(s[k]);
-      if (Number.isNaN(v) || (v != null && (v < 0 || v > 80))) errors[`size.${i}.${k}`] = 'number';
-    }
+    if (st == null && !s.id) errors[`size.${i}.stock`] = 'stock'; // a new size needs a quantity (0 is fine)
   });
   return { ok: Object.keys(errors).length === 0, errors };
 }
@@ -104,20 +153,29 @@ export const splitTags = (v) =>
   [...new Set((Array.isArray(v) ? v : String(v || '').split(/[,;\n]/)).map((s) => String(s).trim().toLowerCase()).filter(Boolean))].slice(0, 30);
 
 // form → the argument of admin_save_product(). An existing size whose quantity was not touched is
-// sent with stock null so a concurrent sale is not overwritten with an old number.
+// sent with stock null so a concurrent sale is not overwritten with an old number. The order of
+// the size rows is the display order on the shop.
 export function toPayload(f) {
+  const text = (v) => String(v || '').trim() || null;
   return {
     id: f.id || undefined,
     slug: f.slug,
     brand_id: f.brand_id || null,
     brand_name: f.brand_id ? null : String(f.brand_name || '').trim(),
     name: String(f.name).trim(),
-    colorway: String(f.colorway || '').trim() || null,
-    sku: String(f.sku || '').trim() || null,
+    color: text(f.color),
+    color_hex: text(f.color_hex),
+    color_group: text(f.color_group),
+    style_code: text(f.style_code),
+    sku: text(f.sku),
     category: f.category,
-    gender: f.gender || 'unisex',
     price: parseMoney(f.price),
     old_price: parseMoney(f.old_price),
+    origin: text(f.origin) && String(f.origin).trim().toUpperCase(),
+    material: text(f.material),
+    fit: text(f.fit),
+    model_info: text(f.model_info),
+    order_lead: text(f.order_lead),
     description_ru: f.description_ru || null,
     description_uz: f.description_uz || null,
     description_en: f.description_en || null,
@@ -125,38 +183,91 @@ export function toPayload(f) {
     is_new: !!f.is_new,
     is_featured: !!f.is_featured,
     is_active: !!f.is_active,
-    seo_title: String(f.seo_title || '').trim() || null,
-    seo_description: String(f.seo_description || '').trim() || null,
+    seo_title: text(f.seo_title),
+    seo_description: text(f.seo_description),
     sizes: (f.sizes || []).map((s) => ({
-      eu: num(s.eu),
-      us: num(s.us),
-      cm: num(s.cm),
+      label: String(s.label).trim(),
+      orderable: s.orderable !== false,
       stock: s.id && !s.dirty ? null : (num(s.stock) ?? 0),
     })),
     images: (f.images || []).map((i) => ({ path: i.path })),
   };
 }
 
+// Other colours of the same item: products that share the style code.
+export function colourSiblings(list, p) {
+  const code = String((p && p.style_code) || '').trim().toLowerCase();
+  if (!code) return [];
+  return list.filter((x) => x.id !== p.id && String(x.style_code || '').trim().toLowerCase() === code);
+}
+
+// A copy of a product to become its next colour: same text, price, category and size rows, but no photos,
+// no stock, no colour, and a new address. The style code ties it to the original.
+export function duplicateAsColour(f) {
+  const code = String(f.style_code || '').trim() || styleCodeFor(f.brand_name, f.name);
+  return {
+    ...emptyProduct(),
+    ...f,
+    id: null, slug: '', slugTouched: false,
+    color: '', color_hex: '', color_group: '', style_code: code, sku: '',
+    images: [],
+    is_new: !!f.is_new, is_active: false,   // hidden until the photos are in
+    sizes: (f.sizes || []).map((s) => ({ label: s.label, stock: '', orderable: s.orderable !== false })),
+  };
+}
+
+/* ---------------------------------------------------------- categories */
+export const emptyCategory = () => ({ slug: '', department: 'clothing', name_ru: '', name_uz: '', name_en: '', size_system: 'letter', sort: '', is_active: true, image_path: '' });
+export function validateCategory(f, existingSlugs = []) {
+  const errors = {};
+  const slug = String(f.slug || '').trim();
+  if (!SLUG_RE.test(slug)) errors.slug = 'slug';
+  else if (f.isNew && existingSlugs.includes(slug)) errors.slug = 'taken';
+  if (!DEPARTMENTS.includes(f.department)) errors.department = 'invalid';
+  for (const k of ['name_ru', 'name_uz', 'name_en']) {
+    const v = String(f[k] || '').trim();
+    if (!v) errors[k] = 'required';
+    else if (v.length > 60) errors[k] = 'long';
+  }
+  if (!SIZE_SYSTEM_IDS.includes(f.size_system)) errors.size_system = 'invalid';
+  const sort = num(f.sort);
+  if (f.sort !== '' && f.sort != null && (Number.isNaN(sort) || !Number.isInteger(sort) || sort < 0 || sort > 9999)) errors.sort = 'number';
+  return { ok: Object.keys(errors).length === 0, errors };
+}
+export const categoryToRow = (f) => ({
+  slug: String(f.slug).trim(),
+  department: f.department,
+  name_ru: String(f.name_ru).trim(),
+  name_uz: String(f.name_uz).trim(),
+  name_en: String(f.name_en).trim(),
+  size_system: f.size_system,
+  sort: num(f.sort) ?? 0,
+  is_active: !!f.is_active,
+  image_path: String(f.image_path || '').trim() || null,
+});
+
 // Reasons a product can't be bought right now. 'hidden' wins, then 'sold_out', then 'low'.
 export function stockState(p) {
   const total = (p.sizes || []).reduce((n, s) => n + (Number(s.stock) || 0), 0);
   if (!p.is_active) return { state: 'hidden', total };
-  if (total === 0) return { state: 'sold_out', total };
+  if (total === 0) return { state: (p.sizes || []).some((s) => s.orderable === true) ? 'on_order' : 'sold_out', total };
   if (total <= 3) return { state: 'low', total };
   return { state: 'ok', total };
 }
 
-export function filterProducts(list, { q = '', brand = '', category = '', state = '' } = {}) {
+// dept: a department id; `depts` maps category slug → department (the categories table)
+export function filterProducts(list, { q = '', brand = '', category = '', dept = '', depts = {}, state = '' } = {}) {
   const needle = String(q).trim().toLowerCase();
   return list.filter((p) => {
     if (brand && p.brand_id !== brand) return false;
     if (category && p.category !== category) return false;
+    if (dept && depts[p.category] !== dept) return false;
     if (state) {
       const s = stockState(p).state;
       if (state === 'active' ? s === 'hidden' : s !== state) return false;
     }
     if (!needle) return true;
-    return [p.name, p.colorway, p.sku, p.brand_name, p.slug, (p.tags || []).join(' ')]
+    return [p.name, p.color, p.sku, p.style_code, p.brand_name, p.slug, (p.tags || []).join(' ')]
       .some((v) => String(v || '').toLowerCase().includes(needle));
   });
 }
@@ -191,7 +302,8 @@ export function courierText(o, labels) {
   if (o.landmark) L.push(`${labels.landmark}: ${o.landmark}`);
   L.push('');
   (o.items || []).forEach((i, k) => {
-    L.push(`${k + 1}) ${[i.brand, i.name].filter(Boolean).join(' ')} — EU ${i.size_eu} × ${i.qty} — ${fmtMoney(i.unit_price * i.qty)}`);
+    const abroad = i.fulfilment === 'order' && labels.onOrder ? ` (${labels.onOrder})` : '';
+    L.push(`${k + 1}) ${[i.brand, i.name].filter(Boolean).join(' ')} — ${i.size_label} × ${i.qty} — ${fmtMoney(i.unit_price * i.qty)}${abroad}`);
   });
   L.push('');
   L.push(`${labels.total}: ${fmtMoney(o.total)} (${labels.paymentName})`);
@@ -327,6 +439,12 @@ export function validateDelivery(d) {
     if (fee == null || fee < 0) errors[id] = 'fee';
   }
   if (d.free_threshold !== '' && d.free_threshold != null && parseMoney(d.free_threshold) == null) errors.free_threshold = 'fee';
+  for (const k of ['stock_days', 'order_days']) {
+    if (d[k] && !LEAD_RE.test(String(d[k]).trim())) errors[k] = 'days';
+  }
+  for (const k of ['order_note_ru', 'order_note_uz', 'order_note_en']) {
+    if (String(d[k] || '').length > 300) errors[k] = 'long';
+  }
   return { ok: Object.keys(errors).length === 0, errors };
 }
 
@@ -384,7 +502,7 @@ export function activityView(row) {
   const changes = Object.entries(diff.changes || {})
     .filter(([k]) => !SKIP_FIELDS.has(k))
     .map(([field, [from, to]]) => ({ field, from, to }));
-  return { entity: row.entity, action: row.action, label: diff.label || '', eu: diff.eu || null, changes };
+  return { entity: row.entity, action: row.action, label: diff.label || '', size: diff.size || null, changes };
 }
 
 

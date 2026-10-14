@@ -73,16 +73,21 @@ test('database / network errors become stable codes', () => {
 
 test('normalizeProduct orders sizes and photos and flattens the brand', () => {
   const p = normalizeProduct({
-    id: 'p1', slug: 'x', name: 'X', colorway: null, sku: null, category: 'running', gender: 'unisex', price: 100, old_price: null,
+    id: 'p1', slug: 'x', name: 'X', color: 'Navy', color_hex: '#1F2A44', color_group: 'navy', style_code: 'ZZ-1', sku: null,
+    category: 'polos', origin: 'IT', material: null, fit: 'slim', model_info: null, order_lead: '10–18', price: 100, old_price: null,
     is_active: true, is_new: false, is_featured: true, created_at: '2026-01-01', tags: null, brand_id: 'b', brands: { name: 'Nike' },
     product_images: [{ path: 'b', sort: 1, is_main: false }, { path: 'a', sort: 0, is_main: true }],
-    product_sizes: [{ id: 's2', eu: '42.0', us: null, cm: '27.0', stock: 2 }, { id: 's1', eu: '40.5', us: '7.5', cm: null, stock: 0 }],
+    product_sizes: [
+      { id: 's3', label: '10', sort: 2, stock: 1, orderable: true }, { id: 's2', label: 'XL', sort: 1, stock: 2, orderable: false },
+      { id: 's1', label: 'M', sort: 0, stock: 0, orderable: true }, { id: 's4', label: '9', sort: 2, stock: 1, orderable: true },
+    ],
   });
   assert.equal(p.brand_name, 'Nike');
   assert.deepEqual(p.images, [{ path: 'a' }, { path: 'b' }]);
-  assert.deepEqual(p.sizes.map((s) => s.eu), [40.5, 42]);
-  assert.equal(p.sizes[1].us, null);
-  assert.equal(p.sizes[1].cm, 27);
+  assert.deepEqual(p.sizes.map((s) => s.label), ['M', 'XL', '9', '10'], 'saved order first, then natural (9 before 10)');
+  assert.deepEqual(p.sizes.map((s) => s.orderable), [true, false, true, true]);
   assert.deepEqual(p.tags, []);
-  assert.equal(p.colorway, '');
+  assert.deepEqual([p.color, p.color_hex, p.color_group, p.style_code, p.origin, p.fit, p.order_lead, p.material, p.model_info],
+    ['Navy', '#1F2A44', 'navy', 'ZZ-1', 'IT', 'slim', '10–18', '', '']);
+  assert.ok(!('colorway' in p) && !('gender' in p));
 });

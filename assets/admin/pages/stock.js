@@ -1,17 +1,23 @@
-// Stock grid: products × EU sizes, every number editable in place and saved on change.
-import { html, $, $$, debounce } from '../dom.js';
-import { t } from '../i18n.js';
-import { filterProducts, CATEGORIES } from '../logic.js';
-import { photo, toast, errorText } from '../ui.js';
+// Stock grid: products × sizes, every number editable in place and saved on change.
+// Products are grouped by the size system of their category (letter, Russian, waist, shoes, belts, one size),
+// so each table has sensible columns. The plane switches "can be ordered from abroad when none is left".
+import { html, $, debounce } from '../dom.js';
+import { t, getLang } from '../i18n.js';
+import { filterProducts, sortLabels, placeLabel, systemOfCategory, DEPARTMENTS, SIZE_SYSTEM_IDS } from '../logic.js';
+import { ICON, photo, toast, errorText } from '../ui.js';
 
 export default async function page({ data, query }) {
-  const products = await data.listProducts();
+  const [products, categories] = await Promise.all([data.listProducts(), data.listCategories()]);
+  const lang = getLang();
+  const depts = Object.fromEntries(categories.map((c) => [c.slug, c.department]));
+  const catName = (c) => c['name_' + lang] || c.name_en;
   const brands = [...new Map(products.map((p) => [p.brand_id, p.brand_name])).entries()]
     .sort((a, b) => String(a[1]).localeCompare(String(b[1])));
   const f = {
     q: query.get('q') || '',
     brand: query.get('brand') || '',
-    category: CATEGORIES.includes(query.get('category')) ? query.get('category') : '',
+    dept: DEPARTMENTS.includes(query.get('dept')) ? query.get('dept') : '',
+    category: categories.some((c) => c.slug === query.get('category')) ? query.get('category') : '',
     low: query.get('low') === '1',
   };
 
@@ -23,45 +29,61 @@ export default async function page({ data, query }) {
       <label class="field"><span class="sr-only">${t('products.brand')}</span>
         <select name="brand"><option value="">${t('products.brand')}: ${t('common.all')}</option>
           ${brands.map(([id, name]) => html`<option value="${id}" ${id === f.brand ? 'selected' : ''}>${name}</option>`)}</select></label>
+      <label class="field"><span class="sr-only">${t('products.dept')}</span>
+        <select name="dept"><option value="">${t('products.dept')}: ${t('common.all')}</option>
+          ${DEPARTMENTS.map((d) => html`<option value="${d}" ${d === f.dept ? 'selected' : ''}>${t(`dept.${d}`)}</option>`)}</select></label>
       <label class="field"><span class="sr-only">${t('products.category')}</span>
         <select name="category"><option value="">${t('products.category')}: ${t('common.all')}</option>
-          ${CATEGORIES.map((c) => html`<option value="${c}" ${c === f.category ? 'selected' : ''}>${t(`cat.${c}`)}</option>`)}</select></label>
+          ${DEPARTMENTS.map((d) => html`<optgroup label="${t(`dept.${d}`)}">${categories.filter((c) => c.department === d).map((c) =>
+            html`<option value="${c.slug}" ${c.slug === f.category ? 'selected' : ''}>${catName(c)}</option>`)}</optgroup>`)}</select></label>
       <label class="switch"><input type="checkbox" name="low" ${f.low ? 'checked' : ''}><span>${t('stock.onlyLow')}</span></label>
     </form>
     <div id="stockResult"></div>`;
 
   const total = (p) => p.sizes.reduce((n, s) => n + s.stock, 0);
+  const systemOf = (p) => systemOfCategory(categories, p.category);
 
   return {
     title: t('stock.title'),
     body,
     mount(root) {
       const result = $('#stockResult', root);
+
+      const table = (system, list) => {
+        const labels = sortLabels(list.flatMap((p) => p.sizes.map((s) => s.label)), system);
+        return html`
+          <h2 class="group-title">${t('stock.group', { name: t(`sys.${system}`) })}</h2>
+          <div class="table-wrap grid-wrap"><table class="grid">
+            <thead><tr><th class="sticky">${t('products.product')}</th>${labels.map((l) => html`<th>${l}</th>`)}<th>${t('stock.total')}</th></tr></thead>
+            <tbody>${list.map((p) => html`<tr class="${p.is_active ? '' : 'is-hidden'}" data-id="${p.id}">
+              <th class="sticky" scope="row"><a href="/admin/products/${p.id}">
+                <span class="thumb sm">${photo(data, p.images[0] && p.images[0].path, 200, '')}</span>
+                <span class="gname"><b>${p.name}${p.color ? ` · ${p.color}` : ''}</b><small>${p.brand_name}${p.is_active ? '' : ` · ${t('stock.hiddenProduct')}`}</small></span></a></th>
+              ${labels.map((label) => {
+                const s = p.sizes.find((z) => z.label === label);
+                return s
+                  ? html`<td><span class="cellbox"><input class="cell ${s.stock === 0 ? 'z0' : s.stock === 1 ? 'z1' : ''}" type="number" min="0" step="1" inputmode="numeric"
+                      value="${s.stock}" data-size="${s.id}" data-prev="${s.stock}" aria-label="${p.name} ${label}">
+                      <button type="button" class="orderable ${s.orderable ? 'is-on' : ''}" data-orderable="${s.id}" aria-pressed="${s.orderable ? 'true' : 'false'}"
+                        title="${t('stock.orderToggle')}" aria-label="${t('stock.orderToggle')}">${ICON.plane}</button></span></td>`
+                  : html`<td><button type="button" class="cell-add" data-add="${p.id}" data-label="${label}" title="${t('stock.addSize', { label })}" aria-label="${t('stock.addSize', { label })}">—</button></td>`;
+              })}
+              <td class="sum" data-sum>${total(p)}</td>
+            </tr>`)}</tbody>
+          </table></div>`;
+      };
+
       const render = () => {
-        let list = filterProducts(products, { q: f.q, brand: f.brand, category: f.category });
+        let list = filterProducts(products, { q: f.q, brand: f.brand, category: f.category, dept: f.dept, depts });
         if (f.low) list = list.filter((p) => p.sizes.some((s) => s.stock <= 1));
         if (!list.length) {
           result.innerHTML = String(html`<div class="empty-state"><p>${t('stock.empty')}</p></div>`);
           return;
         }
-        const eus = [...new Set(list.flatMap((p) => p.sizes.map((s) => s.eu)))].sort((a, b) => a - b);
-        result.innerHTML = String(html`
-          <div class="table-wrap grid-wrap"><table class="grid">
-            <thead><tr><th class="sticky">${t('products.product')}</th>${eus.map((eu) => html`<th>${eu}</th>`)}<th>${t('stock.total')}</th></tr></thead>
-            <tbody>${list.map((p) => html`<tr class="${p.is_active ? '' : 'is-hidden'}" data-id="${p.id}">
-              <th class="sticky" scope="row"><a href="/admin/products/${p.id}">
-                <span class="thumb sm">${photo(data, p.images[0] && p.images[0].path, 200, '')}</span>
-                <span class="gname"><b>${p.name}</b><small>${p.brand_name}${p.is_active ? '' : ` · ${t('stock.hiddenProduct')}`}</small></span></a></th>
-              ${eus.map((eu) => {
-                const s = p.sizes.find((z) => z.eu === eu);
-                return s
-                  ? html`<td><input class="cell ${s.stock === 0 ? 'z0' : s.stock === 1 ? 'z1' : ''}" type="number" min="0" step="1" inputmode="numeric"
-                      value="${s.stock}" data-size="${s.id}" data-prev="${s.stock}" aria-label="${p.name} EU ${eu}"></td>`
-                  : html`<td><button type="button" class="cell-add" data-add="${p.id}" data-eu="${eu}" title="${t('stock.addSize', { eu })}" aria-label="${t('stock.addSize', { eu })}">—</button></td>`;
-              })}
-              <td class="sum" data-sum>${total(p)}</td>
-            </tr>`)}</tbody>
-          </table></div>`);
+        const groups = SIZE_SYSTEM_IDS
+          .map((system) => [system, list.filter((p) => systemOf(p) === system)])
+          .filter(([, l]) => l.length);
+        result.innerHTML = String(html`${groups.map(([system, l]) => table(system, l))}`);
       };
 
       const form = $('#stockFilters', root);
@@ -70,6 +92,7 @@ export default async function page({ data, query }) {
         const p = new URLSearchParams();
         if (f.q) p.set('q', f.q);
         if (f.brand) p.set('brand', f.brand);
+        if (f.dept) p.set('dept', f.dept);
         if (f.category) p.set('category', f.category);
         if (f.low) p.set('low', '1');
         const qs = p.toString();
@@ -77,8 +100,7 @@ export default async function page({ data, query }) {
       };
       const onSearch = debounce(() => { f.q = form.q.value.trim(); sync(); render(); }, 200);
       form.q.addEventListener('input', onSearch);
-      form.brand.addEventListener('change', () => { f.brand = form.brand.value; sync(); render(); });
-      form.category.addEventListener('change', () => { f.category = form.category.value; sync(); render(); });
+      ['brand', 'dept', 'category'].forEach((k) => form[k].addEventListener('change', () => { f[k] = form[k].value; sync(); render(); }));
       form.low.addEventListener('change', () => { f.low = form.low.checked; sync(); render(); });
 
       const flash = (el, cls) => {
@@ -116,14 +138,36 @@ export default async function page({ data, query }) {
       });
 
       result.addEventListener('click', async (e) => {
+        const tog = e.target.closest('[data-orderable]');
+        if (tog) {
+          tog.disabled = true;
+          try {
+            const p = products.find((x) => x.id === tog.closest('tr').dataset.id);
+            const size = p.sizes.find((s) => s.id === tog.dataset.orderable);
+            size.orderable = await data.setOrderable(size.id, !size.orderable);
+            tog.classList.toggle('is-on', size.orderable);
+            tog.setAttribute('aria-pressed', size.orderable ? 'true' : 'false');
+            flash(tog, 'saved');
+          } catch (err) {
+            toast(errorText(err), 'err');
+          } finally {
+            tog.disabled = false;
+          }
+          return;
+        }
         const add = e.target.closest('[data-add]');
         if (!add) return;
         add.disabled = true;
         try {
           const p = products.find((x) => x.id === add.dataset.add);
-          const s = await data.addSize(p.id, { eu: Number(add.dataset.eu), stock: 0 });
+          // the new size takes its place in the product's own order; the sizes after it move one step
+          const order = placeLabel(p.sizes.map((s) => s.label), add.dataset.label, systemOf(p));
+          const s = await data.addSize(p.id, { label: add.dataset.label, stock: 0, orderable: true, sort: order.indexOf(add.dataset.label) });
           p.sizes.push(s);
-          p.sizes.sort((a, b) => a.eu - b.eu);
+          const sorts = order.map((label, sort) => ({ label, sort }));
+          const moved = p.sizes.filter((z) => z.id !== s.id).map((z) => ({ id: z.id, sort: sorts.find((x) => x.label === z.label).sort }));
+          await data.setSizeSorts(moved);
+          p.sizes.sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label));
           render();
         } catch (err) {
           toast(errorText(err), 'err');

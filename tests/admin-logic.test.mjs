@@ -41,8 +41,8 @@ test('slugs: latin, cyrillic, quotes and symbols', () => {
 });
 
 const good = () => ({
-  ...L.emptyProduct(), name: 'Air Max', brand_id: 'b1', slug: 'air-max', price: '1 290 000', old_price: '1 890 000',
-  sizes: [{ id: 's1', eu: '40', us: '7', cm: '25', stock: '3' }, { eu: '41', stock: '2' }],
+  ...L.emptyProduct(), name: 'Classic Fit Polo', brand_id: 'b1', slug: 'classic-fit-polo', category: 'polos', price: '1 290 000', old_price: '1 890 000',
+  sizes: [{ id: 's1', label: 'M', stock: '3', orderable: true }, { label: 'L', stock: '2', orderable: false }],
 });
 
 test('product validation', () => {
@@ -56,40 +56,69 @@ test('product validation', () => {
   assert.equal(bad({ old_price: '1 000 000' }).old_price, 'above_price');
   assert.equal(bad({ old_price: '1 290 000' }).old_price, 'above_price', 'equal is not a discount');
   assert.equal(bad({ slug: 'Not A Slug' }).slug, 'slug');
-  assert.equal(bad({ sizes: [{ eu: '5', stock: '1' }] })['size.0.eu'], 'size');
-  assert.equal(bad({ sizes: [{ eu: '40.3', stock: '1' }] })['size.0.eu'], 'size');
-  assert.equal(bad({ sizes: [{ eu: '40', stock: '1' }, { eu: '40', stock: '2' }] })['size.1.eu'], 'duplicate');
-  assert.equal(bad({ sizes: [{ eu: '40', stock: '-1' }] })['size.0.stock'], 'stock');
-  assert.equal(bad({ sizes: [{ eu: '40', stock: '1.5' }] })['size.0.stock'], 'stock');
-  assert.equal(bad({ sizes: [{ eu: '40', stock: '' }] })['size.0.stock'], 'stock', 'new size needs a quantity');
-  assert.equal(bad({ sizes: [{ id: 's1', eu: '40', stock: '' }] })['size.0.stock'], undefined, 'existing size may stay untouched');
-  assert.equal(bad({ sizes: [{ eu: '40.5', stock: '1' }] })['size.0.eu'], undefined, 'half sizes are fine');
+  assert.equal(bad({ category: '' }).category, 'required');
+  assert.equal(bad({ sizes: [{ label: '', stock: '1' }] })['size.0.label'], 'size');
+  assert.equal(bad({ sizes: [{ label: 'M!', stock: '1' }] })['size.0.label'], 'size');
+  assert.equal(bad({ sizes: [{ label: 'WAY TOO LONG!!', stock: '1' }] })['size.0.label'], 'size');
+  assert.equal(bad({ sizes: [{ label: 'M', stock: '1' }, { label: 'M', stock: '2' }] })['size.1.label'], 'duplicate');
+  assert.equal(bad({ sizes: [{ label: 'M', stock: '-1' }] })['size.0.stock'], 'stock');
+  assert.equal(bad({ sizes: [{ label: 'M', stock: '1.5' }] })['size.0.stock'], 'stock');
+  assert.equal(bad({ sizes: [{ label: 'M', stock: '' }] })['size.0.stock'], 'stock', 'new size needs a quantity');
+  assert.equal(bad({ sizes: [{ id: 's1', label: 'M', stock: '' }] })['size.0.stock'], undefined, 'existing size may stay untouched');
+  for (const ok of ['XXL', '48', 'W32/L34', '42.5', 'ONE SIZE', '3XL']) {
+    assert.equal(bad({ sizes: [{ label: ok, stock: '0' }] })['size.0.label'], undefined, ok);
+  }
+});
+
+test('product validation: colour, style code, origin, fit, lead time, long texts', () => {
+  const bad = (over) => L.validateProduct({ ...good(), ...over }).errors;
+  assert.equal(bad({ color_hex: '#1F2A44' }).color_hex, undefined);
+  assert.equal(bad({ color_hex: 'navy' }).color_hex, 'hex');
+  assert.equal(bad({ color_hex: '#12345' }).color_hex, 'hex');
+  assert.equal(bad({ color_group: 'navy' }).color_group, undefined);
+  assert.equal(bad({ color_group: 'pink' }).color_group, 'invalid');
+  assert.equal(bad({ style_code: 'LC-L1212.2' }).style_code, undefined);
+  assert.equal(bad({ style_code: 'has space' }).style_code, 'style');
+  assert.equal(bad({ origin: 'fr' }).origin, undefined, 'any case; stored upper-case');
+  assert.equal(bad({ origin: 'France' }).origin, 'origin');
+  assert.equal(bad({ fit: 'slim' }).fit, undefined);
+  assert.equal(bad({ fit: 'tight' }).fit, 'invalid');
+  for (const lead of ['10', '10–18', '10-18']) assert.equal(bad({ order_lead: lead }).order_lead, undefined, lead);
+  for (const lead of ['soon', '10–', '1000']) assert.equal(bad({ order_lead: lead }).order_lead, 'lead', lead);
+  assert.equal(bad({ material: 'x'.repeat(161) }).material, 'long');
+  assert.equal(bad({ model_info: 'x'.repeat(161) }).model_info, 'long');
+  assert.deepEqual(L.validateProduct(good()).errors, {}, 'all the new fields are optional');
 });
 
 test('payload: tags cleaned, prices numeric, untouched stock sent as null', () => {
-  const f = { ...good(), tags: 'Jordan, джордан ;  jordan\n', colorway: ' ', sku: '', description_en: 'x' };
+  const f = { ...good(), tags: 'Jordan, джордан ;  jordan\n', color: ' ', sku: '', origin: ' fr ', fit: '', description_en: 'x' };
   f.sizes[0].dirty = false;
   f.sizes[1].dirty = true;
   const p = L.toPayload(f);
   assert.deepEqual(p.tags, ['jordan', 'джордан']);
   assert.equal(p.price, 1290000);
   assert.equal(p.old_price, 1890000);
-  assert.equal(p.colorway, null);
+  assert.equal(p.color, null);
   assert.equal(p.sku, null);
+  assert.equal(p.origin, 'FR', 'country codes are sent in upper case');
+  assert.equal(p.fit, null);
+  assert.ok(!('gender' in p) && !('colorway' in p), 'sneaker-era fields are gone');
   assert.equal(p.brand_name, null, 'brand_name is only for brand-new brands');
   assert.equal(p.sizes[0].stock, null, 'untouched existing size keeps whatever the database has now');
   assert.equal(p.sizes[1].stock, 2);
-  assert.deepEqual(p.sizes[1], { eu: 41, us: null, cm: null, stock: 2 });
+  assert.deepEqual(p.sizes[1], { label: 'L', orderable: false, stock: 2 });
+  assert.deepEqual(p.sizes.map((s) => s.label), ['M', 'L'], 'the row order is the display order');
+  assert.equal(p.sizes[0].orderable, true);
   f.sizes[0].dirty = true;
   assert.equal(L.toPayload(f).sizes[0].stock, 3);
   assert.equal(L.toPayload({ ...good(), id: null }).id, undefined);
 });
 
 test('stock state and product filtering', () => {
-  const mk = (over, stocks) => ({ id: over.name, is_active: true, brand_id: 'b1', brand_name: 'Nike', category: 'running',
+  const mk = (over, stocks) => ({ id: over.name, is_active: true, brand_id: 'b1', brand_name: 'Nike', category: 'sneakers',
     sizes: stocks.map((stock) => ({ stock })), tags: [], ...over });
   const a = mk({ name: 'Air Max', sku: 'AM1' }, [5, 0]);
-  const b = mk({ name: 'Dunk', brand_id: 'b2', brand_name: 'Nike', category: 'lifestyle', tags: ['sb'] }, [0, 0]);
+  const b = mk({ name: 'Dunk', brand_id: 'b2', brand_name: 'Nike', category: 'belts', tags: ['sb'], color: 'Navy', style_code: 'ZZ-9' }, [0, 0]);
   const c = mk({ name: 'Old Skool', is_active: false }, [4]);
   const d = mk({ name: 'Last Pair' }, [1]);
   assert.equal(L.stockState(a).state, 'ok');
@@ -103,7 +132,12 @@ test('stock state and product filtering', () => {
   assert.deepEqual(names({ q: 'am1' }), ['Air Max']);
   assert.deepEqual(names({ q: ' SB ' }), ['Dunk']);
   assert.deepEqual(names({ brand: 'b2' }), ['Dunk']);
-  assert.deepEqual(names({ category: 'lifestyle' }), ['Dunk']);
+  assert.deepEqual(names({ category: 'belts' }), ['Dunk']);
+  assert.deepEqual(names({ q: 'navy' }), ['Dunk'], 'colour is searchable');
+  assert.deepEqual(names({ q: 'zz-9' }), ['Dunk'], 'so is the style code');
+  const depts = { sneakers: 'shoes', belts: 'accessories' };
+  assert.deepEqual(names({ dept: 'accessories', depts }), ['Dunk']);
+  assert.deepEqual(names({ dept: 'shoes', depts }), ['Air Max', 'Old Skool', 'Last Pair']);
   assert.deepEqual(names({ state: 'sold_out' }), ['Dunk']);
   assert.deepEqual(names({ state: 'hidden' }), ['Old Skool']);
   assert.deepEqual(names({ state: 'active' }), ['Air Max', 'Dunk', 'Last Pair']);
@@ -136,13 +170,15 @@ test('courier text lists everything a courier needs', () => {
   const text = L.courierText({
     number: 'OL-261013-0042', customer_name: 'Азиз', phone: '+998901234567', telegram: '@aziz', region: 'Ташкент',
     city: 'Юнусабад', address: 'ул. Навои 12', landmark: 'Mega Planet', total: 1520000, comment: 'после 18:00',
-    items: [{ brand: 'Jordan', name: 'AJ1', size_eu: 42, qty: 2, unit_price: 760000 }],
-  }, { order: 'Заказ', customer: 'Клиент', delivery: 'Доставка', deliveryName: 'курьер', landmark: 'Ориентир',
+    items: [{ brand: 'Jordan', name: 'AJ1', size_label: 'XL', fulfilment: 'stock', qty: 2, unit_price: 760000 },
+      { brand: 'Diesel', name: 'Jacket', size_label: 'M', fulfilment: 'order', qty: 1, unit_price: 5900000 }],
+  }, { onOrder: 'под заказ', order: 'Заказ', customer: 'Клиент', delivery: 'Доставка', deliveryName: 'курьер', landmark: 'Ориентир',
     total: 'К оплате', paymentName: 'наличными', comment: 'Комментарий' });
   assert.match(text, /^Заказ OL-261013-0042\n/);
   assert.match(text, /Клиент: Азиз, \+998901234567, @aziz/);
   assert.match(text, /Доставка: курьер — Ташкент, Юнусабад, ул\. Навои 12/);
-  assert.match(text, /1\) Jordan AJ1 — EU 42 × 2 — 1 520 000/);
+  assert.match(text, /1\) Jordan AJ1 — XL × 2 — 1\u00A0520\u00A0000\n/);
+  assert.match(text, /2\) Diesel Jacket — M × 1 — 5\u00A0900\u00A0000 \(под заказ\)/);
   assert.match(text, /К оплате: 1 520 000 \(наличными\)/);
   assert.match(text, /Комментарий: после 18:00/);
 });
