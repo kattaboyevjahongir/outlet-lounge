@@ -23,49 +23,49 @@
 /* ---------- Dark ---------- */
 :root,
 :root[data-theme="dark"] {
-  --bg: #0A0A0A;
-  --bg-2: #111110;
-  --surface: #151513;
-  --surface-2: #201D19;
-  --line: rgba(232, 211, 170, .13);
-  --line-strong: rgba(232, 211, 170, .28);
-  --text: #F3EDE2;
-  --text-2: #B8AE9E;
-  --text-3: #8A8172;
-  --gold-1: #F4E2B8;
-  --gold-2: #D4B078;
-  --gold-3: #A4804C;
-  --gold-ink: #E3C58C;
-  --on-gold: #15110B;
+  --bg: #090909;
+  --bg-2: #101010;
+  --surface: #141414;
+  --surface-2: #1E1C19;
+  --line: rgba(255, 255, 255, .1);
+  --line-strong: rgba(255, 255, 255, .24);
+  --text: #FAF8F4;
+  --text-2: #D3CDC2;
+  --text-3: #A09888;
+  --gold-1: #F6E3B4;
+  --gold-2: #DDB76C;
+  --gold-3: #B88E47;
+  --gold-ink: #EDCB86;
+  --on-gold: #14100A;
   --sale: #E89A7B;
-  --glass: rgba(11, 10, 9, .82);
+  --glass: rgba(9, 9, 9, .84);
   --shadow: 0 40px 80px -30px rgba(0, 0, 0, .75);
   --shadow-sm: 0 14px 30px -18px rgba(0, 0, 0, .7);
-  --img-bg: #1A1714;
+  --img-bg: #171614;
   color-scheme: dark;
 }
 
-/* ---------- Light ---------- */
+/* ---------- Light: clean white, near-black ink, champagne gold ---------- */
 :root[data-theme="light"] {
-  --bg: #F6F2EA;
-  --bg-2: #EEE8DC;
-  --surface: #FFFDF9;
-  --surface-2: #EDE5D6;
-  --line: rgba(64, 46, 18, .13);
-  --line-strong: rgba(64, 46, 18, .28);
-  --text: #16130F;
-  --text-2: #5A5144;
-  --text-3: #86796A;
-  --gold-1: #D1AE6C;
-  --gold-2: #A88241;
-  --gold-3: #7C5C26;
-  --gold-ink: #86622A;
-  --on-gold: #FFFCF5;
+  --bg: #FBFAF7;
+  --bg-2: #F3F1EC;
+  --surface: #FFFFFF;
+  --surface-2: #ECE8E0;
+  --line: rgba(20, 18, 15, .1);
+  --line-strong: rgba(20, 18, 15, .24);
+  --text: #121110;
+  --text-2: #46413A;
+  --text-3: #7E776C;
+  --gold-1: #D6B06A;
+  --gold-2: #B58B3F;
+  --gold-3: #8A6526;
+  --gold-ink: #946E2E;
+  --on-gold: #FFFFFF;
   --sale: #A84A27;
-  --glass: rgba(247, 242, 233, .86);
-  --shadow: 0 40px 80px -36px rgba(80, 56, 20, .35);
-  --shadow-sm: 0 14px 30px -20px rgba(80, 56, 20, .35);
-  --img-bg: #EAE2D3;
+  --glass: rgba(251, 250, 247, .88);
+  --shadow: 0 40px 80px -36px rgba(0, 0, 0, .25);
+  --shadow-sm: 0 14px 30px -20px rgba(0, 0, 0, .28);
+  --img-bg: #EEEBE4;
   color-scheme: light;
 }
 
@@ -458,7 +458,7 @@ html.lenis, html.lenis body { height: auto; }
 .sw-i { display: inline-block; will-change: transform; }
 
 /* intro: the logo draws itself */
-.loader { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; background: var(--bg); }
+.loader { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; overflow: hidden; background: #090909; --gold-ink: #EDCB86; --gold-2: #DDB76C; --line: rgba(255, 255, 255, .1); }
 .no-loader .loader, :root:not(.js) .loader { display: none; }
 .loader-inner { display: grid; justify-items: center; gap: 22px; }
 .loader-mark { width: min(240px, 52vw); }
