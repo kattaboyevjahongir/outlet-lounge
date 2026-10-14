@@ -7,13 +7,13 @@
   </script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Outlet Lounge — оригинальные кроссовки по ценам аутлета</title>
-  <meta name="description" content="Оригинальные Nike, Jordan, New Balance и другие бренды по ценам аутлета. Доставка по всему Узбекистану, оплата при получении." />
+  <title>Outlet Lounge — мужская одежда, обувь и аксессуары, оригинал</title>
+  <meta name="description" content="Мужской магазин оригинальной одежды, обуви и аксессуаров мировых брендов: в наличии в Ташкенте и под заказ из-за рубежа. Доставка по Узбекистану." />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="ru_RU" />
-  <meta property="og:title" content="Outlet Lounge — оригинальные кроссовки по ценам аутлета" />
-  <meta property="og:description" content="Оригинальные Nike, Jordan, New Balance и другие бренды по ценам аутлета. Доставка по всему Узбекистану." />
+  <meta property="og:title" content="Outlet Lounge — мужская одежда, обувь и аксессуары, оригинал" />
+  <meta property="og:description" content="Оригинальная мужская одежда, обувь и аксессуары мировых брендов. Доставка по Узбекистану." />
 
   <meta name="theme-color" content="#0A0A0A" />
   <meta property="og:site_name" content="Outlet Lounge" />
@@ -32,24 +32,23 @@
       }
       d.lang = l;
       d.classList.add('js');
-      try { if (sessionStorage.getItem('ol:seen') === '1') d.classList.add('no-loader'); } catch (e) { /* private mode */ }
     })();
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/assets/css/base.css?v=23" />
-  <link rel="stylesheet" href="/assets/css/home.css?v=23" />
-  <link rel="stylesheet" href="/assets/css/shop.css?v=23" />
-  <link rel="stylesheet" href="/assets/css/product.css?v=23" />
-  <link rel="stylesheet" href="/assets/css/checkout.css?v=23" />
-  <link rel="stylesheet" href="/assets/css/info.css?v=23" />
+  <link rel="stylesheet" href="/assets/css/base.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/home.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/shop.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/product.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/checkout.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/info.css?v=31" />
 </head>
 <body>
-  <!-- Shared SVG gradients for the logo -->
+  <!-- Shared SVG gradient for the logo -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="olGold" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="262" y2="104">
@@ -61,14 +60,7 @@
     </defs>
   </svg>
 
-  <!-- Intro loader -->
-  <div class="loader" id="loader" aria-hidden="true">
-    <div class="loader-inner">
-      <div class="loader-mark" id="loaderMark"></div>
-      <p class="loader-word"><span>OUTLET LOUNGE</span></p>
-      <div class="loader-bar"><i></i></div>
-    </div>
-  </div>
+  <a class="skip-link" href="#app" data-native data-i18n="ui.skip">Skip to content</a>
 
   <!-- Header -->
   <header class="site-header" id="header">
@@ -78,17 +70,10 @@
         <span class="brand-word">OUTLET LOUNGE</span>
       </a>
 
-      <nav class="main-nav" aria-label="Main">
-        <a href="/new" data-i18n="nav.new">New arrivals</a>
-        <a href="/men" data-mega="men" data-i18n="nav.men">Men</a>
-        <a href="/women" data-mega="women" data-i18n="nav.women">Women</a>
-        <a href="/kids" data-mega="kids" data-i18n="nav.kids">Kids</a>
-        <a href="/sale" class="nav-deal" data-i18n="nav.deals">Outlet</a>
-      </nav>
+      <nav class="main-nav" id="mainNav" aria-label="Main"></nav>
 
       <div class="header-actions">
         <div class="lang-switch" role="group" aria-label="Language">
-          <span class="lang-pill"></span>
           <button type="button" data-lang="en">EN</button>
           <button type="button" data-lang="ru">RU</button>
           <button type="button" data-lang="uz">UZ</button>
@@ -118,16 +103,9 @@
 
   <!-- Mobile menu -->
   <div class="mobile-menu" id="mobileMenu">
-    <nav>
-      <a href="/new" data-i18n="nav.new">New arrivals</a>
-      <a href="/men" data-i18n="nav.men">Men</a>
-      <a href="/women" data-i18n="nav.women">Women</a>
-      <a href="/kids" data-i18n="nav.kids">Kids</a>
-      <a href="/sale" data-i18n="nav.deals">Outlet</a>
-    </nav>
+    <nav id="mobileNav" aria-label="Main"></nav>
     <div class="menu-tools">
       <div class="lang-switch" role="group" aria-label="Language">
-        <span class="lang-pill"></span>
         <button type="button" data-lang="en">EN</button>
         <button type="button" data-lang="ru">RU</button>
         <button type="button" data-lang="uz">UZ</button>
@@ -174,7 +152,7 @@
       <form class="search-bar" role="search" action="#" novalidate>
         <svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m15.6 15.6 5 5"/></svg>
         <input id="searchInput" type="search" autocomplete="off" autocapitalize="off" spellcheck="false"
-               enterkeyhint="search" data-i18n-ph="search.ph" data-i18n-label="ui.search" placeholder="Search sneakers, brands…" aria-label="Search" />
+               enterkeyhint="search" data-i18n-ph="search.ph" data-i18n-label="ui.search" placeholder="Search brands, items, colours…" aria-label="Search" />
         <button type="button" class="icon-btn" data-close-search data-i18n-label="ui.close" aria-label="Close">
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
@@ -183,36 +161,22 @@
     </div>
   </div>
 
-  <!-- Transition curtain (theme switching) -->
-  <div class="curtain" id="curtain" aria-hidden="true">
-    <div class="curtain-panel">
-      <div class="curtain-content">
-        <div class="curtain-mark"></div>
-        <p class="curtain-label"></p>
-      </div>
-    </div>
-  </div>
-
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <div class="cursor" aria-hidden="true"><div class="cursor-ring"><span class="cursor-label"></span></div><div class="cursor-dot"></div></div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
-
-  <script src="/assets/js/data.js?v=23"></script>
-  <script src="/assets/js/catalog-logic.js?v=23"></script>
-  <script src="/assets/js/order-logic.js?v=23"></script>
-  <script src="/assets/js/analytics.js?v=23"></script>
-  <script src="/assets/js/core.js?v=23"></script>
-  <script src="/assets/js/router.js?v=23"></script>
-  <script src="/assets/js/home.js?v=23"></script>
-  <script src="/assets/js/shop.js?v=23"></script>
-  <script src="/assets/js/product.js?v=23"></script>
-  <script src="/assets/js/pages.js?v=23"></script>
-  <script src="/assets/js/info-content.js?v=23"></script>
-  <script src="/assets/js/info.js?v=23"></script>
-  <script src="/assets/js/checkout.js?v=23"></script>
-  <script src="/assets/js/main.js?v=23"></script>
+  <script src="/assets/js/data.js?v=31"></script>
+  <script src="/assets/js/i18n.js?v=31"></script>
+  <script src="/assets/js/catalog-logic.js?v=31"></script>
+  <script src="/assets/js/order-logic.js?v=31"></script>
+  <script src="/assets/js/analytics.js?v=31"></script>
+  <script src="/assets/js/core.js?v=31"></script>
+  <script src="/assets/js/router.js?v=31"></script>
+  <script src="/assets/js/home.js?v=31"></script>
+  <script src="/assets/js/shop.js?v=31"></script>
+  <script src="/assets/js/product.js?v=31"></script>
+  <script src="/assets/js/pages.js?v=31"></script>
+  <script src="/assets/js/info-content.js?v=31"></script>
+  <script src="/assets/js/info.js?v=31"></script>
+  <script src="/assets/js/checkout.js?v=31"></script>
+  <script src="/assets/js/main.js?v=31"></script>
 </body>
 </html>

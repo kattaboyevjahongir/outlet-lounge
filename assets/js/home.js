@@ -1,296 +1,128 @@
-/* Homepage — "Flight Path": energetic, the logo's arrow drives the motion */
+/* Homepage — editorial menswear: lookbook hero, departments, new arrivals, categories, how importing works, brands */
 (function () {
   const OL = window.OL;
-  const t = (k) => OL.t(k);
+  const t = (k, v) => OL.t(k, v);
 
-  const catUrl = (c) => (['men', 'women', 'kids'].includes(c) ? `/${c}` : `/shop?cat=${c}`);
+  const DEPTS = ['clothing', 'shoes', 'accessories'];
+
+  // the first product photo of a department (shown on its tile); the newest item of the department
+  const deptImage = (d) => {
+    const p = OL.PRODUCTS.find((x) => OL.catDept(x.cat) === d && x.isNew) || OL.PRODUCTS.find((x) => OL.catDept(x.cat) === d);
+    return p ? p.images[0] : '';
+  };
 
   OL.pages.home = {
     meta: () => ({ path: '/' }),
 
     render() {
+      const esc = OL.esc;
       const L = OL.lists();
       const hero = OL.hero();
       const counts = OL.counts();
-      const esc = OL.esc;
-      const catRows = ['running', 'lifestyle', 'basketball', 'men', 'women', 'kids'].filter((c) => counts[c] > 0);
-      const [r1, r2, r3] = t('f.title');
+      const cats = OL.CATEGORIES.filter((c) => counts.cat[c.slug] > 0);
+      const di = OL.deliveryInfo();
+      const sale = OL.PRODUCTS.filter((p) => OL.off(p) > 0).sort((a, b) => OL.off(b) - OL.off(a)).slice(0, 4);
+      const brands = OL.BRANDS.slice(0, 12);
+      const tg = OL.orderLogic.tgLink(OL.contacts().telegram);
+      const steps = t('home.steps');
+
       return `
-      <div class="f-progress" aria-hidden="true">
-        <svg viewBox="0 0 40 600">
-          <path class="f-prog-track" d="M20 4C36 80 4 150 20 230S36 380 20 460S8 560 20 596"/>
-          <path class="f-prog-line" d="M20 4C36 80 4 150 20 230S36 380 20 460S8 560 20 596"/>
-          <g class="f-prog-head">${OL.ARROW_HEAD}</g>
-        </svg>
-        <span class="f-prog-pct">00</span>
-      </div>
-
-      <section class="f-hero" id="top">
-        <div class="f-hero-mark" aria-hidden="true">${OL.logoMark()}</div>
-        <div class="f-hero-inner container">
-          <div class="f-hero-top">
-            <span class="f-chip"><i></i>${t('f.live')}</span>
-            <span class="f-meta">DROP № 07 — 2026</span>
-          </div>
-
-          <h1 class="f-title" aria-label="${r1} ${r2} ${r3}">
-            <span class="f-row f-row-1" aria-hidden="true">${OL.chars(r1)}</span>
-            <span class="f-row f-row-2 is-outline" aria-hidden="true">${OL.chars(r2)}</span>
-            <span class="f-row f-row-3" aria-hidden="true">${OL.chars(r3)}<span class="ch f-arrow">${OL.ICON.arrow}</span></span>
-          </h1>
-
-          <div class="f-shoe">
-            <div class="f-shoe-float">
-              <div class="f-disc">${hero.image ? `<img class="f-shoe-img" src="${OL.pimg(hero.image, 1000, 1000)}" alt="${esc(hero.product ? hero.product.name : '')}">` : ''}</div>
-              <div class="f-disc-ring"></div>
-              ${hero.product ? `<span class="f-price-tag"><small>${esc(hero.product.name)}</small><b>${OL.price(hero.product.price)}</b></span>` : ''}
-            </div>
-          </div>
-
-          <svg class="f-swoosh" viewBox="0 0 1400 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <path class="f-swoosh-path" d="M-40 760C260 700 520 600 760 470S1160 200 1380 90"/>
-            <g class="f-swoosh-head">${OL.ARROW_HEAD}</g>
-          </svg>
-
-          <div class="f-hero-bottom">
-            <p class="f-lead">${t('f.lead')}</p>
-            <a href="/new" class="btn btn-gold magnetic"><span>${t('f.cta')}</span>${OL.ICON.arrow}</a>
-          </div>
-        </div>
-      </section>
-
-      <section class="f-tapes" aria-hidden="true">
-        ${OL.ui.marquee(OL.BRANDS.map((b) => b.toUpperCase()), 'f-tape f-tape-1')}
-        ${OL.ui.marquee(t('f.words').map((w) => w.toUpperCase()), 'f-tape f-tape-2')}
-      </section>
-
-      ${L.drops.length ? `<section class="f-drops" id="new">
-        <div class="f-drops-pin">
-          <div class="f-drops-track">
-            <div class="f-drops-intro">
-              <p class="eyebrow">01 / ${t('sec.newEyebrow')}</p>
-              <h2 class="f-h2">${t('f.drops')}</h2>
-              <p class="f-drops-text">${t('f.dropsText')}</p>
-              <span class="f-side">${t('f.side')} ${OL.ICON.arrow}</span>
-            </div>
-            ${L.drops.map((p, i) => `<div class="f-drop">${OL.ui.card(p, { index: i + 1 })}</div>`).join('')}
-            <a href="/new" class="f-drops-end">
-              <span>${t('ui.viewAll')}</span>
-              <i>${OL.ICON.arrowUR}</i>
-            </a>
-          </div>
-          <div class="f-drops-bar container"><div><i></i></div><span class="f-drops-count">01 / 0${L.drops.length}</span></div>
-        </div>
-      </section>` : ''}
-
-      ${catRows.length ? `<section class="f-cats" id="cats">
-        <div class="container">
-          <p class="eyebrow">02 / ${t('sec.catsEyebrow')}</p>
-          <ul class="f-cat-list">
-            ${catRows.map((c, i) => `
-              <li>
-                <a href="${catUrl(c)}" class="f-cat" data-img="${OL.img(OL.CAT_IMG[c], 640, 800)}">
-                  <span class="f-cat-i">0${i + 1}</span>
-                  <span class="f-cat-name"><span>${t('cat.' + c)}</span><span class="f-cat-dup" aria-hidden="true">${t('cat.' + c)}</span></span>
-                  <span class="f-cat-n">${counts[c]} ${t('ui.models')}</span>
-                  <span class="f-cat-go">${OL.ICON.arrowUR}</span>
-                </a>
-              </li>`).join('')}
-          </ul>
-        </div>
-        <div class="f-cat-preview" aria-hidden="true"><img alt=""></div>
-      </section>` : ''}
-
-      <section class="f-deal" id="deals">
-        <div class="f-deal-band">
-          <div class="f-deal-big" aria-hidden="true"><span>${t('f.dealBig')}</span><span>${t('f.dealBig')}</span><span>${t('f.dealBig')}</span></div>
-          <div class="f-deal-inner container">
-            <div>
-              <p class="eyebrow">03 / ${t('sec.dealsEyebrow')}</p>
-              <h2 class="f-h2">${t('sec.deals')}</h2>
-              <p class="f-deal-text">${t('sec.dealsText')}</p>
-            </div>
-            <div class="f-deal-right">
-              <p class="f-deal-ends">${t('cd.ends')}</p>
-              ${OL.ui.countdown()}
-              <a href="/sale" class="btn f-btn-dark magnetic"><span>${t('ui.shopNow')}</span>${OL.ICON.arrow}</a>
+      <section class="h-hero">
+        <div class="h-hero-media">${hero.image ? `<img src="${OL.pimg(hero.image, 1600, 1200)}" alt="${esc(hero.product ? `${hero.product.brand} ${hero.product.name}` : '')}" fetchpriority="high">` : ''}</div>
+        <div class="container h-hero-inner">
+          <div class="h-hero-copy">
+            <span class="eyebrow"><i class="eyebrow-line"></i>${t('home.eyebrow')}</span>
+            <h1 class="h-serif h-hero-title">${esc(t('home.title'))}</h1>
+            <p class="h-hero-lead">${esc(t('home.lead'))}</p>
+            <div class="h-hero-cta">
+              <a href="/new" class="btn btn-gold"><span>${t('home.cta')}</span>${OL.ICON.arrow}</a>
+              <a href="/clothing" class="btn btn-ghost"><span>${t('home.cta2')}</span></a>
             </div>
           </div>
         </div>
       </section>
 
-      ${L.best.length ? `<section class="f-best" id="best">
-        <div class="container">
-          <div class="f-head">
-            <p class="eyebrow">04 / ${t('sec.bestEyebrow')}</p>
-            <h2 class="f-h2" data-reveal="up">${t('sec.best')}</h2>
-            <a class="f-viewall" href="/shop"><span>${t('ui.viewAll')}</span>${OL.ICON.arrow}</a>
-          </div>
-          <div class="f-grid pgrid" data-stagger>${L.best.map((p, i) => OL.ui.card(p, { index: i + 1 })).join('')}</div>
+      <section class="h-depts container" data-reveal>
+        ${DEPTS.map((d) => `
+        <a class="h-dept" href="/${d}">
+          <span class="h-dept-media"><img src="${OL.pimg(deptImage(d), 800, 1000)}" alt="" loading="lazy" decoding="async"></span>
+          <span class="h-dept-body"><b class="h-serif">${t('dept.' + d)}</b><small>${t('dept.' + d + 'Text')}</small>
+            <em>${t('ui.shopNow')}${OL.ICON.arrow}</em></span>
+        </a>`).join('')}
+      </section>
+
+      <section class="h-sec container">
+        <header class="h-head" data-reveal>
+          <div><span class="eyebrow"><i class="eyebrow-line"></i>${t('home.newEyebrow')}</span>
+          <h2 class="h-serif">${t('home.newTitle')}</h2><p>${t('home.newText')}</p></div>
+          <a class="h-more" href="/new">${t('ui.viewAll')}${OL.ICON.arrow}</a>
+        </header>
+        <div class="h-rail" data-reveal>${L.drops.map((p) => OL.ui.card(p)).join('')}</div>
+      </section>
+
+      <section class="h-sec container">
+        <header class="h-head" data-reveal>
+          <div><span class="eyebrow"><i class="eyebrow-line"></i>${t('home.catsEyebrow')}</span>
+          <h2 class="h-serif">${t('home.catsTitle')}</h2></div>
+        </header>
+        <div class="h-cats" data-reveal>
+          ${cats.map((cat) => {
+            const p = OL.PRODUCTS.find((x) => x.cat === cat.slug);
+            return `<a class="h-cat" href="${OL.catUrl(cat.slug)}"><span class="h-cat-media"><img src="${OL.pimg(p.images[0], 480, 600)}" alt="" loading="lazy" decoding="async"></span>
+              <b>${esc(OL.catName(cat.slug))}</b><small>${counts.cat[cat.slug]}</small></a>`;
+          }).join('')}
         </div>
+      </section>
+
+      <section class="h-abroad">
+        <div class="container h-abroad-grid">
+          <div class="h-abroad-copy" data-reveal>
+            <span class="eyebrow"><i class="eyebrow-line"></i>${t('home.abroadEyebrow')}</span>
+            <h2 class="h-serif">${t('home.abroadTitle')}</h2>
+            <p>${t('home.abroadLead')}</p>
+            <ol class="h-steps">${steps.map((s, i) => `<li><i>${OL.pad(i + 1)}</i><span>${esc(s)}</span></li>`).join('')}</ol>
+          </div>
+          <div class="h-ways" data-reveal data-delay="1">
+            <div class="h-way"><b class="h-serif">${t('home.stockTitle')}</b><p>${t('home.stockText', { days: esc(di.stock_days || '1–3') })}</p></div>
+            <div class="h-way is-order">${OL.ICON.plane}<b class="h-serif">${t('home.orderTitle')}</b><p>${t('home.orderText', { days: esc(di.order_days || '10–18') })}</p></div>
+          </div>
+        </div>
+      </section>
+
+      ${brands.length ? `
+      <section class="h-brands container" data-reveal>
+        <h2 class="h-serif">${t('home.brandsTitle')}</h2>
+        <div class="h-brand-list">${brands.map((b) => `<a href="/brands/${OL.slug(b)}">${esc(b)}</a>`).join('')}</div>
       </section>` : ''}
 
-      ${OL.ui.reviews('f-reviews')}
-      ${OL.ui.news('f-news')}`;
-    },
+      <section class="h-sec container">
+        <header class="h-head" data-reveal>
+          <div><span class="eyebrow"><i class="eyebrow-line"></i>${t('home.bestEyebrow')}</span>
+          <h2 class="h-serif">${t('home.bestTitle')}</h2></div>
+          <a class="h-more" href="/shop">${t('ui.viewAll')}${OL.ICON.arrow}</a>
+        </header>
+        <div class="pgrid" data-reveal>${L.best.slice(0, 8).map((p) => OL.ui.card(p)).join('')}</div>
+      </section>
 
-    init(root) {
-      const q = (s) => root.querySelector(s);
-      const qa = (s) => [...root.querySelectorAll(s)];
+      ${sale.length ? `
+      <section class="h-sec container">
+        <header class="h-head" data-reveal>
+          <div><span class="eyebrow"><i class="eyebrow-line"></i>${t('home.saleEyebrow')}</span>
+          <h2 class="h-serif">${t('home.saleTitle')}</h2><p>${t('home.saleText')}</p></div>
+          <a class="h-more" href="/sale">${t('ui.viewAll')}${OL.ICON.arrow}</a>
+        </header>
+        <div class="pgrid" data-reveal>${sale.map((p) => OL.ui.card(p)).join('')}</div>
+      </section>` : ''}
 
-      /* --- intro: letters launch, shoe lands, swoosh draws --- */
-      const swoosh = OL.follow(q('.f-swoosh-path'), q('.f-swoosh-head'));
-      swoosh(0);
-      const s = { p: 0 };
-      const intro = gsap.timeline({ paused: true, defaults: { ease: 'expo.out' } });
-      intro
-        .from('.f-row .ch', { yPercent: 120, rotate: 14, duration: 1.2, stagger: .035 })
-        .from('.f-disc', { scale: 0, rotate: -60, duration: 1.4, ease: 'back.out(1.3)' }, .3)
-        .from('.f-disc-ring', { scale: .4, autoAlpha: 0, duration: 1.6 }, .5)
-        .from('.f-shoe-img', { xPercent: -90, yPercent: 60, rotate: -40, duration: 1.6, ease: 'expo.out' }, .55)
-        .to(s, { p: 1, duration: 1.8, ease: 'power3.inOut', onUpdate: () => swoosh(s.p) }, .6)
-        .from('.f-price-tag', { scale: 0, rotate: 20, duration: 1, ease: 'back.out(2)' }, 1.4)
-        .from(['.f-hero-top > *', '.f-hero-bottom > *'], { y: 30, autoAlpha: 0, duration: 1, stagger: .08 }, .9)
-        .from('.f-hero-mark', { autoAlpha: 0, scale: 1.1, duration: 2 }, 0)
-        .from('.f-progress', { autoAlpha: 0, x: 20, duration: 1 }, 1.2);
+      <section class="h-trust container" data-reveal>
+        ${t('home.trust').map((x) => `<div><b>${esc(x.t)}</b><p>${esc(x.d)}</p></div>`).join('')}
+      </section>
 
-      gsap.to('.f-shoe-float', { y: -16, rotate: 2.5, duration: 2.8, yoyo: true, repeat: -1, ease: 'sine.inOut' });
-      gsap.to('.f-disc-ring', { rotate: 360, duration: 26, repeat: -1, ease: 'none' });
-
-      /* --- hero scroll: rows split apart, the shoe takes off --- */
-      const heroST = { trigger: '.f-hero', start: 'top top', end: 'bottom top', scrub: .6 };
-      gsap.to('.f-row-1', { xPercent: -14, ease: 'none', scrollTrigger: heroST });
-      gsap.to('.f-row-2', { xPercent: 12, ease: 'none', scrollTrigger: heroST });
-      gsap.to('.f-row-3', { xPercent: -8, ease: 'none', scrollTrigger: heroST });
-      gsap.to('.f-shoe', { x: () => innerWidth * .22, y: () => -innerHeight * .45, rotate: 24, scale: .55, ease: 'power1.in', scrollTrigger: { ...heroST, invalidateOnRefresh: true } });
-      gsap.to('.f-hero-mark', { yPercent: 30, ease: 'none', scrollTrigger: heroST });
-
-      /* --- page progress arrow --- */
-      const prog = OL.follow(q('.f-prog-line'), q('.f-prog-head'));
-      const pct = q('.f-prog-pct');
-      prog(0);
-      ScrollTrigger.create({
-        start: 0, end: 'max',
-        onUpdate: (st) => { prog(st.progress); pct.textContent = OL.pad(Math.round(st.progress * 100)); },
-      });
-
-      /* --- tapes: velocity-reactive marquees --- */
-      const m1 = OL.runMarquee(q('.f-tape-1'), { speed: 70, dir: 1 });
-      const m2 = OL.runMarquee(q('.f-tape-2'), { speed: 60, dir: -1 });
-      ScrollTrigger.create({
-        trigger: '.f-tapes', start: 'top bottom', end: 'bottom top',
-        onUpdate: (st) => {
-          const v = st.getVelocity();
-          const b = Math.min(Math.abs(v) / 4, 900);
-          m1 && m1.boost(b); m2 && m2.boost(b);
-          const k = gsap.utils.clamp(-12, 12, v / -160);
-          m1 && m1.skew(k); m2 && m2.skew(k);
-        },
-      });
-
-      /* --- drops: pinned horizontal flight on desktop --- */
-      const mm = gsap.matchMedia();
-      mm.add('(min-width: 900px)', () => {
-        const track = q('.f-drops-track');
-        if (!track) return;
-        const bar = q('.f-drops-bar i');
-        const count = q('.f-drops-count');
-        const n = Math.max(1, qa('.f-drop').length);
-        const dist = () => track.scrollWidth - innerWidth;
-        const tween = gsap.to(track, {
-          x: () => -dist(),
-          ease: 'none',
-          scrollTrigger: {
-            trigger: '.f-drops',
-            pin: '.f-drops-pin',
-            start: 'top top',
-            end: () => '+=' + dist(),
-            scrub: .8,
-            invalidateOnRefresh: true,
-            onUpdate: (st) => {
-              bar.style.transform = `scaleX(${st.progress})`;
-              count.textContent = `0${Math.min(n, 1 + Math.floor(st.progress * n))} / 0${n}`;
-            },
-          },
-        });
-        // cards rise and tilt as they fly into view
-        qa('.f-drop').forEach((d) => {
-          gsap.from(d, {
-            yPercent: 18, rotate: 6, autoAlpha: 0, ease: 'power2.out',
-            scrollTrigger: { trigger: d, containerAnimation: tween, start: 'left 105%', end: 'left 60%', scrub: true },
-          });
-        });
-      });
-      OL.onCleanup(() => mm.revert());
-
-      /* --- categories: preview follows the cursor --- */
-      const preview = q('.f-cat-preview');
-      const pimg = preview && preview.querySelector('img');
-      const list = q('.f-cat-list');
-      if (preview && !OL.touch) {
-        const px = gsap.quickTo(preview, 'x', { duration: .6, ease: 'power3' });
-        const py = gsap.quickTo(preview, 'y', { duration: .6, ease: 'power3' });
-        const rot = gsap.quickTo(preview, 'rotate', { duration: .8, ease: 'power3' });
-        let lastX = 0;
-        let pointer = null; // last cursor position, to re-check what's under it after a scroll
-        let active = null;  // the row the preview is showing (null = hidden)
-        // overwrite: a quick in-and-out must never leave an older "show" tween finishing after the "hide"
-        const show = (a) => {
-          if (a === active) return;
-          active = a;
-          if (pimg.getAttribute('src') !== a.dataset.img) {
-            pimg.src = a.dataset.img;
-            gsap.fromTo(pimg, { scale: 1.3 }, { scale: 1, duration: .8, ease: 'expo.out', overwrite: true });
-          }
-          gsap.to(preview, { autoAlpha: 1, scale: 1, duration: .5, ease: 'expo.out', overwrite: 'auto' });
-        };
-        const hide = () => {
-          if (!active) return;
-          active = null;
-          gsap.to(preview, { autoAlpha: 0, scale: .6, duration: .4, overwrite: 'auto' });
-        };
-        const sync = () => {
-          const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
-          const a = el && el.closest('.f-cat');
-          if (a && list.contains(a)) show(a); else hide();
-        };
-        const move = (e) => {
-          pointer = { x: e.clientX, y: e.clientY };
-          px(e.clientX); py(e.clientY); rot(gsap.utils.clamp(-14, 14, (e.clientX - lastX) * .6)); lastX = e.clientX;
-        };
-        const enter = (e) => { const a = e.target.closest('.f-cat'); if (a) show(a); };
-        // scrolling moves the rows under a still cursor without any pointer events
-        let raf = 0;
-        const onScroll = () => { if (active && !raf) raf = requestAnimationFrame(() => { raf = 0; sync(); }); };
-        const out = (e) => { if (!e.relatedTarget) { pointer = null; hide(); } }; // cursor left the window
-        gsap.set(preview, { autoAlpha: 0, scale: .6, xPercent: -50, yPercent: -50 });
-        addEventListener('pointermove', move, { passive: true });
-        addEventListener('scroll', onScroll, { passive: true });
-        document.addEventListener('pointerout', out);
-        addEventListener('blur', hide);
-        list.addEventListener('pointerover', enter);
-        list.addEventListener('pointerleave', hide);
-        OL.onCleanup(() => {
-          removeEventListener('pointermove', move);
-          removeEventListener('scroll', onScroll);
-          document.removeEventListener('pointerout', out);
-          removeEventListener('blur', hide);
-          cancelAnimationFrame(raf);
-        });
-      }
-      qa('.f-cat-list li').forEach((li) =>
-        gsap.from(li, { yPercent: 60, autoAlpha: 0, duration: 1.1, ease: 'expo.out', scrollTrigger: { trigger: li, start: 'top 92%', once: true } }));
-
-      /* --- deal band --- */
-      gsap.fromTo('.f-deal-big', { xPercent: 0 }, { xPercent: -30, ease: 'none', scrollTrigger: { trigger: '.f-deal', start: 'top bottom', end: 'bottom top', scrub: true } });
-      gsap.from('.f-deal-band', { clipPath: 'polygon(0 30%, 100% 10%, 100% 70%, 0 90%)', duration: 1.4, ease: 'expo.inOut', scrollTrigger: { trigger: '.f-deal', start: 'top 80%', once: true } });
-      gsap.from('.f-deal-inner > * > *, .f-deal .cd-unit', { y: 40, autoAlpha: 0, stagger: .06, duration: 1, ease: 'expo.out', scrollTrigger: { trigger: '.f-deal', start: 'top 70%', once: true } });
-
-      /* --- headings --- */
-      qa('.f-drops-intro > *').forEach((el, i) =>
-        gsap.from(el, { y: 50, autoAlpha: 0, duration: 1.1, delay: i * .08, ease: 'expo.out', scrollTrigger: { trigger: '.f-drops', start: 'top 75%', once: true } }));
-
-      return { intro };
+      ${tg ? `
+      <section class="h-help container" data-reveal>
+        <div><h2 class="h-serif">${t('home.tgTitle')}</h2><p>${t('home.tgText')}</p></div>
+        <a class="btn btn-gold" href="${tg}" target="_blank" rel="noopener"><span>${t('home.tgBtn')}</span>${OL.ICON.arrow}</a>
+      </section>` : ''}`;
     },
   };
 })();

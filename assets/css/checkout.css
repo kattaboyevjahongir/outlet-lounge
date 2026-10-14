@@ -10,7 +10,7 @@
   padding: 15px 16px;
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border-radius: 3px;
   font: 400 16px var(--font-body); /* 16px keeps iOS from zooming on focus */
   color: var(--text);
   outline: 0;
@@ -35,7 +35,7 @@
 
 .rd-group { display: grid; gap: 10px; }
 .rd-title { font: 500 11px var(--font-display); letter-spacing: .18em; text-transform: uppercase; color: var(--text-3); margin: 6px 0 2px; }
-.rd { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 14px; cursor: pointer; transition: border-color .25s, background-color .25s; }
+.rd { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: 3px; cursor: pointer; transition: border-color .25s, background-color .25s; }
 .rd:hover { border-color: var(--gold-2); }
 .rd input { position: absolute; opacity: 0; pointer-events: none; }
 .rd-dot { position: relative; width: 20px; height: 20px; flex: none; border: 1px solid var(--line-strong); border-radius: 50%; transition: border-color .25s; }
@@ -47,7 +47,7 @@
 .rd-label { font-size: 15px; color: var(--text); }
 .rd-fee { margin-left: auto; font: 500 14px var(--font-display); white-space: nowrap; }
 
-.ck-error { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--sale); border-radius: 14px; color: var(--sale); background: color-mix(in srgb, var(--sale) 8%, transparent); font-size: 14.5px; }
+.ck-error { margin: 0 0 18px; padding: 14px 16px; border: 1px solid var(--sale); border-radius: 3px; color: var(--sale); background: color-mix(in srgb, var(--sale) 8%, transparent); font-size: 14.5px; }
 
 /* ---------- Summary card (cart + checkout) ---------- */
 .cp-summary {
@@ -55,7 +55,7 @@
   top: calc(var(--header-h) + 20px);
   padding: 26px;
   border: 1px solid var(--line);
-  border-radius: 22px;
+  border-radius: 3px;
   background: var(--surface);
   display: flex;
   flex-direction: column;
@@ -83,7 +83,7 @@
 .promo-row input {
   flex: 1; min-width: 0;
   padding: 0 16px; height: 50px;
-  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--line-strong); border-radius: 2px;
   font: 500 15px var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--text); outline: 0;
 }
 .promo-row input:focus { border-color: var(--gold-2); }
@@ -97,7 +97,7 @@
 .cp-layout { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: clamp(24px, 4vw, 64px); align-items: start; }
 .cp-row { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 20px; padding: 22px 0; border-bottom: 1px solid var(--line); }
 .cp-row:first-child { padding-top: 0; }
-.cp-img img { width: 112px; height: 140px; object-fit: cover; border-radius: 14px; background: var(--img-bg); }
+.cp-img img { width: 112px; height: 140px; object-fit: cover; border-radius: 3px; background: var(--img-bg); }
 .cp-main small { font: 500 10.5px var(--font-display); letter-spacing: .22em; text-transform: uppercase; color: var(--gold-ink); }
 .cp-main h3 { margin: 4px 0 12px; font-family: var(--font-serif); font-weight: 500; font-size: 23px; line-height: 1.15; }
 .cp-main h3 a:hover { color: var(--gold-ink); }
@@ -114,10 +114,10 @@
 /* ---------- Checkout ---------- */
 .ck-layout { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: clamp(24px, 4vw, 64px); align-items: start; }
 .ck-fields { display: grid; gap: 22px; min-width: 0; }
-.ck-card { margin: 0; padding: 26px; border: 1px solid var(--line); border-radius: 22px; min-width: 0; display: grid; gap: 18px; }
+.ck-card { margin: 0; padding: 26px; border: 1px solid var(--line); border-radius: 3px; min-width: 0; display: grid; gap: 18px; }
 .ck-card legend { padding: 0 10px; font: 600 12px var(--font-display); letter-spacing: .2em; text-transform: uppercase; color: var(--gold-ink); }
 .ck-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.ck-note { padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--text-2); font-size: 14.5px; }
+.ck-note { padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 3px; color: var(--text-2); font-size: 14.5px; }
 .rd-cards .rd { padding: 18px; }
 .ck-consent { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 14.5px; color: var(--text-2); }
 .ck-consent input { position: absolute; opacity: 0; pointer-events: none; }
@@ -127,7 +127,7 @@
 .ck-consent input:focus-visible + .fc-box { outline: 2px solid var(--gold-2); outline-offset: 2px; }
 .ck-items { display: grid; gap: 14px; margin: 4px 0 6px; }
 .ck-items li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; align-items: center; }
-.ck-items img { width: 52px; height: 64px; object-fit: cover; border-radius: 10px; background: var(--img-bg); }
+.ck-items img { width: 52px; height: 64px; object-fit: cover; border-radius: 3px; background: var(--img-bg); }
 .ck-items b { display: block; font: 500 14px/1.25 var(--font-body); color: var(--text); }
 .ck-items small { color: var(--text-3); font-size: 12.5px; }
 .ck-items em { font: 500 13.5px var(--font-display); font-style: normal; white-space: nowrap; }
@@ -138,7 +138,7 @@
 .ok-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; padding-top: calc(var(--header-h) + clamp(30px, 6vw, 80px)); }
 .ok-mark svg { width: 92px; height: 92px; fill: none; stroke: var(--gold-2); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .ok-text { max-width: 520px; color: var(--text-2); font-size: 17px; }
-.ok-card { width: min(520px, 100%); text-align: left; padding: 26px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); display: grid; gap: 14px; margin-block: 10px 14px; }
+.ok-card { width: min(520px, 100%); text-align: left; padding: 26px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); display: grid; gap: 14px; margin-block: 10px 14px; }
 .ok-no { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .ok-no span { font: 500 11px var(--font-display); letter-spacing: .2em; text-transform: uppercase; color: var(--text-3); }
 .ok-no b { font: 600 22px var(--font-display); letter-spacing: .04em; color: var(--gold-ink); }
@@ -146,7 +146,7 @@
 /* ---------- Quick order / notify modals ---------- */
 .mform { display: grid; gap: 16px; }
 .mform .btn { width: 100%; margin-top: 4px; }
-.mform-item { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: 14px; }
+.mform-item { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 3px; font-size: 14px; }
 .mform-item span { color: var(--gold-ink); }
 .mdone { text-align: center; padding: 20px 0 6px; }
 .mdone-no { margin-top: 14px; font: 600 20px var(--font-display); letter-spacing: .06em; color: var(--gold-ink); }
@@ -159,8 +159,8 @@
 }
 @media (max-width: 640px) {
   .ck-grid { grid-template-columns: minmax(0, 1fr); }
-  .ck-card { padding: 20px 16px; border-radius: 18px; }
-  .cp-summary { padding: 20px 16px; border-radius: 18px; }
+  .ck-card { padding: 20px 16px; border-radius: 3px; }
+  .cp-summary { padding: 20px 16px; border-radius: 3px; }
   .cp-row { grid-template-columns: 84px minmax(0, 1fr); gap: 14px; }
   .cp-img img { width: 84px; height: 108px; }
   .cp-end { grid-column: 1 / -1; flex-direction: row; align-items: center; }
@@ -170,3 +170,9 @@
 .ok-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .ok-actions .btn { max-width: 100%; }
 @media (max-width: 720px) { .ok-actions { flex-direction: column; align-items: stretch; width: 100%; } }
+
+/* items ordered from abroad */
+.ck-items .ful { display: flex; margin-top: 2px; font-size: 12px; }
+.cp-main .ful { margin-top: 10px; }
+.ok-abroad { width: min(520px, 100%); text-align: left; }
+.cp-summary .cf-abroad { margin-bottom: 14px; }

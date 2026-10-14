@@ -64,10 +64,5 @@
           </div>
         </div>
       </section>`;
-    },
-    init(root) {
-      gsap.from(root.querySelectorAll('.nf .container > *'), { y: 40, autoAlpha: 0, stagger: 0.08, duration: 1, ease: 'expo.out' });
-      return {};
-    },
-  };
+    },  };
 })();

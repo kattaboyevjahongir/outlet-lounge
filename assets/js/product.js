@@ -1,33 +1,13 @@
-/* Product page — /product/<slug> */
+/* Product page — /product/<slug>
+   Sizes are labels (M, 50, 32, 42 …). Each size is either in stock in Tashkent or can be ordered from abroad. */
 (function () {
   const OL = window.OL;
   const t = (k, v) => OL.t(k, v);
   const esc = OL.esc;
   const html = document.documentElement;
 
-  // Approximate EU → US / UK / cm (men's). Values stored in the database win when present.
-  const SIZE_TABLE = [
-    [36, 4, 3.5, 22.5], [37, 5, 4.5, 23], [38, 6, 5.5, 24], [39, 6.5, 6, 24.5], [40, 7, 6.5, 25], [41, 8, 7.5, 26],
-    [42, 8.5, 8, 26.5], [43, 9.5, 9, 27.5], [44, 10, 9.5, 28], [45, 11, 10.5, 29], [46, 12, 11.5, 30],
-  ];
-  const convert = (eu) => {
-    const r = SIZE_TABLE.find((x) => x[0] === eu);
-    return r ? { us: r[1], uk: r[2], cm: r[3] } : {};
-  };
-  const labelFor = (z, unit) => {
-    if (unit === 'us') return z.us != null ? z.us : (convert(z.s).us ?? z.s);
-    if (unit === 'cm') return z.cm != null ? z.cm : (convert(z.s).cm ?? z.s);
-    return z.s;
-  };
-
   const VIEWED_KEY = 'viewed';
   const getViewed = () => OL.store.get(VIEWED_KEY, []).filter((s) => OL.P[s]);
-
-  const related = (p) => {
-    const others = OL.PRODUCTS.filter((x) => x !== p);
-    const score = (x) => (x.cat === p.cat ? 2 : 0) + (x.brand === p.brand ? 1 : 0) + (x.gender === p.gender ? 0.5 : 0);
-    return others.sort((a, b) => score(b) - score(a)).slice(0, 4);
-  };
 
   const description = (p) => {
     const d = p.desc && p.desc[OL.state.lang];
@@ -44,12 +24,38 @@
     return rows.length ? `<ul class="pd-fees">${rows.join('')}</ul>` : '';
   };
 
+  // the size guide of the item's category (letters, RU sizes, waist, shoes, belts); nothing for one-size items
+  const guideOf = (p) => {
+    const sys = (OL.CAT[p.cat] && OL.CAT[p.cat].sizes) || 'letter';
+    const rows = (OL.SIZE_CHARTS && OL.SIZE_CHARTS[sys]) || [];
+    return rows.length ? { sys, rows } : null;
+  };
+  const guideHTML = (g) => `<h3 class="sg-sub">${t('sg.sys.' + g.sys + '.title')}</h3>
+    <table class="sg-table"><thead><tr>${t('sg.sys.' + g.sys + '.cols').map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead>
+    <tbody>${g.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+  // facts shown under "Details"
+  const facts = (p) => [
+    p.material ? [t('pd.material'), esc(p.material)] : null,
+    p.fit ? [t('pd.fitLabel'), t('pd.fit.' + p.fit)] : null,
+    p.origin ? [t('pd.origin'), esc(OL.country(p.origin))] : null,
+    p.model ? [t('pd.model'), esc(p.model)] : null,
+  ].filter(Boolean);
+
+  // the line under the size picker for one size
+  const sizeNote = (p, size) => {
+    if (OL.lineState(p, size, 1) === 'order') return { cls: 'is-order', text: t('ful.orderDays', { days: OL.orderDays(p) }), note: t('ful.note') };
+    const z = p.sizes.find((x) => x.s === size);
+    if (z && z.stock > 0 && z.stock <= 2) return { cls: 'is-low', text: t('pd.onlyLeft', { n: z.stock }), note: '' };
+    return { cls: '', text: t('ful.stockDays', { days: OL.stockDays() }), note: '' };
+  };
+
   OL.pages.product = {
     meta(ctx) {
       const p = OL.P[ctx.params.slug];
       if (!p) return {};
       return {
-        title: `${p.brand} ${p.name}`,
+        title: `${p.brand} ${p.name}${p.color ? `, ${p.color}` : ''}`,
         description: `${description(p)} ${OL.price(p.price)}.`.slice(0, 200),
         image: p.images[0],
         path: ctx.path,
@@ -59,17 +65,26 @@
     render(ctx) {
       const p = OL.P[ctx.params.slug];
       const off = OL.off(p);
-      const inStock = p.sizes.some((z) => z.ok);
-      const rel = related(p);
+      const buyable = p.sizes.some((z) => z.ok);
+      const rel = OL.catalog.related(OL.PRODUCTS, p, 4);
+      const look = OL.catalog.completeLook(OL.PRODUCTS, p, 4);
       const seen = getViewed().filter((s) => s !== p.slug).slice(0, 4).map((s) => OL.P[s]);
       const imgs = p.images.length ? p.images : [''];
+      const dept = OL.catDept(p.cat);
+      const guide = guideOf(p);
+      const av = OL.catalog.availability(p);
+      const tag = av === 'sold' ? 'sold' : av === 'order' ? 'order' : p.tag;
+      const sibs = OL.catalog.otherColours(OL.PRODUCTS, p);
+      const dot = (x) => `<a class="pd-colour${x === p ? ' is-on' : ''}" href="${OL.productUrl(x)}" title="${esc(x.color || x.name)}" aria-label="${esc(x.color || x.name)}"><i data-c="${/^#[0-9a-fA-F]{6}$/.test(x.colorHex || '') ? x.colorHex : '#999'}"></i></a>`;
+      const f = facts(p);
 
       return `
       <article class="pd" data-id="${esc(p.id)}">
         <div class="container">
           <nav class="crumbs" aria-label="Breadcrumb">
             <a href="/">${t('crumbs.home')}</a><i>/</i>
-            <a href="/shop?cat=${esc(p.cat)}">${t('cat.' + p.cat)}</a><i>/</i>
+            ${dept ? `<a href="/${dept}">${t('dept.' + dept)}</a><i>/</i>` : ''}
+            <a href="${OL.catUrl(p.cat)}">${esc(OL.catName(p.cat))}</a><i>/</i>
             <span>${esc(p.name)}</span>
           </nav>
 
@@ -84,7 +99,7 @@
                 </div>
                 <div class="pcard-flags">
                   ${off ? `<span class="pcard-badge">−${off}%</span>` : ''}
-                  ${p.tag ? `<span class="pcard-tag">${t('tag.' + p.tag)}</span>` : ''}
+                  ${tag ? `<span class="pcard-tag is-${tag}">${t('tag.' + tag)}</span>` : ''}
                 </div>
                 <button type="button" class="pd-zoom" data-zoom aria-label="${t('pd.zoom')}"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"/></svg></button>
                 ${imgs.length > 1 ? `<button type="button" class="pd-arrow pd-prev" data-step="-1" aria-label="${t('pd.prev')}">${OL.ICON.arrow}</button>
@@ -96,7 +111,8 @@
             <div class="pd-info">
               <p class="eyebrow"><a href="/brands/${esc(OL.slug(p.brand))}">${esc(p.brand)}</a></p>
               <h1 class="pd-title">${esc(p.name)}</h1>
-              ${p.colorway || p.sku ? `<p class="pd-sub">${[p.colorway ? esc(p.colorway) : '', p.sku ? `${t('pd.sku')}: ${esc(p.sku)}` : ''].filter(Boolean).join(' · ')}</p>` : ''}
+              ${p.color || p.sku ? `<p class="pd-sub">${[p.color ? `${t('pd.color')}: ${esc(p.color)}` : '', p.sku ? `${t('pd.sku')}: ${esc(p.sku)}` : ''].filter(Boolean).join(' · ')}</p>` : ''}
+              ${sibs.length ? `<div class="pd-colours" aria-label="${t('pd.otherColours')}">${[p, ...sibs].map(dot).join('')}</div>` : ''}
 
               <div class="pd-price">
                 <b>${OL.price(p.price)}</b>
@@ -104,28 +120,27 @@
               </div>
               ${p.was > p.price ? `<p class="pd-save">${t('pd.save')}: ${OL.price(p.was - p.price)}</p>` : ''}
 
-              ${inStock ? `
+              ${buyable ? `
               <div class="pd-sizes-head">
                 <span>${t('pd.size')}</span>
-                <div class="pd-units" role="group">
-                  ${['eu', 'us', 'cm'].map((u, i) => `<button type="button" class="${i === 0 ? 'is-on' : ''}" data-unit="${u}">${t('pd.unit.' + u)}</button>`).join('')}
-                </div>
-                <button type="button" class="pd-guide" data-guide>${t('pd.sizeGuide')}</button>
+                ${guide ? `<button type="button" class="pd-guide" data-guide>${t('pd.sizeGuide')}</button>` : ''}
               </div>
               <div class="pd-sizes" role="radiogroup" aria-label="${t('pd.chooseSize')}">
-                ${p.sizes.map((z) => `<button type="button" role="radio" aria-checked="false" class="pd-size${z.ok ? '' : ' is-out'}" data-pd-size="${z.s}" data-stock="${z.stock}" ${z.ok ? '' : 'disabled'}>${z.s}</button>`).join('')}
+                ${p.sizes.map((z) => `<button type="button" role="radio" aria-checked="false" class="pd-size${z.ok ? '' : ' is-out'}${z.ok && z.stock === 0 ? ' is-order' : ''}" data-pd-size="${esc(z.s)}" data-stock="${z.stock}" ${z.ok ? '' : 'disabled'}>${esc(z.s)}</button>`).join('')}
               </div>
-              <p class="pd-hint" id="pdHint" aria-live="polite">${t('pd.chooseSize')}</p>` : `<p class="pd-soldout">${t('pd.allSold')}</p>`}
+              <p class="pd-legend"><span><i class="lg-stock"></i>${t('ful.stock')}</span><span><i class="lg-order"></i>${t('ful.order')}</span></p>
+              <p class="pd-hint" id="pdHint" aria-live="polite">${t('pd.chooseSize')}</p>
+              <p class="pd-ordernote" id="pdOrderNote" hidden></p>` : `<p class="pd-soldout">${t('pd.allSold')}</p>`}
 
               <div class="pd-actions" id="pdActions">
-                <button type="button" class="btn btn-gold pd-add magnetic" data-pd-add ${inStock ? '' : 'disabled'}>
-                  <span>${inStock ? t('pd.add') : t('pd.soldOut')}</span>${OL.ICON.arrow}
+                <button type="button" class="btn btn-gold pd-add" data-pd-add ${buyable ? '' : 'disabled'}>
+                  <span>${buyable ? t('pd.add') : t('pd.soldOut')}</span>${OL.ICON.arrow}
                 </button>
                 <button type="button" class="pd-fav pcard-fav${OL.state.wish.includes(p.id) ? ' is-on' : ''}" aria-label="${t('ui.fav')}" aria-pressed="${OL.state.wish.includes(p.id)}">${OL.ICON.heart}</button>
                 <button type="button" class="pd-share" data-share aria-label="${t('pd.share')}"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.4"/><circle cx="17.5" cy="6" r="2.4"/><circle cx="17.5" cy="18" r="2.4"/><path d="m8.2 10.9 7.1-3.7M8.2 13.1l7.1 3.7"/></svg></button>
               </div>
 
-              ${inStock
+              ${buyable
     ? `<button type="button" class="btn btn-ghost pd-quick" data-quick><span>${t('qb.btn')}</span></button>`
     : `<button type="button" class="btn btn-ghost pd-quick" data-notify><span>${t('nt.btn')}</span></button>`}
 
@@ -133,42 +148,40 @@
 
               <div class="pd-acc">
                 <details open><summary>${t('pd.description')}</summary><div><p>${esc(description(p))}</p></div></details>
-                <details><summary>${t('pd.details')}</summary><div><ul class="pd-list">${t('pd.detailsList').map((x) => `<li>${x}</li>`).join('')}</ul></div></details>
-                <details><summary>${t('pd.delivery')}</summary><div><p>${t('pd.deliveryText')}</p>${deliveryRows()}</div></details>
+                <details><summary>${t('pd.details')}</summary><div>
+                  ${f.length ? `<dl class="pd-facts">${f.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>` : ''}
+                  <ul class="pd-list">${t('pd.detailsList').map((x) => `<li>${x}</li>`).join('')}</ul></div></details>
+                <details><summary>${t('pd.delivery')}</summary><div><p>${t('pd.deliveryText')}</p>
+                  <p class="pd-days">${t('ful.stockDays', { days: OL.stockDays() })}<br>${t('ful.orderDays', { days: OL.orderDays(p) })}</p>${deliveryRows()}</div></details>
                 <details><summary>${t('pd.returns')}</summary><div><p>${t('pd.returnsText')}</p></div></details>
                 <details><summary>${t('pd.authentic')}</summary><div><p>${t('pd.authText')}</p></div></details>
               </div>
             </div>
           </div>
 
-          <section class="pd-more">
-            <h2 class="f-h2-s">${t('pd.related')}</h2>
-            <div class="pgrid pd-grid-cards" data-stagger>${rel.map((x) => OL.ui.card(x)).join('')}</div>
-          </section>
-          ${seen.length ? `<section class="pd-more">
-            <h2 class="f-h2-s">${t('pd.recent')}</h2>
-            <div class="pgrid pd-grid-cards">${seen.map((x) => OL.ui.card(x)).join('')}</div>
-          </section>` : ''}
+          ${look.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.complete')}</h2>
+            <div class="pgrid pd-grid-cards">${look.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
+          ${rel.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.related')}</h2>
+            <div class="pgrid pd-grid-cards">${rel.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
+          ${seen.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.recent')}</h2>
+            <div class="pgrid pd-grid-cards">${seen.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
         </div>
 
         <div class="pd-sticky" id="pdSticky" aria-hidden="true">
           <div><small>${esc(p.brand)}</small><b>${OL.price(p.price)}</b></div>
-          <button type="button" class="btn btn-gold" data-pd-add ${inStock ? '' : 'disabled'}><span>${inStock ? t('pd.add') : t('pd.soldOut')}</span></button>
+          <button type="button" class="btn btn-gold" data-pd-add ${buyable ? '' : 'disabled'}><span>${buyable ? t('pd.add') : t('pd.soldOut')}</span></button>
         </div>
 
-        <div class="modal" id="sizeGuide" role="dialog" aria-modal="true" aria-label="${t('sg.title')}" aria-hidden="true">
+        ${guide ? `<div class="modal" id="sizeGuide" role="dialog" aria-modal="true" aria-label="${t('sg.title')}" aria-hidden="true">
           <div class="modal-backdrop" data-close-modal></div>
           <div class="modal-card">
             <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             <h2>${t('sg.title')}</h2>
             <p>${t('sg.text')}</p>
-            <table class="sg-table">
-              <thead><tr>${t('sg.cols').map((c) => `<th>${c}</th>`).join('')}</tr></thead>
-              <tbody>${SIZE_TABLE.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join('')}</tbody>
-            </table>
+            ${guideHTML(guide)}
             <p class="sg-note">${t('sg.note')}</p>
           </div>
-        </div>
+        </div>` : ''}
 
         <div class="modal" id="quickBuy" role="dialog" aria-modal="true" aria-label="${t('qb.title')}" aria-hidden="true">
           <div class="modal-backdrop" data-close-modal></div>
@@ -178,6 +191,7 @@
               <h2>${t('qb.title')}</h2>
               <p>${t('qb.text')}</p>
               <p class="mform-item"><b>${esc(p.name)}</b><span data-quick-size></span></p>
+              <p class="mform-order" data-quick-order hidden></p>
               <label class="fld"><span>${t('qb.name')}</span><input name="name" autocomplete="name" maxlength="80"><em class="fld-err"></em></label>
               <label class="fld"><span>${t('qb.phone')}</span><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998 90 123 45 67"><em class="fld-err"></em></label>
               <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
@@ -222,6 +236,7 @@
       OL.store.set(VIEWED_KEY, [p.slug, ...getViewed().filter((s) => s !== p.slug)].slice(0, 12));
 
       /* ---- structured data for search engines ---- */
+      const av = OL.catalog.availability(p);
       const ld = document.createElement('script');
       ld.type = 'application/ld+json';
       ld.textContent = JSON.stringify({
@@ -231,12 +246,14 @@
         brand: { '@type': 'Brand', name: p.brand },
         image: p.images,
         sku: p.slug,
+        ...(p.color ? { color: p.color } : {}),
+        ...(p.material ? { material: p.material } : {}),
         description: description(p),
         offers: {
           '@type': 'Offer',
           priceCurrency: 'UZS',
           price: p.price,
-          availability: p.sizes.some((z) => z.ok) ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          availability: av === 'stock' ? 'https://schema.org/InStock' : av === 'order' ? 'https://schema.org/PreOrder' : 'https://schema.org/OutOfStock',
           url: location.origin + ctx.path,
         },
       });
@@ -316,6 +333,7 @@
       /* ---- size guide modal ---- */
       const guide = $('#sizeGuide');
       const setGuide = (open) => {
+        if (!guide) return;
         guide.classList.toggle('is-open', open);
         guide.setAttribute('aria-hidden', String(!open));
         html.classList.toggle('modal-open', open);
@@ -323,7 +341,7 @@
       };
       const onGuideKey = (e) => {
         if (e.key !== 'Escape') return;
-        if (guide.classList.contains('is-open')) setGuide(false);
+        if (guide && guide.classList.contains('is-open')) setGuide(false);
         page.querySelectorAll('#quickBuy.is-open, #notifyMe.is-open').forEach((m) => {
           m.classList.remove('is-open');
           m.setAttribute('aria-hidden', 'true');
@@ -336,26 +354,29 @@
 
       /* ---- add to cart ---- */
       const hint = $('#pdHint');
-      const addLabel = (state) => $$('[data-pd-add] span').forEach((el) => { el.textContent = state; });
+      const orderNote = $('#pdOrderNote');
+      const addLabel = (text) => $$('[data-pd-add] span').forEach((el) => { el.textContent = text; });
+      const restLabel = () => (selected != null && OL.lineState(p, selected, 1) === 'order' ? t('pd.addOrder') : t('pd.add'));
       const needSize = () => {
         if (hint) {
           hint.textContent = t('pd.chooseHint');
-          hint.classList.add('is-warn');
+          hint.className = 'pd-hint is-warn';
         }
         const box = $('.pd-sizes');
         if (box) {
           box.scrollIntoView({ block: 'center', behavior: OL.reduced ? 'auto' : 'smooth' });
-          if (window.gsap && OL.anim) gsap.fromTo(box, { x: -8 }, { x: 0, duration: 0.6, ease: 'elastic.out(1, .25)', clearProps: 'transform' });
+          box.classList.remove('is-shake');
+          void box.offsetWidth;
+          box.classList.add('is-shake');
         }
       };
       const add = () => {
         if (selected == null) return needSize();
-        const img = slides[current] && slides[current].querySelector('img');
-        OL.addToCart(p.id, selected, img, null);
-        addLabel(t('ui.added'));
+        OL.addToCart(p.id, selected);
+        addLabel(t('cart.added'));
         $$('[data-pd-add]').forEach((b) => b.classList.add('is-done'));
         setTimeout(() => {
-          addLabel(t('pd.add'));
+          addLabel(restLabel());
           $$('[data-pd-add]').forEach((b) => b.classList.remove('is-done'));
         }, 1700);
       };
@@ -480,13 +501,18 @@
       page.addEventListener('click', (e) => {
         if (e.target.closest('[data-quick]')) {
           if (selected == null) return needSize();
-          quick.querySelector('[data-quick-size]').textContent = ` · EU ${selected}`;
+          quick.querySelector('[data-quick-size]').textContent = ` · ${selected}`;
+          const qo = quick.querySelector('[data-quick-order]');
+          const isOrder = OL.lineState(p, selected, 1) === 'order';
+          qo.hidden = !isOrder;
+          qo.textContent = isOrder ? `${t('ful.orderDays', { days: OL.orderDays(p) })}. ${t('ful.note')}` : '';
           return setModal(quick, true);
         }
         if (e.target.closest('[data-notify]')) return setModal(notify, true);
         if (e.target.closest('[data-close-modal]')) {
           const m = e.target.closest('.modal');
-          if (m && m.id !== 'sizeGuide') return setModal(m, false);
+          if (m && m.id === 'sizeGuide') return setGuide(false);
+          if (m) return setModal(m, false);
         }
         const thumb = e.target.closest('[data-thumb]');
         if (thumb) return go(Number(thumb.dataset.thumb));
@@ -496,35 +522,23 @@
 
         const size = e.target.closest('[data-pd-size]');
         if (size && !size.disabled) {
-          selected = Number(size.dataset.pdSize);
+          selected = size.dataset.pdSize;
           $$('[data-pd-size]').forEach((b) => {
             const on = b === size;
             b.classList.toggle('is-on', on);
             b.setAttribute('aria-checked', String(on));
           });
-          const stock = Number(size.dataset.stock);
+          const n = sizeNote(p, selected);
           if (hint) {
-            hint.classList.remove('is-warn');
-            hint.classList.toggle('is-low', stock > 0 && stock <= 2);
-            hint.textContent = stock > 0 && stock <= 2 ? t('pd.onlyLeft', { n: stock }) : t('pd.inStock');
+            hint.className = `pd-hint ${n.cls}`;
+            hint.textContent = n.text;
           }
-          if (window.gsap && OL.anim) gsap.fromTo(size, { scale: 0.85 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, .4)' });
-          return;
-        }
-
-        const unit = e.target.closest('[data-unit]');
-        if (unit) {
-          $$('[data-unit]').forEach((b) => b.classList.toggle('is-on', b === unit));
-          const u = unit.dataset.unit;
-          $$('[data-pd-size]').forEach((b) => {
-            const z = p.sizes.find((x) => String(x.s) === b.dataset.pdSize);
-            if (z) b.textContent = labelFor(z, u);
-          });
+          if (orderNote) { orderNote.hidden = !n.note; orderNote.textContent = n.note; }
+          addLabel(restLabel());
           return;
         }
 
         if (e.target.closest('[data-guide]')) return setGuide(true);
-        if (e.target.closest('[data-close-modal]')) return setGuide(false);
         if (e.target.closest('[data-pd-add]')) return add();
 
         if (e.target.closest('[data-share]')) {
@@ -534,16 +548,6 @@
         }
       });
 
-      return {};
-    },
-
-    init(root) {
-      const q = (s) => root.querySelector(s);
-      const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-      tl.from(q('.pd-stage'), { clipPath: 'inset(0 0 100% 0)', duration: 1.2, ease: 'expo.inOut' })
-        .from(q('.pd-slide img'), { scale: 1.25, duration: 1.4 }, '<0.1')
-        .from(q('.pd-thumbs > *'), { x: -20, autoAlpha: 0, stagger: 0.06, duration: 0.7 }, '<0.3')
-        .from([...root.querySelectorAll('.pd-info > *')], { y: 30, autoAlpha: 0, stagger: 0.06, duration: 0.9, clearProps: 'transform,opacity,visibility' }, 0.15);
       return {};
     },
   };
