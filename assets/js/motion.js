@@ -121,33 +121,110 @@
     });
   };
 
-  /* ---------- intro: the logo draws itself (once per visit) ---------- */
+  /* ---------- intro (once per visit). Four styles; the design switcher sets html[data-intro] ---------- */
+  // each builder fills the loader, returns its timeline and calls `reveal` when the page should start appearing
+  const INTROS = {
+    // the gold logo draws itself stroke by stroke, the screen lifts
+    draw(L, reveal) {
+      L.className = 'loader is-draw';
+      L.innerHTML = `<div class="loader-inner"><div class="loader-mark">${OL.logoMark()}</div>
+        <p class="loader-word"><span>OUTLET LOUNGE</span></p><div class="loader-line"><i></i></div></div>`;
+      const paths = $$('.loader-mark path', L);
+      paths.forEach((p) => {
+        const len = p.getTotalLength();
+        gsap.set(p, { stroke: 'url(#olGold)', strokeWidth: 1, strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
+      });
+      const tl = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
+      tl.to(paths, { strokeDashoffset: 0, duration: 1.2, stagger: 0.12 })
+        .to(paths, { fillOpacity: 1, strokeWidth: 0, duration: 0.7, stagger: 0.06, ease: 'power2.out' }, '-=0.5')
+        .fromTo($('.loader-word span', L), { letterSpacing: '1.1em', autoAlpha: 0 }, { letterSpacing: '0.42em', autoAlpha: 1, duration: 1.1, ease: EASE }, '-=0.9')
+        .to($('.loader-line i', L), { scaleX: 1, duration: tl.duration(), ease: 'none' }, 0)
+        .to($('.loader-inner', L), { y: -24, autoAlpha: 0, duration: 0.5, ease: 'power2.in' }, '+=0.15')
+        .add(reveal, '-=0.05')
+        .to(L, { yPercent: -100, duration: 1.05, ease: 'expo.inOut' }, '-=0.1');
+      return tl;
+    },
+
+    // the name appears, then six vertical blinds snap open over the hero
+    shutter(L, reveal) {
+      L.className = 'loader is-shutter';
+      L.innerHTML = `<div class="ld-slats">${'<i></i>'.repeat(OL.touch ? 4 : 6)}</div>
+        <div class="ld-center"><div class="loader-mark">${OL.logoMark()}</div><p class="ld-word">OUTLET LOUNGE</p></div>`;
+      const tl = gsap.timeline();
+      tl.from($('.loader-mark', L), { autoAlpha: 0, scale: 0.85, duration: 0.8, ease: EASE })
+        .fromTo($('.ld-word', L), { letterSpacing: '1.4em', autoAlpha: 0 }, { letterSpacing: '0.42em', autoAlpha: 1, duration: 0.9, ease: EASE }, '-=0.6')
+        .to($('.ld-center', L), { autoAlpha: 0, y: -18, duration: 0.35, ease: 'power2.in' }, '+=0.15')
+        .add(reveal, '-=0.1')
+        .to($$('.ld-slats i', L), { yPercent: -101, duration: 0.9, stagger: 0.07, ease: 'power4.inOut' }, '-=0.15');
+      return tl;
+    },
+
+    // a fast cut through the products with a 00→100 counter; the last frame grows to full screen
+    film(L, reveal) {
+      L.className = 'loader is-film';
+      const pics = OL.PRODUCTS.filter((p) => p.images[0]).slice(0, OL.touch ? 4 : 6).map((p) => p.images[0]);
+      const last = OL.hero().image || pics[pics.length - 1];
+      const urls = [...pics, last].filter(Boolean).map((u, i, all) => OL.pimg(u, i === all.length - 1 ? 1600 : 480, i === all.length - 1 ? 1000 : 600));
+      urls.forEach((u) => { const im = new Image(); im.src = u; }); // warm the cache
+      L.innerHTML = `<div class="ld-frames">${urls.map((u) => `<img src="${u}" alt="">`).join('')}</div>
+        <span class="ld-count">00</span><p class="ld-word">OUTLET LOUNGE</p>`;
+      const frames = $$('.ld-frames img', L);
+      const count = $('.ld-count', L);
+      const step = 0.2;
+      const n = { v: 0 };
+      const tl = gsap.timeline();
+      gsap.set(frames, { autoAlpha: 0 });
+      tl.from($('.ld-word', L), { autoAlpha: 0, y: 12, duration: 0.5, ease: EASE }, 0);
+      frames.forEach((f, i) => {
+        tl.set(f, { autoAlpha: 1 }, 0.2 + i * step);
+        if (i < frames.length - 1) tl.set(f, { autoAlpha: 0 }, 0.2 + (i + 1) * step);
+      });
+      tl.to(n, { v: 100, duration: 0.2 + frames.length * step, ease: 'power1.in', onUpdate: () => { count.textContent = String(Math.round(n.v)).padStart(2, '0'); } }, 0)
+        .to([count, $('.ld-word', L)], { autoAlpha: 0, duration: 0.3 }, '+=0.05')
+        .to(frames[frames.length - 1], { width: '100vw', height: '100svh', duration: 1, ease: 'expo.inOut' }, '<')
+        .add(reveal, '-=0.35')
+        .to(L, { autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, '-=0.15');
+      return tl;
+    },
+
+    // the logo's arrow cuts the screen diagonally, the halves slide apart, giant words cross
+    slash(L, reveal) {
+      L.className = 'loader is-slash';
+      L.innerHTML = `<div class="ld-half ld-top"></div><div class="ld-half ld-bot"></div>
+        <svg class="ld-cut" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M-2 79 L102 29" pathLength="1"/></svg>
+        <div class="ld-words"><b>OUTLET</b><b><em>Lounge</em></b></div>`;
+      const [w1, w2] = $$('.ld-words b', L);
+      const cut = $('.ld-cut path', L);
+      gsap.set(cut, { strokeDasharray: 1, strokeDashoffset: 1 });
+      const tl = gsap.timeline();
+      tl.fromTo(w1, { xPercent: -120 }, { xPercent: 0, duration: 1.1, ease: EASE }, 0.1)
+        .fromTo(w2, { xPercent: 120 }, { xPercent: 0, duration: 1.1, ease: EASE }, 0.2)
+        .to(cut, { strokeDashoffset: 0, duration: 0.55, ease: 'power3.inOut' }, 0.75)
+        .add(reveal, 1.3)
+        .to($('.ld-top', L), { xPercent: -14, yPercent: -105, duration: 1, ease: 'power4.inOut' }, 1.3)
+        .to($('.ld-bot', L), { xPercent: 14, yPercent: 105, duration: 1, ease: 'power4.inOut' }, 1.3)
+        .to(cut, { autoAlpha: 0, duration: 0.3 }, 1.4)
+        .to(w1, { xPercent: 40, autoAlpha: 0, duration: 1, ease: 'power2.in' }, 1.35)
+        .to(w2, { xPercent: -40, autoAlpha: 0, duration: 1, ease: 'power2.in' }, 1.35);
+      return tl;
+    },
+  };
+  M.INTROS = Object.keys(INTROS);
+
   M.intro = () => new Promise((resolve) => {
     const L = $('#loader');
     let seen = false;
     try { seen = sessionStorage.getItem('ol:seen') === '1'; sessionStorage.setItem('ol:seen', '1'); } catch (e) { /* private mode */ }
     if (!L) { resolve(); return; }
     if (seen) { L.remove(); resolve(); return; }
-    $('.loader-mark', L).innerHTML = OL.logoMark();
-    const paths = $$('.loader-mark path', L);
-    paths.forEach((p) => {
-      const len = p.getTotalLength();
-      gsap.set(p, { stroke: 'url(#olGold)', strokeWidth: 1, strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0 });
-    });
     let done = false;
     const finish = () => { if (!done) { done = true; resolve(); } };
-    const tl = gsap.timeline({ defaults: { ease: 'power3.inOut' } });
-    tl.to(paths, { strokeDashoffset: 0, duration: 1.2, stagger: 0.12 })
-      .to(paths, { fillOpacity: 1, strokeWidth: 0, duration: 0.7, stagger: 0.06, ease: 'power2.out' }, '-=0.5')
-      .fromTo('.loader-word span', { letterSpacing: '1.1em', autoAlpha: 0 }, { letterSpacing: '0.42em', autoAlpha: 1, duration: 1.1, ease: EASE }, '-=0.9')
-      .to('.loader-line i', { scaleX: 1, duration: tl.duration(), ease: 'none' }, 0)
-      .to('.loader-inner', { y: -24, autoAlpha: 0, duration: 0.5, ease: 'power2.in' }, '+=0.15')
-      .add(finish, '-=0.05')
-      .to(L, { yPercent: -100, duration: 1.05, ease: 'expo.inOut' }, '-=0.1')
-      .add(() => L.remove());
+    const build = INTROS[html.dataset.intro] || INTROS.draw;
+    const tl = build(L, finish).add(() => L.remove());
+    // a tap skips it
     L.addEventListener('click', () => { tl.progress(1); finish(); }, { once: true });
     // a stalled tab (hidden window) must never keep the shop covered
-    setTimeout(() => { if (!done) { tl.progress(1); finish(); } }, 5000);
+    setTimeout(() => { if (!done) { tl.progress(1); finish(); } }, 6000);
   });
 
   /* ---------- curtain between pages and for the theme switch ---------- */
