@@ -6,7 +6,7 @@ Homepage for the Outlet Lounge sneaker shop in the **Flight Path** style: oversi
 - English / Русский / O‘zbek, prices in UZS
 - Working cart drawer (front-end only)
 
-Live: <https://outlet-lounge.vercel.app>
+Live: <https://outletlounge.uz> (also <https://outlet-lounge.vercel.app>)
 
 ## Run locally
 
@@ -114,7 +114,7 @@ Try it locally without an account or database: `npm run dev`, then open
 - **Closed until launch.** The public setting `site.indexing` (admin → Settings → Launch) is off by default:
   pages are `noindex`, `robots.txt` disallows everything and the sitemap is empty. Switch it on on launch day.
 - **Analytics** load only when an id is entered under Settings → Analytics.
-- **Domain:** set `SITE_URL` in Vercel after connecting one. The full checklist is in `docs/LAUNCH.md`.
+- **Domain:** `outletlounge.uz` (DNS at Eskiz: A `@` → 216.198.79.1 and 64.29.17.1, CNAME `www` → Vercel; www redirects to the bare domain). The code defaults to it; `SITE_URL` in Vercel can override it.
 
 ## Tests
 
@@ -130,17 +130,17 @@ See `.env.example`. Real values live only in Vercel — never in git.
 ### Telegram order alerts
 
 **Connected:** bot **@outlet_lounge_bot** → managers' group **Outlet_requests**; webhook
-`https://outlet-lounge.vercel.app/api/telegram` (status buttons + `/start <order no>` for customers).
+`https://outletlounge.uz/api/telegram` (status buttons + `/start <order no>` for customers).
 
 - The token lives only in Vercel (`TELEGRAM_BOT_TOKEN`, sensitive, so it can't be pulled to a laptop).
 - The managers' chat is the private `telegram` setting (`{"chat_id": …}`); `TELEGRAM_CHAT_ID` overrides it if set.
 - Setup steps run **on the server**: write the step into the private `telegram_setup` setting, open
-  `https://outlet-lounge.vercel.app/api/telegram` once, then read the result back from the same setting.
+  `https://outletlounge.uz/api/telegram` once, then read the result back from the same setting.
   Steps: `status`, `discover` (chats the bot can see — send `/id@outlet_lounge_bot` in a group first;
   only works while no webhook is set), `webhook`, `test`.
   ```bash
   npx supabase db query --linked "update public.settings set value = '{\"action\":\"status\"}' where key = 'telegram_setup'"
-  curl https://outlet-lounge.vercel.app/api/telegram
+  curl https://outletlounge.uz/api/telegram
   npx supabase db query --linked "select value from public.settings where key = 'telegram_setup'"
   ```
 - New token (after a revoke): replace it in Vercel → redeploy → run the `webhook` step.

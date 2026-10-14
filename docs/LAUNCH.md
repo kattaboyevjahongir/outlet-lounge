@@ -21,12 +21,17 @@ the developer once you give the go-ahead; the rest need your own accounts or dec
 
 - [ ] **Vercel Pro** (~$20/month). The free Hobby plan is for non-commercial use only.
 - [ ] **Supabase Pro** (~$25/month): daily backups, no pausing after a quiet week.
-- [ ] **Domain** — a `.uz` name from an accredited registrar (see §3).
+- [x] **Domain** — `outletlounge.uz` (Eskiz), connected 2026-10-14 (see §3).
 - [ ] Revoke the bot token that was ever pasted in a chat (@BotFather → /mybots → API Token → Revoke),
       put the new one in Vercel (`TELEGRAM_BOT_TOKEN`), redeploy, run the Telegram `webhook` setup step
       (README → "Telegram order alerts").
 
-## 3. Domain 🤖
+## 3. Domain 🤖 — done 2026-10-14
+
+`outletlounge.uz` is live: DNS at Eskiz (A `@` → 216.198.79.1 / 64.29.17.1, CNAME `www` →
+`c720baa1a801c31c.vercel-dns-017.com`), www → bare-domain redirect in `vercel.json`, the code's default
+site address (`api/_lib/seo.js`) is the domain, Supabase site URL updated, Telegram webhook re-registered.
+The steps, for reference / another domain:
 
 1. Buy the domain (for example `outletlounge.uz`).
 2. Vercel → Project → Settings → **Domains** → add it; at the registrar set the DNS records Vercel shows.

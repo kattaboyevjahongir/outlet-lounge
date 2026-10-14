@@ -10,7 +10,7 @@
 
 | Area | Status |
 |---|---|
-| Homepage ("Flight Path" design), light/dark, EN/RU/UZ, UZS prices | ✅ Done, live at https://outlet-lounge.vercel.app |
+| Homepage ("Flight Path" design), light/dark, EN/RU/UZ, UZS prices | ✅ Done, live at https://outletlounge.uz |
 | Cart drawer (front-end only, stored in the browser) | ✅ Done |
 | GitHub repo `kattaboyevjahongir/outlet-lounge` | ✅ Done |
 | Vercel project | ✅ Done; GitHub connected 2026-10-13 — every push to `main` deploys to production |
@@ -478,7 +478,7 @@ outlet-lounge/
 - [ ] Social links: Instagram, Telegram channel, manager account
 - [ ] **Supabase account** created; **staff list** (emails + roles)
 - [ ] **Budget** for Vercel Pro + Supabase Pro at launch
-- [ ] Domain name (e.g. `outletlounge.uz`) → connect to Vercel
+- [x] Domain name `outletlounge.uz` → connected to Vercel (2026-10-14)
 
 ---
 

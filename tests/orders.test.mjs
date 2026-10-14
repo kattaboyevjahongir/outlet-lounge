@@ -470,7 +470,7 @@ test('webhook: GET runs only a setup step requested in the database, and returns
     pending = { action: 'webhook' };
     await webhook(get(), res());
     const hookCall = m.calls.find((c) => c.url.includes('setWebhook'));
-    assert.equal(hookCall.body.url, 'https://outlet-lounge.vercel.app/api/telegram');
+    assert.equal(hookCall.body.url, 'https://outletlounge.uz/api/telegram');
     assert.equal(hookCall.body.secret_token, 'hook-secret');
     assert.equal(pending.result.ok, true);
   } finally { m.restore(); unconfigure(); resetTelegramChatCache(); }

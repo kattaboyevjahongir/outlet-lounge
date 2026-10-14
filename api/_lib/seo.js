@@ -2,7 +2,7 @@
 // for crawlers, injected into the shop's HTML shell by api/page.js. Pure functions, unit-tested.
 // Everything that comes from the database or the admin panel is escaped here.
 
-export const DEFAULT_SITE = 'https://outlet-lounge.vercel.app';
+export const DEFAULT_SITE = 'https://outletlounge.uz'; // SITE_URL overrides it
 // the public `site` setting: { indexing: true } once the owner opens the shop to search engines
 export const isIndexing = (settings) => !!(settings && settings.site && settings.site.indexing === true);
 export const siteUrl = () => String(process.env.SITE_URL || DEFAULT_SITE).replace(/\/+$/, '');

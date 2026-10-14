@@ -62,7 +62,7 @@ test('product page: own title, description, canonical, Open Graph, Product + Off
     assert.match(h, /<title>Nike Air Max 1 “Sunset” Orange \/ Grey купить — Outlet Lounge<\/title>/);
     assert.equal((h.match(/<title>/g) || []).length, 1, 'the shell\'s generic title is replaced, not duplicated');
     assert.equal((h.match(/name="description"/g) || []).length, 1);
-    assert.match(h, /<link rel="canonical" href="https:\/\/outlet-lounge\.vercel\.app\/product\/air-max-1-sunset" \/>/);
+    assert.match(h, /<link rel="canonical" href="https:\/\/outletlounge\.uz\/product\/air-max-1-sunset" \/>/);
     assert.match(h, /<meta property="og:image" content="https:\/\/images\.unsplash\.com\/a" \/>/);
     assert.match(h, /<meta property="og:type" content="product" \/>/);
     assert.match(h, /<html lang="ru"/);
@@ -132,7 +132,7 @@ test('collections and brands list products for crawlers; unknown brand is 404', 
     r = await call(pageHandler, { type: 'brand', slug: 'vans' });
     assert.equal(r.code, 200);
     assert.match(r.body, /<title>Vans — оригинальные кроссовки — Outlet Lounge<\/title>/);
-    assert.match(r.body, /rel="canonical" href="https:\/\/outlet-lounge\.vercel\.app\/brands\/vans"/);
+    assert.match(r.body, /rel="canonical" href="https:\/\/outletlounge\.uz\/brands\/vans"/);
     r = await call(pageHandler, { type: 'brand', slug: 'ghost' });
     assert.equal(r.code, 404);
     r = await call(pageHandler, { type: 'collection', slug: 'admin' });
@@ -152,7 +152,7 @@ test('info pages and home carry their own meta; home gets Store JSON-LD from the
   try {
     let r = await call(pageHandler, { type: 'info', slug: 'delivery' });
     assert.match(r.body, /<title>Доставка и оплата — Outlet Lounge<\/title>/);
-    assert.match(r.body, /rel="canonical" href="https:\/\/outlet-lounge\.vercel\.app\/delivery"/);
+    assert.match(r.body, /rel="canonical" href="https:\/\/outletlounge\.uz\/delivery"/);
     r = await call(pageHandler, { type: 'home' });
     assert.match(r.body, /<title>Outlet Lounge — оригинальные кроссовки по ценам аутлета<\/title>/);
     assert.match(r.body, /og:image" content="https:\/\/images\.unsplash\.com\/hero"/);
@@ -179,17 +179,17 @@ test('the database being down still serves the shell', async () => {
 });
 
 test('sitemap: static pages, products with images and lastmod, brands; SITE_URL is respected', async () => {
-  configure({ SITE_URL: 'https://outletlounge.uz/' });
+  configure({ SITE_URL: 'https://shop.example/' });
   const db = mockDb([ROW(), ROW({ slug: 'no-photo', product_images: [] })]);
   try {
     const r = await call(sitemapHandler);
     assert.match(r.headers['Content-Type'], /application\/xml/);
     const x = r.body;
-    assert.match(x, /<loc>https:\/\/outletlounge\.uz\/<\/loc>/);
-    assert.match(x, /<loc>https:\/\/outletlounge\.uz\/product\/air-max-1-sunset<\/loc><lastmod>2026-10-10<\/lastmod>/);
+    assert.match(x, /<loc>https:\/\/shop\.example\/<\/loc>/);
+    assert.match(x, /<loc>https:\/\/shop\.example\/product\/air-max-1-sunset<\/loc><lastmod>2026-10-10<\/lastmod>/);
     assert.match(x, /<image:loc>https:\/\/images\.unsplash\.com\/a<\/image:loc>/);
-    assert.match(x, /<loc>https:\/\/outletlounge\.uz\/brands\/nike<\/loc>/);
-    assert.match(x, /<loc>https:\/\/outletlounge\.uz\/delivery<\/loc>/);
+    assert.match(x, /<loc>https:\/\/shop\.example\/brands\/nike<\/loc>/);
+    assert.match(x, /<loc>https:\/\/shop\.example\/delivery<\/loc>/);
     assert.ok(!x.includes('no-photo'), 'products that cannot be shown are not listed');
     assert.ok(!x.includes('/admin') && !x.includes('/checkout'));
   } finally { db.restore(); reset(); }
@@ -204,7 +204,7 @@ test('robots.txt (open shop) blocks admin, api and private pages and names the s
     assert.match(r.body, /Disallow: \/admin/);
     assert.match(r.body, /Disallow: \/api\//);
     assert.match(r.body, /Disallow: \/checkout/);
-    assert.match(r.body, /Sitemap: https:\/\/outlet-lounge\.vercel\.app\/sitemap\.xml/);
+    assert.match(r.body, /Sitemap: https:\/\/outletlounge\.uz\/sitemap\.xml/);
   } finally { db.restore(); reset(); }
 });
 

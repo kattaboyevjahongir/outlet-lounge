@@ -11,6 +11,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { orderMessage, keyboard, ACTION_TO_STATUS, STATUS, customerMessage } from './_lib/format.js';
 import { rpc, select, patch, tg, telegramChat, limited, clientIp } from './_lib/services.js';
 import { loadOrder, hhmm } from './_lib/orders.js';
+import { siteUrl } from './_lib/seo.js';
 
 const ok = (res) => res.status(200).json({ ok: true });
 
@@ -78,7 +79,6 @@ async function onStart(msg) {
 // returns data, and the webhook can only ever point at this shop (SITE_URL).
 //   status   → bot username, webhook, last error      discover → chats the bot was added to
 //   webhook  → register <SITE_URL>/api/telegram        test     → test message to the managers' chat
-const SITE = () => (process.env.SITE_URL || 'https://outlet-lounge.vercel.app').replace(/\/$/, '');
 
 async function runSetupStep(action) {
   const me = await tg('getMe', {});
@@ -102,10 +102,10 @@ async function runSetupStep(action) {
   } else if (action === 'webhook') {
     if (!process.env.TELEGRAM_WEBHOOK_SECRET) return { ...out, ok: false, error: 'TELEGRAM_WEBHOOK_SECRET is not set' };
     const r = await tg('setWebhook', {
-      url: `${SITE()}/api/telegram`, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
+      url: `${siteUrl()}/api/telegram`, secret_token: process.env.TELEGRAM_WEBHOOK_SECRET,
       allowed_updates: ['message', 'callback_query'],
     });
-    Object.assign(out, { ok: !!r.ok, webhook: `${SITE()}/api/telegram`, error: r.ok ? undefined : r.description });
+    Object.assign(out, { ok: !!r.ok, webhook: `${siteUrl()}/api/telegram`, error: r.ok ? undefined : r.description });
   } else if (action === 'test') {
     const chatId = await telegramChat();
     if (!chatId) return { ...out, ok: false, error: 'no managers chat configured' };
