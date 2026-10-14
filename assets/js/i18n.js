@@ -386,6 +386,7 @@
     color: { black: 'Black', white: 'White', grey: 'Grey', navy: 'Navy', blue: 'Blue', green: 'Green', beige: 'Beige', brown: 'Brown', red: 'Red', other: 'Other' },
     tag: { new: 'New', hot: 'Bestseller', last: 'Last pieces', order: 'On order', sold: 'Sold out' },
     ful: {
+      cartFree: 'Delivery is free — prices of items ordered from abroad already include it.',
       stock: 'In stock', order: 'On order',
       stockDays: 'In stock in Tashkent · delivery in {days} days',
       orderDays: 'On order from abroad · about {days} days',
@@ -505,6 +506,7 @@
     color: { black: 'Чёрный', white: 'Белый', grey: 'Серый', navy: 'Тёмно-синий', blue: 'Синий', green: 'Зелёный', beige: 'Бежевый', brown: 'Коричневый', red: 'Красный', other: 'Другой' },
     tag: { new: 'Новинка', hot: 'Хит', last: 'Последние', order: 'Под заказ', sold: 'Нет в наличии' },
     ful: {
+      cartFree: 'Доставка бесплатная — в цену товаров под заказ она уже включена.',
       stock: 'В наличии', order: 'Под заказ',
       stockDays: 'В наличии в Ташкенте · доставка {days} дн.',
       orderDays: 'Под заказ из-за рубежа · около {days} дн.',
@@ -624,6 +626,7 @@
     color: { black: 'Qora', white: 'Oq', grey: 'Kulrang', navy: 'Toʻq koʻk', blue: 'Koʻk', green: 'Yashil', beige: 'Bej', brown: 'Jigarrang', red: 'Qizil', other: 'Boshqa' },
     tag: { new: 'Yangi', hot: 'Xit', last: 'Oxirgilari', order: 'Buyurtmaga', sold: 'Mavjud emas' },
     ful: {
+      cartFree: 'Yetkazib berish bepul — buyurtma asosidagi mahsulotlar narxiga u allaqachon kiritilgan.',
       stock: 'Mavjud', order: 'Buyurtmaga',
       stockDays: 'Toshkentda mavjud · {days} kunda yetkaziladi',
       orderDays: 'Chet eldan buyurtmaga · taxminan {days} kun',

@@ -266,6 +266,8 @@
     const list = OL.cartLines().filter((i) => OL.lineState(OL.P[i.id], i.size, i.qty) === 'order').map((i) => OL.orderDays(OL.P[i.id]));
     return [...new Set(list)].join(', ') || OL.orderDays();
   };
+  // nothing in the cart comes from the stock here: on-order prices include delivery, so it is free
+  OL.orderFree = () => OL.deliveryInfo().order_free !== false && OL.orderLogic.allOnOrder(OL.cartLines(), OL.P);
   OL.lineBadge = (p, size, qty) => {
     const s = OL.lineState(p, size, qty);
     return s === 'order' ? `<span class="ful is-order">${ICON.plane}${t('ful.order')} · ${esc(OL.orderDays(p))} ${t('ui.daysShort')}</span>`
@@ -302,7 +304,7 @@
     const prog = OL.orderLogic.freeProgress(sub, thr);
     const abroad = OL.abroadCount();
     $('#cartFoot').innerHTML = `
-      ${prog.enabled ? `<div class="free-bar${prog.free ? ' is-free' : ''}"><p>${prog.free ? t('cp.freeDone') : t('cp.freeFrom', { n: OL.price(prog.left) })}</p><div><i data-w="${prog.pct}"></i></div></div>` : ''}
+      ${OL.orderFree() ? `<div class="free-bar is-free"><p>${t('ful.cartFree')}</p></div>` : prog.enabled ? `<div class="free-bar${prog.free ? ' is-free' : ''}"><p>${prog.free ? t('cp.freeDone') : t('cp.freeFrom', { n: OL.price(prog.left) })}</p><div><i data-w="${prog.pct}"></i></div></div>` : ''}
       <div class="cf-row"><span>${t('cart.subtotal')}</span><b>${OL.price(sub)}</b></div>
       ${save > 0 ? `<div class="cf-row cf-save"><span>${t('cart.save')}</span><span>${OL.price(save)}</span></div>` : ''}
       ${abroad ? `<p class="cf-abroad">${ICON.plane}<span>${t('ful.cartNote', { n: abroad, days: esc(OL.abroadDays()) })}</span></p>` : ''}

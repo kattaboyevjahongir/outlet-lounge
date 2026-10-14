@@ -49,6 +49,13 @@ test('local totals and free-delivery progress', () => {
   assert.deepEqual(plain(O.localQuote([{ id: 'a', qty: 1 }], P, delivery, 'courier_tashkent')), { subtotal: 1000000, discount: 0, delivery_fee: 30000, total: 1030000 });
   assert.equal(O.localQuote([{ id: 'a', qty: 1 }], P, delivery, 'regions').delivery_fee, 50000);
   assert.equal(O.localQuote([{ id: 'a', qty: 1 }, { id: 'b', qty: 1 }], P, delivery, 'regions').delivery_fee, 0, 'free above threshold');
+  // everything ordered from abroad: on-order prices include delivery
+  const sz = (stock) => [{ s: 'M', ok: true, stock, order: true }];
+  const Q = { o: { price: 500000, sizes: sz(0) }, s: { price: 500000, sizes: sz(3) } };
+  assert.equal(O.localQuote([{ id: 'o', size: 'M', qty: 1 }], Q, delivery, 'courier_tashkent').delivery_fee, 0, 'only on-order lines: free');
+  assert.equal(O.localQuote([{ id: 'o', size: 'M', qty: 1 }, { id: 's', size: 'M', qty: 1 }], Q, delivery, 'courier_tashkent').delivery_fee, 30000, 'a line from the stock here: normal fee');
+  assert.equal(O.localQuote([{ id: 's', size: 'M', qty: 5 }], Q, delivery, 'courier_tashkent').delivery_fee, 0, 'more than the stock here: ordered, free');
+  assert.equal(O.localQuote([{ id: 'o', size: 'M', qty: 1 }], Q, { ...delivery, order_free: false }, 'courier_tashkent').delivery_fee, 30000, 'switched off');
   assert.deepEqual(plain(O.freeProgress(1000000, 1500000)), { left: 500000, pct: 67, free: false, enabled: true });
   assert.equal(O.freeProgress(2000000, 1500000).free, true);
   assert.equal(O.freeProgress(500, 0).enabled, false);

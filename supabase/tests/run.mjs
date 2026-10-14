@@ -247,10 +247,31 @@ await test('not enough here: the line is ordered from abroad and the stock stays
   // XXL is sold out here but can be ordered
   const r2 = await place(order([{ slug: POLO, size: 'XXL', qty: 1 }], { customer: { name: 'Ord', phone: '+998901110002' } }));
   assert.equal(r2.items[0].fulfilment, 'order');
-  assert.equal(r2.total, 1290000 + 30000, 'ordered lines cost the same');
+  assert.equal(r2.subtotal, 1290000, 'ordered lines cost the same');
+  assert.equal(r2.delivery_fee, 0, 'nothing from the stock here: delivery is free (on-order prices include it)');
   await asSuper();
   assert.equal(await stockOf(POLO, 'XL'), 1, 'stock is not taken for a line ordered from abroad');
   assert.equal(await stockOf(POLO, 'XXL'), 0);
+});
+await test('free delivery only when everything is ordered from abroad (and only while the switch is on)', async () => {
+  // keep the order-amount threshold out of the way
+  await asSuper();
+  const before = (await db.query(`select value ->> 'free_threshold' t from settings where key = 'delivery'`)).rows[0].t;
+  await db.exec(`update settings set value = value || '{"free_threshold": 100000000}'::jsonb where key = 'delivery'`);
+  await as('service_role');
+  // a mixed order (one line from the stock here, one ordered) pays the normal courier fee
+  const mixed = await place(order([{ slug: POLO, size: 'M', qty: 1 }, { slug: POLO, size: 'XXL', qty: 1 }], { customer: { name: 'Mix', phone: '+998901110011' } }));
+  assert.deepEqual(mixed.items.map((i) => i.fulfilment).sort(), ['order', 'stock']);
+  assert.equal(mixed.delivery_fee, 30000);
+  // the owner can switch the rule off
+  await asSuper();
+  await db.exec(`update settings set value = value || '{"order_free": false}'::jsonb where key = 'delivery'`);
+  await as('service_role');
+  const paid = await place(order([{ slug: POLO, size: 'XXL', qty: 1 }], { customer: { name: 'Off', phone: '+998901110012' } }));
+  assert.equal(paid.delivery_fee, 30000);
+  await asSuper();
+  await db.exec(`update settings set value = value || '{"order_free": true}'::jsonb
+                   || jsonb_build_object('free_threshold', ${Number(before)}) where key = 'delivery'`);
 });
 await test('the last piece goes to the first buyer, the second one orders it from abroad', async () => {
   await as('service_role');

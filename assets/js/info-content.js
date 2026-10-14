@@ -42,6 +42,7 @@
               `В наличии в Ташкенте — доставим за ${c.stock} дн.`,
               `Под заказ из-за рубежа — привезём примерно за ${c.order} дн.; менеджер подтвердит дату и условия.`,
               'На странице товара у каждого размера указано, где он: у нас в Ташкенте или под заказ.',
+              'Доставка товаров под заказ бесплатная — она уже включена в их цену. Если в заказе есть вещи из наличия, доставка считается как обычно.',
             ] },
             { h: 'Способы и стоимость', table: { head: ['Способ', 'Срок', 'Стоимость'], rows: [
               ['Курьер по Ташкенту', '1–2 дня', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'бесплатно'],
@@ -175,6 +176,7 @@
               `Toshkentda mavjud boʻlsa — ${c.stock} kun ichida yetkazamiz.`,
               `Xorijdan buyurtma asosida — taxminan ${c.order} kunda olib kelamiz; menejer sana va shartlarni tasdiqlaydi.`,
               'Mahsulot sahifasida har bir oʻlcham uchun belgilangan: Toshkentda mavjud yoki buyurtma asosida.',
+              'Buyurtma asosidagi mahsulotlarni yetkazib berish bepul — u ularning narxiga kiritilgan. Buyurtmada mavjud mahsulotlar ham boʻlsa, yetkazib berish odatdagidek hisoblanadi.',
             ] },
             { h: 'Usullar va narxlar', table: { head: ['Usul', 'Muddat', 'Narx'], rows: [
               ['Toshkent boʻylab kuryer', '1–2 kun', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'bepul'],
@@ -304,6 +306,7 @@
               `In stock in Tashkent — delivered in ${c.stock} days.`,
               `On order from abroad — brought to you in about ${c.order} days; a manager confirms the date and terms.`,
               'Every size on the product page shows which it is: in stock in Tashkent or on order.',
+              'Delivery of items ordered from abroad is free: it is already in their price. If the order also has items from our Tashkent stock, delivery is charged as usual.',
             ] },
             { h: 'Methods and prices', table: { head: ['Method', 'Time', 'Price'], rows: [
               ['Courier in Tashkent', '1–2 days', c.fee.courier_tashkent ? c.money(c.fee.courier_tashkent) : 'free'],

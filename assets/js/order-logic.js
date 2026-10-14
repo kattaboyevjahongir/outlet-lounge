@@ -36,6 +36,16 @@
   };
 
   // Offline / not-configured fallback. The server's number is always the real one.
+  // true when no line of the cart can be served from the stock here (sizes: { s, stock })
+  O.allOnOrder = (cart, products) => {
+    const lines = cart.filter((i) => products[i.id]);
+    const fromStock = (i) => {
+      const z = (products[i.id].sizes || []).find((x) => x.s === i.size);
+      return !z || z.stock >= i.qty;
+    };
+    return lines.length > 0 && !lines.some(fromStock);
+  };
+
   O.localQuote = (cart, products, delivery, method) => {
     let subtotal = 0;
     cart.forEach((i) => { if (products[i.id]) subtotal += products[i.id].price * i.qty; });
@@ -43,6 +53,8 @@
     const m = (d.methods || []).find((x) => x.id === method);
     let fee = m ? m.fee : 0;
     if (d.free_threshold && subtotal >= d.free_threshold) fee = 0;
+    // items ordered from abroad already include delivery: nothing from the stock here → free (like price_order)
+    if (O.allOnOrder(cart, products) && d.order_free !== false) fee = 0;
     return { subtotal, discount: 0, delivery_fee: fee, total: subtotal + fee };
   };
 

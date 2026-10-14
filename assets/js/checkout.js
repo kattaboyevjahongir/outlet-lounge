@@ -50,6 +50,7 @@
   };
 
   const progressHTML = (amount) => {
+    if (OL.orderFree()) return `<div class="free-bar is-free"><p>${t('ful.cartFree')}</p></div>`;
     const p = O.freeProgress(amount, delivery().free_threshold);
     if (!p.enabled) return '';
     return `<div class="free-bar${p.free ? ' is-free' : ''}">
