@@ -56,7 +56,7 @@
       <section class="nf">
         <div class="container">
           <p class="nf-code" aria-hidden="true">404</p>
-          <h1 class="nf-title">${t('nf.title')}</h1>
+          <h1 class="nf-title" data-split>${t('nf.title')}</h1>
           <p class="nf-text">${t('nf.text')}</p>
           <div class="nf-actions">
             <a class="btn btn-gold" href="/shop"><span>${t('nf.shop')}</span>${OL.ICON.arrow}</a>

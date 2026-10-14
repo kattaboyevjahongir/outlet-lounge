@@ -32,6 +32,8 @@
       }
       d.lang = l;
       d.classList.add('js');
+      // the intro plays once per visit
+      try { if (sessionStorage.getItem('ol:seen') === '1' || matchMedia('(prefers-reduced-motion: reduce)').matches) d.classList.add('no-loader'); } catch (e) { /* private mode */ }
     })();
   </script>
 
@@ -40,12 +42,12 @@
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
-  <link rel="stylesheet" href="/assets/css/base.css?v=31" />
-  <link rel="stylesheet" href="/assets/css/home.css?v=31" />
-  <link rel="stylesheet" href="/assets/css/shop.css?v=31" />
-  <link rel="stylesheet" href="/assets/css/product.css?v=31" />
-  <link rel="stylesheet" href="/assets/css/checkout.css?v=31" />
-  <link rel="stylesheet" href="/assets/css/info.css?v=31" />
+  <link rel="stylesheet" href="/assets/css/base.css?v=32" />
+  <link rel="stylesheet" href="/assets/css/home.css?v=32" />
+  <link rel="stylesheet" href="/assets/css/shop.css?v=32" />
+  <link rel="stylesheet" href="/assets/css/product.css?v=32" />
+  <link rel="stylesheet" href="/assets/css/checkout.css?v=32" />
+  <link rel="stylesheet" href="/assets/css/info.css?v=32" />
 </head>
 <body>
   <!-- Shared SVG gradient for the logo -->
@@ -59,6 +61,15 @@
       </linearGradient>
     </defs>
   </svg>
+
+  <!-- Intro: the logo draws itself (motion.js; once per visit) -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader-inner">
+      <div class="loader-mark"></div>
+      <p class="loader-word"><span>OUTLET LOUNGE</span></p>
+      <div class="loader-line"><i></i></div>
+    </div>
+  </div>
 
   <a class="skip-link" href="#app" data-native data-i18n="ui.skip">Skip to content</a>
 
@@ -102,7 +113,7 @@
   </header>
 
   <!-- Mobile menu -->
-  <div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu" id="mobileMenu" data-lenis-prevent>
     <nav id="mobileNav" aria-label="Main"></nav>
     <div class="menu-tools">
       <div class="lang-switch" role="group" aria-label="Language">
@@ -130,7 +141,7 @@
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
-    <div class="cart-items" id="cartItems"></div>
+    <div class="cart-items" id="cartItems" data-lenis-prevent></div>
     <div class="cart-foot" id="cartFoot"></div>
   </aside>
 
@@ -142,7 +153,7 @@
         <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
       </button>
     </div>
-    <div class="cart-items" id="wishItems"></div>
+    <div class="cart-items" id="wishItems" data-lenis-prevent></div>
   </aside>
 
   <!-- Search overlay -->
@@ -157,26 +168,39 @@
           <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
       </form>
-      <div class="search-body" id="searchBody"></div>
+      <div class="search-body" id="searchBody" data-lenis-prevent></div>
+    </div>
+  </div>
+
+  <!-- Curtain between pages / for theme and language changes (motion.js) -->
+  <div class="curtain" id="curtain" aria-hidden="true">
+    <div class="curtain-inner">
+      <div class="curtain-mark"></div>
+      <div class="curtain-line"><i></i></div>
+      <p class="curtain-label"></p>
     </div>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <script src="/assets/js/data.js?v=31"></script>
-  <script src="/assets/js/i18n.js?v=31"></script>
-  <script src="/assets/js/catalog-logic.js?v=31"></script>
-  <script src="/assets/js/order-logic.js?v=31"></script>
-  <script src="/assets/js/analytics.js?v=31"></script>
-  <script src="/assets/js/core.js?v=31"></script>
-  <script src="/assets/js/router.js?v=31"></script>
-  <script src="/assets/js/home.js?v=31"></script>
-  <script src="/assets/js/shop.js?v=31"></script>
-  <script src="/assets/js/product.js?v=31"></script>
-  <script src="/assets/js/pages.js?v=31"></script>
-  <script src="/assets/js/info-content.js?v=31"></script>
-  <script src="/assets/js/info.js?v=31"></script>
-  <script src="/assets/js/checkout.js?v=31"></script>
-  <script src="/assets/js/main.js?v=31"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script src="/assets/js/data.js?v=32"></script>
+  <script src="/assets/js/i18n.js?v=32"></script>
+  <script src="/assets/js/catalog-logic.js?v=32"></script>
+  <script src="/assets/js/order-logic.js?v=32"></script>
+  <script src="/assets/js/analytics.js?v=32"></script>
+  <script src="/assets/js/core.js?v=32"></script>
+  <script src="/assets/js/motion.js?v=32"></script>
+  <script src="/assets/js/router.js?v=32"></script>
+  <script src="/assets/js/home.js?v=32"></script>
+  <script src="/assets/js/shop.js?v=32"></script>
+  <script src="/assets/js/product.js?v=32"></script>
+  <script src="/assets/js/pages.js?v=32"></script>
+  <script src="/assets/js/info-content.js?v=32"></script>
+  <script src="/assets/js/info.js?v=32"></script>
+  <script src="/assets/js/checkout.js?v=32"></script>
+  <script src="/assets/js/main.js?v=32"></script>
 </body>
 </html>

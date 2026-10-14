@@ -87,7 +87,7 @@
           </aside>
           <article class="info-main">
             <nav class="crumbs" aria-label="Breadcrumb"><a href="/">${esc(OL.t('crumbs.home'))}</a><i>/</i><span>${esc(OL.infoTitle(slug))}</span></nav>
-            <h1 class="info-title">${esc(OL.infoTitle(slug))}</h1>
+            <h1 class="info-title" data-split>${esc(OL.infoTitle(slug))}</h1>
             <p class="info-lead">${esc(page.lead)}</p>
             ${page.blocks.map(block).join('')}
             <div class="info-cta">

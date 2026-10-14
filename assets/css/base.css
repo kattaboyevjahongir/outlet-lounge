@@ -442,3 +442,74 @@ html { scrollbar-width: thin; scrollbar-color: var(--gold-3) var(--bg); }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; transition-delay: 0s !important; }
   [data-reveal] { opacity: 1; transform: none; }
 }
+
+/* =========================================================
+   Motion layer (motion.js — GSAP + Lenis). Without it the CSS fade-ups above apply.
+   ========================================================= */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+.lenis.lenis-stopped { overflow: hidden; }
+/* GSAP sets the starting states itself */
+.has-motion [data-reveal] { opacity: 1; transform: none; transition: none; }
+
+/* headlines rise word by word from behind a mask */
+.sw { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.sw-i { display: inline-block; will-change: transform; }
+
+/* intro: the logo draws itself */
+.loader { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; background: var(--bg); }
+.no-loader .loader, :root:not(.js) .loader { display: none; }
+.loader-inner { display: grid; justify-items: center; gap: 22px; }
+.loader-mark { width: min(240px, 52vw); }
+.loader-mark path { fill-opacity: 0; }
+.loader-word { font: 500 12px var(--font-body); letter-spacing: .42em; color: var(--gold-ink); padding-left: .42em; }
+.loader-word span { display: inline-block; opacity: 0; }
+.loader-line { width: 160px; height: 1px; background: var(--line); overflow: hidden; }
+.loader-line i { display: block; height: 100%; background: var(--gold-2); transform: scaleX(0); transform-origin: left; }
+
+/* curtain between pages */
+.curtain { position: fixed; inset: 0; z-index: 2500; visibility: hidden; display: grid; place-items: center; background: var(--bg-2); border-top: 1px solid var(--gold-3); }
+.curtain-inner { display: grid; justify-items: center; gap: 16px; }
+.curtain-mark { width: 92px; }
+.curtain-line { width: 120px; height: 1px; background: var(--line); overflow: hidden; }
+.curtain-line i { display: block; height: 100%; background: var(--gold-2); transform-origin: left; }
+.curtain-label { font: 500 11.5px var(--font-body); letter-spacing: .32em; text-transform: uppercase; color: var(--gold-ink); min-height: 1em; }
+
+/* "View" cursor over photographs (mouse only) */
+.cursor { position: fixed; left: 0; top: 0; z-index: 2400; pointer-events: none; }
+.cursor-ring {
+  position: absolute; left: 0; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  border: 1px solid var(--gold-2); display: grid; place-items: center; opacity: .7;
+  transition: width .45s var(--ease-out), height .45s var(--ease-out), margin .45s var(--ease-out), background-color .3s, opacity .3s;
+}
+.cursor-ring b { font: 500 10.5px var(--font-body); letter-spacing: .22em; text-transform: uppercase; color: var(--on-gold); opacity: 0; transition: opacity .25s; white-space: nowrap; }
+.cursor.is-view .cursor-ring { width: 84px; height: 84px; margin: -42px 0 0 -42px; background: color-mix(in srgb, var(--gold-2) 88%, transparent); border-color: transparent; opacity: 1; }
+.cursor.is-view .cursor-ring b { opacity: 1; transition-delay: .12s; }
+
+/* add to bag */
+.fly-ghost { position: fixed; z-index: 2300; object-fit: cover; pointer-events: none; box-shadow: var(--shadow-sm); }
+
+/* mega-menu and mobile menu: links arrive in a short cascade */
+.mega-col h4, .mega-col a, .mega-feature { opacity: 0; translate: 0 10px; transition: opacity .45s ease, translate .7s var(--ease-out), color .2s, transform .3s var(--ease-out); }
+.mega-open .mega-panel.is-on .mega-col h4, .mega-open .mega-panel.is-on .mega-col a, .mega-open .mega-panel.is-on .mega-feature { opacity: 1; translate: 0 0; }
+.mega-open .mega-col > :nth-child(2) { transition-delay: .03s; } .mega-open .mega-col > :nth-child(3) { transition-delay: .06s; }
+.mega-open .mega-col > :nth-child(4) { transition-delay: .09s; } .mega-open .mega-col > :nth-child(5) { transition-delay: .12s; }
+.mega-open .mega-col > :nth-child(6) { transition-delay: .15s; } .mega-open .mega-col > :nth-child(7) { transition-delay: .18s; }
+.mega-open .mega-col > :nth-child(n+8) { transition-delay: .21s; }
+.mega-open .mega-col + .mega-col > * { transition-delay: .1s; }
+.mobile-menu nav > * { opacity: 0; translate: 0 18px; transition: opacity .5s ease, translate .8s var(--ease-out); }
+.menu-open .mobile-menu nav > * { opacity: 1; translate: 0 0; }
+.menu-open .mobile-menu nav > :nth-child(2) { transition-delay: .05s; } .menu-open .mobile-menu nav > :nth-child(3) { transition-delay: .1s; }
+.menu-open .mobile-menu nav > :nth-child(4) { transition-delay: .15s; } .menu-open .mobile-menu nav > :nth-child(5) { transition-delay: .2s; }
+.menu-open .mobile-menu nav > :nth-child(n+6) { transition-delay: .25s; }
+
+/* hairline under the header logo word draws on hover */
+.brand-word { position: relative; }
+.brand-word::after { content: ''; position: absolute; left: 0; right: .34em; bottom: -5px; height: 1px; background: var(--gold-2); transform: scaleX(0); transform-origin: left; transition: transform .6s var(--ease-out); }
+.brand:hover .brand-word::after { transform: scaleX(1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .mega-col h4, .mega-col a, .mega-feature, .mobile-menu nav > * { opacity: 1; translate: 0 0; }
+  .cursor, .loader, .curtain { display: none; }
+}

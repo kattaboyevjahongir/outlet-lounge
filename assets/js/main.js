@@ -7,6 +7,10 @@
 
   OL.initShell();
 
+  // the logo draws itself on the first visit while the catalog loads; page entrances wait for it
+  if (OL.motion && OL.motion.on) OL.motion.start();
+  else { const l = document.getElementById('loader'); if (l) l.remove(); }
+
   // wait for the live catalog — but never longer than 2.5 s; the page then uses the built-in one
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   Promise.race([OL.loadCatalog(), wait(2500)])

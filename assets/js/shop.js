@@ -172,6 +172,8 @@
     if (grid) {
       const g = $('#shopGrid');
       g.innerHTML = S.list.length ? cards(0, S.shown) : '';
+      if (S.painted) OL.reveal(g); // the first paint is revealed by the page mount
+      S.painted = true;
       $('#shopEmpty').innerHTML = S.list.length ? '' : emptyHTML();
       $('#shopMore').innerHTML = moreHTML();
     }
@@ -216,7 +218,7 @@
           <nav class="crumbs" aria-label="Breadcrumb">${crumbs.join('<i>/</i>')}</nav>
           <header class="shop-head">
             <p class="eyebrow"><span class="eyebrow-line"></span>${t('shop.eyebrow')}</p>
-            <h1 class="shop-title">${esc(title)}</h1>
+            <h1 class="shop-title" data-split>${esc(title)}</h1>
             <p class="shop-count" id="shopCount"></p>
           </header>
 
@@ -236,7 +238,7 @@
 
           <div class="shop-layout">
             <div class="filters-overlay" data-close-filters></div>
-            <aside class="filters" id="filters" aria-label="${t('shop.filters')}">
+            <aside class="filters" id="filters" data-lenis-prevent aria-label="${t('shop.filters')}">
               <div class="filters-head">
                 <h2>${t('shop.filters')}</h2>
                 <button type="button" class="icon-btn" data-close-filters aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -322,6 +324,7 @@
           const from = S.shown;
           S.shown += C.PAGE_SIZE;
           page.querySelector('#shopGrid').insertAdjacentHTML('beforeend', cards(from, S.shown));
+          OL.reveal(page.querySelector('#shopGrid'));
           page.querySelector('#shopMore').innerHTML = moreHTML();
           return;
         }

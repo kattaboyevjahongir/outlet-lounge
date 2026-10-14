@@ -90,10 +90,10 @@
 
           <div class="pd-grid">
             <div class="pd-gallery">
-              <div class="pd-thumbs" role="tablist">
+              <div class="pd-thumbs" role="tablist" data-stagger>
                 ${imgs.map((u, i) => `<button type="button" class="pd-thumb${i === 0 ? ' is-on' : ''}" data-thumb="${i}" aria-label="${i + 1}"><img src="${OL.pimg(u, 160, 200)}" alt=""></button>`).join('')}
               </div>
-              <div class="pd-stage">
+              <div class="pd-stage" data-img>
                 <div class="pd-track" id="pdTrack">
                   ${imgs.map((u, i) => `<figure class="pd-slide"><img src="${OL.pimg(u, 1100, 1375)}" alt="${esc(p.brand)} ${esc(p.name)} — ${i + 1}" ${i ? 'loading="lazy"' : ''} data-slide="${i}"></figure>`).join('')}
                 </div>
@@ -108,9 +108,9 @@
               </div>
             </div>
 
-            <div class="pd-info">
+            <div class="pd-info" data-stagger>
               <p class="eyebrow"><a href="/brands/${esc(OL.slug(p.brand))}">${esc(p.brand)}</a></p>
-              <h1 class="pd-title">${esc(p.name)}</h1>
+              <h1 class="pd-title" data-split>${esc(p.name)}</h1>
               ${p.color || p.sku ? `<p class="pd-sub">${[p.color ? `${t('pd.color')}: ${esc(p.color)}` : '', p.sku ? `${t('pd.sku')}: ${esc(p.sku)}` : ''].filter(Boolean).join(' · ')}</p>` : ''}
               ${sibs.length ? `<div class="pd-colours" aria-label="${t('pd.otherColours')}">${[p, ...sibs].map(dot).join('')}</div>` : ''}
 
@@ -159,11 +159,11 @@
             </div>
           </div>
 
-          ${look.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.complete')}</h2>
+          ${look.length ? `<section class="pd-more"><h2 class="pd-h2" data-split>${t('pd.complete')}</h2>
             <div class="pgrid pd-grid-cards">${look.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
-          ${rel.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.related')}</h2>
+          ${rel.length ? `<section class="pd-more"><h2 class="pd-h2" data-split>${t('pd.related')}</h2>
             <div class="pgrid pd-grid-cards">${rel.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
-          ${seen.length ? `<section class="pd-more"><h2 class="pd-h2">${t('pd.recent')}</h2>
+          ${seen.length ? `<section class="pd-more"><h2 class="pd-h2" data-split>${t('pd.recent')}</h2>
             <div class="pgrid pd-grid-cards">${seen.map((x) => OL.ui.card(x)).join('')}</div></section>` : ''}
         </div>
 
@@ -174,7 +174,7 @@
 
         ${guide ? `<div class="modal" id="sizeGuide" role="dialog" aria-modal="true" aria-label="${t('sg.title')}" aria-hidden="true">
           <div class="modal-backdrop" data-close-modal></div>
-          <div class="modal-card">
+          <div class="modal-card" data-lenis-prevent>
             <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             <h2>${t('sg.title')}</h2>
             <p>${t('sg.text')}</p>
@@ -185,7 +185,7 @@
 
         <div class="modal" id="quickBuy" role="dialog" aria-modal="true" aria-label="${t('qb.title')}" aria-hidden="true">
           <div class="modal-backdrop" data-close-modal></div>
-          <div class="modal-card">
+          <div class="modal-card" data-lenis-prevent>
             <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             <form class="mform" data-form="quick" novalidate>
               <h2>${t('qb.title')}</h2>
@@ -204,7 +204,7 @@
 
         <div class="modal" id="notifyMe" role="dialog" aria-modal="true" aria-label="${t('nt.title')}" aria-hidden="true">
           <div class="modal-backdrop" data-close-modal></div>
-          <div class="modal-card">
+          <div class="modal-card" data-lenis-prevent>
             <button type="button" class="icon-btn modal-x" data-close-modal aria-label="${t('pd.close')}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
             <form class="mform" data-form="notify" novalidate>
               <h2>${t('nt.title')}</h2>
@@ -372,6 +372,8 @@
       };
       const add = () => {
         if (selected == null) return needSize();
+        const img = slides[current] && slides[current].querySelector('img');
+        if (OL.motion && OL.motion.on) OL.motion.fly(img);
         OL.addToCart(p.id, selected);
         addLabel(t('cart.added'));
         $$('[data-pd-add]').forEach((b) => b.classList.add('is-done'));

@@ -95,6 +95,7 @@
   /* ---------- Scroll reveals (CSS does the motion; this only marks elements that came into view) ---------- */
   let observer = null;
   OL.reveal = (root = document) => {
+    if (OL.motion && OL.motion.on) return OL.motion.reveal(root); // the GSAP layer (motion.js)
     const els = $$('[data-reveal]:not(.is-in)', root);
     if (!els.length) return;
     if (OL.reduced || !('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('is-in')); return; }
@@ -169,8 +170,11 @@
     const meta = $('meta[name="theme-color"]');
     if (meta) meta.content = OL.bgFor(theme);
   };
+  // with the motion layer, a curtain carrying the logo passes over the page while the colours change
+  const M = () => (OL.motion && OL.motion.on ? OL.motion : null);
   OL.toggleTheme = () => {
     const next = state.theme === 'dark' ? 'light' : 'dark';
+    if (M()) { M().cover(t('toast.' + next)).then(() => { applyTheme(next); return M().uncover(); }); return; }
     applyTheme(next);
     OL.toast(t('toast.' + next));
   };
@@ -184,6 +188,14 @@
   };
   OL.setLang = (lang) => {
     if (lang === state.lang) return;
+    if (M() && !OL.setLang.busy) {
+      OL.setLang.busy = true;
+      M().cover(lang.toUpperCase()).then(() => { applyLang(lang); return M().uncover(); }).then(() => { OL.setLang.busy = false; });
+      return;
+    }
+    applyLang(lang);
+  };
+  function applyLang(lang) {
     state.lang = lang;
     store.set('lang', lang);
     html.lang = lang;
@@ -196,7 +208,7 @@
     renderSearch();
     buildMega();
     OL.refreshRoute();
-  };
+  }
 
   /* ---------- Page mount ---------- */
   OL.mount = (opts = {}) => {
@@ -206,7 +218,8 @@
     const app = $('#app');
     OL.mounted = true;
     app.innerHTML = C.render(ctx);
-    window.scrollTo(0, opts.keepScroll || 0);
+    if (M()) M().scrollTo(opts.keepScroll || 0, { immediate: true });
+    else window.scrollTo(0, opts.keepScroll || 0);
     const api = (C.bind && C.bind(app, ctx)) || {};
     OL.reveal(app);
     return api;
@@ -654,7 +667,9 @@
     const el = typeof target === 'string' ? (target === '#top' ? 0 : $(target)) : target;
     if (el == null) return;
     const off = -(parseInt(getComputedStyle(html).getPropertyValue('--header-h')) || 68) + 1;
-    window.scrollTo({ top: el === 0 ? 0 : el.getBoundingClientRect().top + scrollY + off, behavior: OL.reduced ? 'auto' : 'smooth' });
+    const top = el === 0 ? 0 : el.getBoundingClientRect().top + scrollY + off;
+    if (M()) return M().scrollTo(top);
+    window.scrollTo({ top, behavior: OL.reduced ? 'auto' : 'smooth' });
   };
 
   /* ---------- Global events ---------- */

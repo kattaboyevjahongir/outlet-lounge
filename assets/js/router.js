@@ -84,12 +84,17 @@
 
   // pages fade out and in with CSS (see .is-leaving in base.css)
   const app = () => document.getElementById('app');
+  const motion = () => (OL.motion && OL.motion.on ? OL.motion : null);
   const leave = () => new Promise((resolve) => {
+    if (motion()) return motion().cover().then(resolve);
     if (OL.reduced) return resolve();
     document.body.classList.add('is-leaving');
     setTimeout(resolve, 140);
   });
-  const enter = () => requestAnimationFrame(() => document.body.classList.remove('is-leaving'));
+  const enter = () => {
+    if (motion()) return motion().uncover();
+    return requestAnimationFrame(() => document.body.classList.remove('is-leaving'));
+  };
 
   async function swap(route, { push = false, restoreY = 0, first = false } = {}) {
     route = finalize(route);
@@ -137,7 +142,10 @@
   OL.navigate = (href, { replace = false } = {}) => {
     const next = OL.resolve(href, location.origin);
     const same = current && next.path === current.path && next.search === current.search && next.hash === current.hash;
-    if (same) { window.scrollTo({ top: 0, behavior: OL.reduced ? 'auto' : 'smooth' }); return null; }
+    if (same) {
+      if (motion()) motion().scrollTo(0); else window.scrollTo({ top: 0, behavior: OL.reduced ? 'auto' : 'smooth' });
+      return null;
+    }
     return swap(next, { push: !replace });
   };
 
