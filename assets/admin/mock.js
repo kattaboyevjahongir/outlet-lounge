@@ -119,7 +119,7 @@ export function createMock() {
   const settings = {
     contacts: { phone: '+998 90 123 45 67', hours: '10:00–21:00', call_minutes: 15, telegram: 'outlet_manager', telegram_bot: 'outlet_lounge_bot', instagram: 'outlet.lounge' },
     delivery: { methods: [{ id: 'courier_tashkent', fee: 30000 }, { id: 'regions', fee: 50000 }, { id: 'pickup', fee: 0 }], free_threshold: 1500000,
-      stock_days: '1–3', order_days: '10–18', order_note: { ru: 'Менеджер подтвердит срок.' } },
+      stock_days: '1–3', order_days: '10–18', order_free: true, order_note: { ru: 'Менеджер подтвердит срок.' } },
     home: { hero: {}, deal_ends: null },
     telegram: { bot: 'outlet_lounge_bot', chat_id: -1004346539283, chat_title: 'Outlet_requests' },
     site: { indexing: false },

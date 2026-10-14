@@ -59,6 +59,8 @@ const ru = {
 
   'set.stockDays': 'Срок доставки из наличия, дней', 'set.orderDays': 'Срок под заказ, дней',
   'set.orderDaysHint': 'Сколько ждать товар из-за рубежа. Можно переопределить для отдельного товара. Например: 10–18',
+  'set.orderFree': 'Бесплатная доставка для заказов из-за рубежа',
+  'set.orderFreeHint': 'Цены товаров под заказ уже включают доставку. Если включено, заказ, где все вещи под заказ, доставляется бесплатно; если в заказе есть вещи из наличия в Ташкенте — доставка считается как обычно.',
   'set.orderNote': 'Пояснение для заказов из-за рубежа', 'set.orderNoteHint': 'Показывается клиенту в корзине и на оформлении (RU / UZ / EN). Например: «Менеджер подтвердит дату; возможна предоплата».',
   'set.err.days': 'Формат: 3 или 3–5',
 };
@@ -120,6 +122,8 @@ const uz = {
 
   'set.stockDays': 'Ombordan yetkazish muddati, kun', 'set.orderDays': 'Buyurtma muddati, kun',
   'set.orderDaysHint': 'Mahsulot chet eldan necha kunda keladi. Alohida mahsulot uchun oʻzgartirish mumkin. Masalan: 10–18',
+  'set.orderFree': 'Chet eldan buyurtmalar uchun bepul yetkazib berish',
+  'set.orderFreeHint': 'Buyurtma asosidagi mahsulotlar narxiga yetkazib berish kiritilgan. Yoqilgan boʻlsa, barcha mahsulotlari buyurtma asosida boʻlgan buyurtma bepul yetkaziladi; Toshkentda mavjud mahsulot ham boʻlsa — yetkazib berish odatdagidek hisoblanadi.',
   'set.orderNote': 'Chet eldan buyurtmalar uchun izoh', 'set.orderNoteHint': 'Mijozga savat va rasmiylashtirishda koʻrsatiladi (RU / UZ / EN). Masalan: «Menejer sanani tasdiqlaydi; oldindan toʻlov talab qilinishi mumkin».',
   'set.err.days': 'Koʻrinishi: 3 yoki 3–5',
 };
@@ -181,6 +185,8 @@ const en = {
 
   'set.stockDays': 'Delivery time from stock, days', 'set.orderDays': 'Order lead time, days',
   'set.orderDaysHint': 'How long an item takes to arrive from abroad. A single product can override it. For example: 10–18',
+  'set.orderFree': 'Free delivery for orders from abroad',
+  'set.orderFreeHint': 'Prices of on-order items already include delivery. When on, an order where everything is on order ships free; if it also has items from the Tashkent stock, delivery is charged as usual.',
   'set.orderNote': 'Note for orders from abroad', 'set.orderNoteHint': 'Shown to shoppers in the cart and at checkout (RU / UZ / EN). For example: “A manager confirms the date; prepayment may be required.”',
   'set.err.days': 'Format: 3 or 3–5',
 };

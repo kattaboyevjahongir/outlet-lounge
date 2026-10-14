@@ -49,6 +49,8 @@ export default async function page({ data, me }) {
             ${DELIVERY_METHODS.map((id) => input(id, t(`set.fee.${id}`), feeOf(id), { mode: 'numeric', max: 12 }))}
             ${input('free_threshold', t('set.freeFrom'), delivery.free_threshold ? fmtMoney(delivery.free_threshold) : '', { mode: 'numeric', max: 12, hint: t('set.freeHint') })}
           </div>
+          <label class="switch"><input type="checkbox" name="order_free" ${delivery.order_free !== false ? 'checked' : ''}><span>${t('set.orderFree')}</span></label>
+          <p class="muted">${t('set.orderFreeHint')}</p>
           <div class="grid-2">
             ${input('stock_days', t('set.stockDays'), delivery.stock_days, { max: 8 })}
             ${input('order_days', t('set.orderDays'), delivery.order_days, { max: 8, hint: t('set.orderDaysHint') })}
@@ -160,6 +162,7 @@ export default async function page({ data, me }) {
         next.stock_days = String(v.stock_days || '').trim() || '1–3';
         next.order_days = String(v.order_days || '').trim() || '10–18';
         next.order_note = Object.fromEntries(['ru', 'uz', 'en'].map((l) => [l, String(v[`order_note_${l}`] || '').trim()]).filter(([, text]) => text));
+        next.order_free = f.order_free.checked; // on-order prices include delivery (see price_order)
         const free = parseMoney(v.free_threshold);
         if (free) next.free_threshold = free; else delete next.free_threshold;
         try { await data.saveSetting('delivery', next, true); saved(); } catch (err) { fail(err); }
