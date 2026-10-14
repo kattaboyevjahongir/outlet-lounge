@@ -43,11 +43,11 @@ The bot token was pasted into a chat, so treat it as exposed.
 
 ## 2. Goals and principles
 
-- **Sell original sneakers at outlet prices**, mainly in Uzbekistan. Prices are in UZS.
+- **Sell original menswear, shoes and accessories imported from abroad**, mainly in Uzbekistan (men only). Every size is either in stock in Tashkent or can be ordered from abroad. Prices are in UZS, with an optional old price.
 - **Ordering must be dead simple:** no customer account, no online payment needed at launch. The customer leaves a phone number, a manager confirms by phone or Telegram.
 - **One source of truth:** Supabase (database) holds products, stock, orders and settings. **Telegram = instant alerts + quick actions**; the **admin panel = full control**. Both stay in sync.
 - **The owner runs the shop without a developer:** products, photos, prices, stock, orders, banners and staff are all managed in `/admin`.
-- **Keep the current stack:** plain HTML/CSS/JS + GSAP on Vercel, small serverless functions, Supabase for data, logins and photos. No heavy framework unless a later phase needs it.
+- **Keep the current stack:** plain HTML/CSS/JS (no animation library; motion is CSS) on Vercel, small serverless functions, Supabase for data, logins and photos. No heavy framework unless a later phase needs it.
 - **Mobile first:** most traffic will come from phones (Instagram/Telegram links), and managers will often use the admin panel on a phone.
 - **Fast, accessible, bilingual-first:** Russian and Uzbek are the primary languages; English is secondary.
 - **Never trust the browser** for prices, stock or promo codes. The server recalculates every order from the database.
@@ -61,8 +61,9 @@ The bot token was pasted into a chat, so treat it as exposed.
 /                        Home (done)
 /shop                    All products: filters, sort, search
 /new                     New arrivals (catalog, pre-filtered)
-/sale                    Outlet deals (catalog, pre-filtered)
-/men  /women  /kids      Collections (catalog, pre-filtered)
+/sale                    Items with a lower price (catalog, pre-filtered)
+/clothing /shoes /accessories   Departments (catalog, pre-filtered)
+/shop/<category>         One category, e.g. /shop/polos (categories live in the database)
 /brands/<brand>          Brand page (catalog, pre-filtered)
 /product/<slug>          Product page
 /wishlist                Saved items
