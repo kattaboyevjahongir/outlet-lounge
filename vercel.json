@@ -2,15 +2,15 @@
   "regions": ["fra1"],
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/:path(.*)",
       "has": [{ "type": "host", "value": "www.outletlounge.uz" }],
-      "destination": "https://outletlounge.uz/:path*",
+      "destination": "https://outletlounge.uz/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path(.*)",
       "has": [{ "type": "host", "value": "outlet-lounge.vercel.app" }],
-      "destination": "https://outletlounge.uz/:path*",
+      "destination": "https://outletlounge.uz/:path",
       "permanent": true
     }
   ],
