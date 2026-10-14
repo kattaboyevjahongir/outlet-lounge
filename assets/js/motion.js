@@ -41,6 +41,8 @@
   let open;
   let gate = new Promise((r) => { open = r; });
   const closeGate = () => { gate = new Promise((r) => { open = r; }); };
+  // pages with their own entrance (the kinetic home) wait for the same moment
+  M.ready = () => gate;
 
   /* ---------- split headlines into words that rise from behind a mask ---------- */
   const split = (el) => {

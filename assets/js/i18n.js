@@ -426,6 +426,12 @@
     ct: { phone: 'Phone', hours: 'Working hours', address: 'Address', soon: 'Contact details will appear here soon.', help: 'Help' },
     mega: { cats: 'Categories', brands: 'Top brands', all: 'View all', featured: 'Featured' },
     home: {
+      k: {
+        rows: ['Originals', 'from', 'abroad'],
+        words: ['Original', 'Imported', 'Menswear', 'In stock', 'On order', 'Tashkent'],
+        side: 'Keep scrolling', newIntro: 'Fresh pieces, in stock or on their way to you.', catsTitle: 'Find your fit',
+        now: 'Now showing', count: 'items',
+      },
       eyebrow: 'Imported originals',
       title: 'Original menswear, brought from abroad',
       lead: 'Clothing, shoes and accessories from leading brands. In stock in Tashkent or ordered for you — delivered across Uzbekistan.',
@@ -545,6 +551,12 @@
     ct: { phone: 'Телефон', hours: 'Часы работы', address: 'Адрес', soon: 'Контакты скоро появятся здесь.', help: 'Помощь' },
     mega: { cats: 'Категории', brands: 'Популярные бренды', all: 'Смотреть все', featured: 'Выбор магазина' },
     home: {
+      k: {
+        rows: ['Оригинал', 'из-за', 'рубежа'],
+        words: ['Оригинал', 'Импорт', 'Мужская одежда', 'В наличии', 'Под заказ', 'Ташкент'],
+        side: 'Листайте дальше', newIntro: 'Свежие вещи — в наличии или уже в пути к вам.', catsTitle: 'Найдите своё',
+        now: 'Сейчас в кадре', count: 'товаров',
+      },
       eyebrow: 'Оригиналы из-за рубежа',
       title: 'Оригинальная мужская одежда — из-за рубежа',
       lead: 'Одежда, обувь и аксессуары известных брендов. В наличии в Ташкенте или под заказ — с доставкой по Узбекистану.',
@@ -664,6 +676,12 @@
     ct: { phone: 'Telefon', hours: 'Ish vaqti', address: 'Manzil', soon: 'Aloqa maʼlumotlari tez orada shu yerda paydo boʻladi.', help: 'Yordam' },
     mega: { cats: 'Kategoriyalar', brands: 'Mashhur brendlar', all: 'Hammasini koʻrish', featured: 'Tanlangan' },
     home: {
+      k: {
+        rows: ['Original', 'kiyim', 'xorijdan'],
+        words: ['Original', 'Import', 'Erkaklar kiyimi', 'Mavjud', 'Buyurtmaga', 'Toshkent'],
+        side: 'Pastga suring', newIntro: 'Yangi buyumlar — omborda yoki sizga yoʻlda.', catsTitle: 'Oʻzingiznikini toping',
+        now: 'Hozir ekranda', count: 'ta mahsulot',
+      },
       eyebrow: 'Chet eldan originallar',
       title: 'Original erkaklar kiyimi — chet eldan',
       lead: 'Mashhur brendlarning kiyim, poyabzal va aksessuarlari. Toshkentda mavjud yoki buyurtma bilan — Oʻzbekiston boʻylab yetkazib beramiz.',

@@ -13,6 +13,7 @@
   if (!local && !wanted) return;
 
   const INTROS = [['draw', 'Logo draw'], ['shutter', 'A · Shutter'], ['film', 'B · Lookbook'], ['slash', 'C · Gold slash']];
+  const HOMES = [['kinetic', 'Kinetic'], ['editorial', 'Editorial']];
   const LIGHTS = [['current', 'Current'], ['gallery', '1 · Gallery'], ['stone', '2 · Stone'], ['ivory', '3 · Ivory']];
   const read = () => { try { return JSON.parse(localStorage.getItem('ol:design')) || {}; } catch (e) { return {}; } };
   const save = (d) => { try { localStorage.setItem('ol:design', JSON.stringify(d)); } catch (e) { /* noop */ } };
@@ -27,6 +28,7 @@
     const light = d.light || 'current';
     box.innerHTML = `<div class="dp-head"><span>Design options</span><button type="button" data-min aria-label="Minimise">${box.classList.contains('is-min') ? '+' : '–'}</button></div>
       <div class="dp-body">
+        <h5>Homepage</h5>${opts('home', HOMES, d.home || 'kinetic')}
         <h5>Intro</h5>${opts('intro', INTROS, intro)}
         <button type="button" class="dp-play" data-play>Play intro</button>
         <h5>Light mode</h5>${opts('light', LIGHTS, light)}
@@ -41,6 +43,14 @@
     const b = e.target.closest('button');
     if (!b) return;
     if (b.hasAttribute('data-min')) { box.classList.toggle('is-min'); return paint(); }
+    if (b.dataset.home) {
+      d.home = b.dataset.home;
+      save(d);
+      html.dataset.home = d.home;
+      paint();
+      if (OL.route() && OL.route().name === 'home') OL.refreshRoute(); else OL.navigate('/');
+      return;
+    }
     if (b.dataset.intro) {
       d.intro = b.dataset.intro;
       save(d);
