@@ -2,14 +2,14 @@
 // Env: SUPABASE_URL, SUPABASE_ANON_KEY, optional SITE_URL
 
 import { PRODUCT_COLUMNS, rest, shapeProduct } from './catalog.js';
-import { siteUrl, isIndexing, sitemapXml, INFO_META } from './_lib/seo.js';
+import { siteUrl, isIndexing, sitemapXml, INFO_META, DEPARTMENTS } from './_lib/seo.js';
 
 export default async function handler(req, res) {
   const base = siteUrl();
   const entries = [
     { path: '/', changefreq: 'daily', priority: 1.0 },
     { path: '/shop', changefreq: 'daily', priority: 0.9 },
-    ...['new', 'sale', 'men', 'women', 'kids'].map((c) => ({ path: `/${c}`, changefreq: 'daily', priority: 0.8 })),
+    ...['new', 'sale', ...DEPARTMENTS].map((c) => ({ path: `/${c}`, changefreq: 'daily', priority: 0.8 })),
     ...Object.keys(INFO_META).map((p) => ({ path: `/${p}`, changefreq: 'monthly', priority: 0.4 })),
   ];
 
@@ -23,6 +23,8 @@ export default async function handler(req, res) {
         res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300');
         return res.status(200).send(sitemapXml(base, []));
       }
+      const cats = await rest(url, key, 'categories?select=slug&is_active=eq.true&order=sort');
+      for (const c of cats) entries.push({ path: `/shop/${c.slug}`, changefreq: 'daily', priority: 0.7 });
       const rows = await rest(url, key, `products?select=${encodeURIComponent(`${PRODUCT_COLUMNS},updated_at`)}&is_active=eq.true&order=created_at.desc`);
       const brands = new Set();
       for (const r of rows) {

@@ -20,27 +20,29 @@ const clip = (s, n) => {
 /* ------------------------------------------------------------- static pages */
 // Russian: the language of most searches in Uzbekistan; the page itself switches language in the browser.
 export const COLLECTION_META = {
-  shop: ['Все кроссовки', 'Оригинальные кроссовки Nike, Jordan, New Balance, adidas и других брендов по ценам аутлета. Доставка по всему Узбекистану.'],
-  new: ['Новинки', 'Новые поступления оригинальных кроссовок: свежие релизы Nike, Jordan, New Balance и других брендов.'],
-  sale: ['Распродажа', 'Оригинальные кроссовки со скидками до 40% — цены аутлета, доставка по Узбекистану.'],
-  men: ['Мужские кроссовки', 'Оригинальные мужские кроссовки Nike, Jordan, adidas, New Balance по ценам аутлета.'],
-  women: ['Женские кроссовки', 'Оригинальные женские кроссовки Nike, New Balance, Converse, Puma по ценам аутлета.'],
-  kids: ['Детские кроссовки', 'Оригинальные детские кроссовки популярных брендов по ценам аутлета.'],
+  shop: ['Весь каталог', 'Мужская одежда, обувь и аксессуары мировых брендов — оригинал, привезённый из-за рубежа. Доставка по всему Узбекистану.'],
+  new: ['Новинки', 'Новые поступления мужской одежды, обуви и аксессуаров оригинальных брендов.'],
+  sale: ['Скидки', 'Мужская одежда, обувь и аксессуары оригинальных брендов со скидками. Доставка по Узбекистану.'],
+  clothing: ['Мужская одежда', 'Оригинальная мужская одежда: футболки, поло, рубашки, джинсы, куртки, пиджаки и другое. Доставка по Узбекистану.'],
+  shoes: ['Мужская обувь', 'Оригинальная мужская обувь: кроссовки, классическая обувь, ботинки. Доставка по Узбекистану.'],
+  accessories: ['Мужские аксессуары', 'Оригинальные мужские аксессуары: ремни, сумки, кошельки, кепки, галстуки. Доставка по Узбекистану.'],
 };
+// the three departments of the shop (the database table `categories` groups categories into them)
+export const DEPARTMENTS = ['clothing', 'shoes', 'accessories'];
 export const INFO_META = {
   delivery: ['Доставка и оплата', 'Курьером по Ташкенту, по регионам — БТС и почтой. Стоимость, сроки, способы оплаты, бесплатная доставка.'],
-  returns: ['Возврат и обмен', 'Условия возврата и обмена кроссовок: срок, состояние товара и как оформить.'],
-  'size-guide': ['Таблица размеров', 'Таблица размеров кроссовок EU / US / UK / см и как правильно измерить стопу.'],
-  authenticity: ['Оригинальность', 'Как мы проверяем каждую пару и гарантируем оригинальность кроссовок.'],
-  about: ['О магазине', 'Outlet Lounge — оригинальные кроссовки мировых брендов по ценам аутлета.'],
+  returns: ['Возврат и обмен', 'Условия возврата и обмена: срок, состояние товара и как оформить.'],
+  'size-guide': ['Таблица размеров', 'Таблицы размеров мужской одежды и обуви и как правильно снять мерки.'],
+  authenticity: ['Оригинальность', 'Откуда мы привозим товары и как гарантируем их оригинальность.'],
+  about: ['О магазине', 'Outlet Lounge — мужской магазин оригинальной одежды, обуви и аксессуаров мировых брендов с доставкой из-за рубежа.'],
   contacts: ['Контакты', 'Телефон, Telegram, Instagram и часы работы магазина Outlet Lounge.'],
   faq: ['Вопросы и ответы', 'Ответы на частые вопросы: заказ, оплата, доставка, размеры, возврат.'],
   offer: ['Публичная оферта', 'Условия договора купли-продажи в интернет-магазине Outlet Lounge.'],
   privacy: ['Политика конфиденциальности', 'Как Outlet Lounge собирает, хранит и защищает персональные данные покупателей.'],
 };
 export const HOME_META = {
-  title: 'Outlet Lounge — оригинальные кроссовки по ценам аутлета',
-  description: 'Оригинальные Nike, Jordan, New Balance и другие бренды по ценам аутлета. Доставка по всему Узбекистану, оплата при получении.',
+  title: 'Outlet Lounge — мужская одежда, обувь и аксессуары, оригинал',
+  description: 'Мужской магазин оригинальной одежды, обуви и аксессуаров мировых брендов: в наличии в Ташкенте и под заказ из-за рубежа. Доставка по Узбекистану.',
 };
 const BRAND = 'Outlet Lounge';
 const withBrand = (title) => (title.includes(BRAND) ? title : `${title} — ${BRAND}`);
@@ -52,7 +54,7 @@ export function productMeta(p, base) {
   const own = clip(p.desc && (p.desc.ru || p.desc.en || p.desc.uz), 150);
   const description = `${name} — оригинал. ${price}${p.was > p.price ? ` вместо ${money(p.was)}` : ''}. ${own || 'Доставка по Узбекистану, оплата при получении.'}`;
   return {
-    title: withBrand(`${name}${p.colorway ? ` ${p.colorway}` : ''} купить`),
+    title: withBrand(`${name}${p.color ? ` ${p.color}` : ''} купить`),
     description: clip(description, 300),
     path: `/product/${p.slug}`,
     image: p.images && p.images[0],
@@ -64,7 +66,9 @@ export function productMeta(p, base) {
 }
 
 export function productJsonLd(p, base) {
-  const inStock = (p.sizes || []).some((s) => s.ok);
+  const sizes = p.sizes || [];
+  // InStock: something is on the shelf in Tashkent; PreOrder: only orderable from abroad; else OutOfStock
+  const availability = sizes.some((s) => s.stock > 0) ? 'InStock' : sizes.some((s) => s.ok) ? 'PreOrder' : 'OutOfStock';
   const url = `${base}/product/${p.slug}`;
   return {
     '@context': 'https://schema.org',
@@ -73,7 +77,9 @@ export function productJsonLd(p, base) {
     image: (p.images || []).slice(0, 6),
     description: clip(p.desc && (p.desc.ru || p.desc.en || p.desc.uz), 500) || undefined,
     sku: p.sku || p.slug,
-    color: p.colorway || undefined,
+    color: p.color || undefined,
+    material: p.material || undefined,
+    countryOfOrigin: p.origin || undefined,
     brand: p.brand ? { '@type': 'Brand', name: p.brand } : undefined,
     category: p.cat,
     offers: {
@@ -81,7 +87,7 @@ export function productJsonLd(p, base) {
       url,
       priceCurrency: 'UZS',
       price: String(p.price),
-      availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      availability: `https://schema.org/${availability}`,
       itemCondition: 'https://schema.org/NewCondition',
       seller: { '@type': 'Organization', name: BRAND },
     },
@@ -162,7 +168,7 @@ export function noscriptBlock({ heading, text, links = [] }) {
   const list = links.length
     ? `<ul>${links.map((l) => `<li><a href="${esc(l.href)}">${esc(l.label)}</a>${l.note ? ` — ${esc(l.note)}` : ''}</li>`).join('')}</ul>`
     : '';
-  return `<noscript><section><h1>${esc(heading)}</h1>${text ? `<p>${esc(text)}</p>` : ''}${list}<p><a href="/shop">Все кроссовки</a> · <a href="/delivery">Доставка</a> · <a href="/contacts">Контакты</a></p></section></noscript>`;
+  return `<noscript><section><h1>${esc(heading)}</h1>${text ? `<p>${esc(text)}</p>` : ''}${list}<p><a href="/shop">Весь каталог</a> · <a href="/delivery">Доставка</a> · <a href="/contacts">Контакты</a></p></section></noscript>`;
 }
 export function injectBody(html, block) {
   return html.replace(/<body([^>]*)>/i, (m) => `${m}\n${block}`);

@@ -32,7 +32,11 @@
       "destination": "/api/page?type=brand&slug=:slug"
     },
     {
-      "source": "/:slug(shop|new|sale|men|women|kids)",
+      "source": "/shop/:slug",
+      "destination": "/api/page?type=category&slug=:slug"
+    },
+    {
+      "source": "/:slug(shop|new|sale|clothing|shoes|accessories)",
       "destination": "/api/page?type=collection&slug=:slug"
     },
     {

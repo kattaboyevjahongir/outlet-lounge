@@ -1,6 +1,6 @@
-// Database tests: applies the real migration + seed to an in-memory Postgres
+// Database tests: applies the real migrations + seed to an in-memory Postgres
 // (PGlite) with small stand-ins for Supabase's `auth` and `storage` schemas,
-// then checks stock safety, pricing, promo rules and who can see/do what.
+// then checks stock safety, on-order lines, pricing, promo rules, categories and who can see/do what.
 //
 //   cd supabase/tests && npm install && npm test
 import assert from 'node:assert/strict';
@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
-const db = new PGlite();
+const migrations = readdirSync(new URL('../migrations/', import.meta.url)).filter((n) => n.endsWith('.sql')).sort();
 
 let passed = 0;
 const test = async (name, fn) => {
@@ -32,7 +32,7 @@ const rejects = async (promise, re, label) => {
 };
 
 // ---------------------------------------------------------- Supabase stand-ins
-await db.exec(`
+const standIns = (db) => db.exec(`
   create role anon nologin;
   create role authenticated nologin;
   create role service_role nologin bypassrls;
@@ -52,18 +52,18 @@ await db.exec(`
   grant usage on schema public, auth to anon, authenticated, service_role;
   grant execute on function auth.uid(), auth.role() to anon, authenticated, service_role;
 `);
-
 // like Supabase: tables created by migrations are open to the API roles by default;
 // row level security and the migrations' own revokes/grants narrow that down
-await db.exec(`
+const defaultPrivileges = (db) => db.exec(`
   alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
   alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 `);
 
+const db = new PGlite();
+await standIns(db);
+await defaultPrivileges(db);
 // every migration, in order — exactly what `supabase db push` applies
-for (const f of readdirSync(new URL('../migrations/', import.meta.url)).filter((n) => n.endsWith('.sql')).sort()) {
-  await db.exec(read(`../migrations/${f}`));
-}
+for (const f of migrations) await db.exec(read(`../migrations/${f}`));
 await db.exec(read('../seed.sql'));
 
 // --------------------------------------------------------------- helpers
@@ -80,10 +80,10 @@ const asSuper = async () => {
 };
 const one = async (sql, params) => (await db.query(sql, params)).rows[0];
 const all = async (sql, params) => (await db.query(sql, params)).rows;
-const stockOf = async (slug, eu) =>
+const stockOf = async (slug, label) =>
   (await one(
     `select s.stock from product_sizes s join products p on p.id = s.product_id
-     where p.slug = $1 and s.eu = $2`, [slug, eu])).stock;
+     where p.slug = $1 and s.label = $2`, [slug, label])).stock;
 
 const order = (items, extra = {}) => ({
   customer: { name: 'Aziz R.', phone: '+998901234567', telegram: '@aziz', contact_pref: 'call' },
@@ -95,6 +95,20 @@ const order = (items, extra = {}) => ({
 });
 const place = async (payload) =>
   (await one('select public.place_order($1::jsonb) as r', [JSON.stringify(payload)])).r;
+
+// products used below (see supabase/seed.sql)
+const POLO = 'lacoste-classic-fit-polo-black';          // 1 290 000 · S M L 3 · XL 1 · XXL sold out here, can be ordered
+const POLO_GREY = 'lacoste-classic-fit-polo-grey';      // 1 290 000
+const TEE = 'tommy-hilfiger-logo-crew-t-shirt-white';   //   590 000 · every size 3
+const TEE_BLACK = 'tommy-hilfiger-logo-crew-t-shirt-black';
+const DENIM = 'gant-denim-jacket-blue';                 // 2 290 000 · XXL sold out for good (cannot be ordered)
+const JACKET = 'diesel-leather-biker-jacket-black';     // 5 900 000 · every size only on order
+const JEANS = 'diesel-slim-tapered-jeans-black';        // 1 590 000
+const BELT = 'boss-leather-belt-black';                 //   890 000 · 90 sold out for good, others 3
+const BELT_BROWN = 'boss-leather-belt-brown';
+const CAP = 'lacoste-cotton-twill-cap-white';           //   590 000 · ONE SIZE 3
+const BACKPACK = 'tommy-hilfiger-commuter-backpack-black'; // 1 290 000 · ONE SIZE 1
+const TIE = 'boss-silk-tie-navy';
 
 // users
 const OWNER = '00000000-0000-0000-0000-0000000000a1';
@@ -108,32 +122,47 @@ await db.exec(`
 `);
 
 console.log('\nSeed');
-await test('seed loaded 18 products / 90 sizes', async () => {
+await test('seed loaded 27 products / 118 sizes / 20 categories', async () => {
   await asSuper();
-  assert.equal((await one('select count(*)::int c from products')).c, 18);
-  assert.equal((await one('select count(*)::int c from product_sizes')).c, 90);
+  assert.equal((await one('select count(*)::int c from products')).c, 27);
+  assert.equal((await one('select count(*)::int c from product_sizes')).c, 118);
+  assert.equal((await one('select count(*)::int c from categories')).c, 20);
+  assert.equal((await one('select count(distinct style_code)::int c from products where style_code is not null')).c, 21,
+    'colours of one item share a style code');
 });
 await test('seed is idempotent', async () => {
   await db.exec(read('../seed.sql'));
-  assert.equal((await one('select count(*)::int c from products')).c, 18);
-  assert.equal((await one('select count(*)::int c from product_images')).c, 36);
+  assert.equal((await one('select count(*)::int c from products')).c, 27);
+  assert.equal((await one('select count(*)::int c from product_images')).c, 50);
+  assert.equal((await one('select count(*)::int c from product_sizes')).c, 118);
+});
+await test('every product is in a category that exists and every category has a valid size system', async () => {
+  await asSuper();
+  assert.equal((await one(`select count(*)::int c from products p left join categories c on c.slug = p.category where c.slug is null`)).c, 0);
+  assert.equal((await one(`select count(*)::int c from categories where department not in ('clothing','shoes','accessories')`)).c, 0);
 });
 
 console.log('\nVisitors (anon)');
-await test('can read active products, sizes, images, public settings', async () => {
+await test('can read active products, sizes, images, categories and public settings', async () => {
   await as('anon');
-  assert.equal((await one('select count(*)::int c from products')).c, 18);
-  assert.equal((await one('select count(*)::int c from product_sizes')).c, 90);
+  assert.equal((await one('select count(*)::int c from products')).c, 27);
+  assert.equal((await one('select count(*)::int c from product_sizes')).c, 118);
+  assert.equal((await one('select count(*)::int c from categories')).c, 20);
   assert.equal((await one('select count(*)::int c from settings')).c, 2);
 });
-await test('cannot see hidden products', async () => {
+await test('cannot see hidden products or hidden categories', async () => {
   await asSuper();
-  await db.exec(`update products set is_active = false where slug = 'kyrie-7-onyx'`);
+  await db.exec(`update products set is_active = false where slug = '${TIE}'`);
+  await db.exec(`update categories set is_active = false where slug = 'sunglasses'`);
   await as('anon');
-  assert.equal((await one(`select count(*)::int c from products where slug = 'kyrie-7-onyx'`)).c, 0);
-  assert.equal((await one(`select count(*)::int c from product_sizes s join products p on p.id=s.product_id`)).c, 85);
+  assert.equal((await one(`select count(*)::int c from products where slug = '${TIE}'`)).c, 0);
+  assert.equal((await one(`select count(*)::int c from product_sizes s join products p on p.id=s.product_id`)).c, 117);
+  assert.equal((await one(`select count(*)::int c from categories`)).c, 19);
+  await as('authenticated', MANAGER);
+  assert.equal((await one(`select count(*)::int c from categories`)).c, 20, 'staff still see hidden categories');
   await asSuper();
-  await db.exec(`update products set is_active = true where slug = 'kyrie-7-onyx'`);
+  await db.exec(`update products set is_active = true where slug = '${TIE}'`);
+  await db.exec(`update categories set is_active = true where slug = 'sunglasses'`);
 });
 await test('cannot read orders, staff, promo codes or private settings', async () => {
   await asSuper();
@@ -145,18 +174,24 @@ await test('cannot read orders, staff, promo codes or private settings', async (
   }
   assert.equal((await one(`select count(*)::int c from settings where key = 'telegram'`)).c, 0);
 });
-await test('cannot write products, orders or stock directly', async () => {
+await test('cannot write products, categories, orders or stock directly', async () => {
+  await asSuper();
+  const before = (await one('select sum(stock)::int s from product_sizes')).s;
   await as('anon');
   await db.exec(`update products set price = 1`); // RLS: matches no rows, changes nothing
+  await db.exec(`update categories set name_en = 'hacked'`);
   await asSuper();
   assert.equal((await one(`select count(*)::int c from products where price = 1`)).c, 0);
+  assert.equal((await one(`select count(*)::int c from categories where name_en = 'hacked'`)).c, 0);
   await as('anon');
   await rejects(
     db.exec(`insert into orders (number, customer_name, phone, delivery_method, payment_method, subtotal, total)
              values ('X', 'a', '1', 'x', 'x', 1, 1)`),
     /row-level security|permission denied/, 'insert order');
+  await rejects(db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en) values ('x', 'shoes', 'x', 'x', 'x')`),
+    /row-level security|permission denied/, 'insert category');
   await asSuper();
-  assert.equal((await one(`select count(*)::int c from product_sizes where stock <> 3 and stock <> 0`)).c, 0);
+  assert.equal((await one('select sum(stock)::int s from product_sizes')).s, before, 'stock untouched');
 });
 await test('cannot call place_order or set_order_status', async () => {
   await as('anon');
@@ -166,83 +201,134 @@ await test('cannot call place_order or set_order_status', async () => {
     one(`select public.set_order_status(gen_random_uuid(), 'confirmed')`), /permission denied/, 'set_order_status');
 });
 
+console.log('\nTable rules');
+await test('size labels, colours and the other product fields are checked by the database', async () => {
+  await asSuper();
+  const pid = (await one(`select id from products where slug = '${TIE}'`)).id;
+  for (const bad of ['', 'bad label!', 'WAY TOO LONG LABEL', '-1', 'a|b']) {
+    await rejects(db.exec(`insert into product_sizes (product_id, label) values ('${pid}', '${bad}')`), /product_sizes_label_format|check/, `label "${bad}"`);
+  }
+  await rejects(db.exec(`insert into product_sizes (product_id, label) values ('${pid}', 'ONE SIZE')`), /duplicate key|unique/, 'same label twice');
+  await db.exec(`insert into product_sizes (product_id, label) values ('${pid}', 'W32/L34'), ('${pid}', '42.5')`);
+  await db.exec(`delete from product_sizes where product_id = '${pid}' and label in ('W32/L34', '42.5')`);
+  for (const col of [`color_hex = 'blue'`, `color_group = 'pink'`, `fit = 'tight'`, `origin = 'France'`, `style_code = 'a b'`,
+                     `order_lead = 'soon'`, `category = 'running'`]) {
+    await rejects(db.exec(`update products set ${col} where id = '${pid}'`), /check|foreign key/, col);
+  }
+});
+
 console.log('\nPlacing orders (server / service role)');
 let first;
 await test('prices come from the database; stock decreases', async () => {
   await as('service_role');
-  first = await place(order([{ slug: 'air-max-1-sunset', size: 41, qty: 2, price: 1 }]));
+  first = await place(order([{ slug: POLO, size: 'M', qty: 2, price: 1 }]));
   assert.match(first.number, /^OL-\d{6}-\d{4}$/);
-  assert.equal(first.subtotal, 2 * 1390000, 'client price must be ignored');
-  assert.equal(first.delivery_fee, 0, '2.78M is above the free-delivery threshold');
-  assert.equal(first.total, 2 * 1390000);
+  assert.equal(first.subtotal, 2 * 1290000, 'client price must be ignored');
+  assert.equal(first.delivery_fee, 0, '2.58M is above the free-delivery threshold');
+  assert.equal(first.total, 2 * 1290000);
+  assert.equal(first.items[0].fulfilment, 'stock');
+  assert.equal(first.items[0].size_label, 'M');
   await asSuper();
-  assert.equal(await stockOf('air-max-1-sunset', 41), 1);
+  assert.equal(await stockOf(POLO, 'M'), 1);
   const ev = await all('select * from order_events where order_id = $1', [first.order_id]);
   assert.equal(ev.length, 1);
   assert.equal(ev[0].to_status, 'new');
   const items = await all('select * from order_items where order_id = $1', [first.order_id]);
-  assert.equal(items[0].name_snapshot, 'Air Max 1 “Sunset”');
-  assert.equal(items[0].brand_snapshot, 'Nike');
+  assert.equal(items[0].name_snapshot, 'Classic Fit Polo');
+  assert.equal(items[0].brand_snapshot, 'Lacoste');
+  assert.equal(items[0].size_label, 'M');
+  assert.equal(items[0].fulfilment, 'stock');
 });
-await test('last pair: second buyer is rejected and nothing changes', async () => {
+await test('not enough here: the line is ordered from abroad and the stock stays untouched', async () => {
   await as('service_role');
-  await rejects(place(order([{ slug: 'air-max-1-sunset', size: 41, qty: 2 }])), /out_of_stock:air-max-1-sunset:41/);
+  // XL has 1 left; asking for 2 cannot be served from the stock here
+  const r = await place(order([{ slug: POLO, size: 'XL', qty: 2 }], { customer: { name: 'Ord', phone: '+998901110001' } }));
+  assert.equal(r.items[0].fulfilment, 'order');
+  // XXL is sold out here but can be ordered
+  const r2 = await place(order([{ slug: POLO, size: 'XXL', qty: 1 }], { customer: { name: 'Ord', phone: '+998901110002' } }));
+  assert.equal(r2.items[0].fulfilment, 'order');
+  assert.equal(r2.total, 1290000 + 30000, 'ordered lines cost the same');
   await asSuper();
-  assert.equal(await stockOf('air-max-1-sunset', 41), 1);
-  await as('service_role');
-  await place(order([{ slug: 'air-max-1-sunset', size: 41, qty: 1 }]));
-  await rejects(place(order([{ slug: 'air-max-1-sunset', size: 41, qty: 1 }])), /out_of_stock/);
-  await asSuper();
-  assert.equal(await stockOf('air-max-1-sunset', 41), 0);
+  assert.equal(await stockOf(POLO, 'XL'), 1, 'stock is not taken for a line ordered from abroad');
+  assert.equal(await stockOf(POLO, 'XXL'), 0);
 });
-await test('one bad line rolls back the whole order (no partial stock loss)', async () => {
+await test('the last piece goes to the first buyer, the second one orders it from abroad', async () => {
+  await as('service_role');
+  const a = await place(order([{ slug: BACKPACK, size: 'ONE SIZE', qty: 1 }], { customer: { name: 'A', phone: '+998901110003' } }));
+  const b = await place(order([{ slug: BACKPACK, size: 'ONE SIZE', qty: 1 }], { customer: { name: 'B', phone: '+998901110004' } }));
+  assert.equal(a.items[0].fulfilment, 'stock');
+  assert.equal(b.items[0].fulfilment, 'order');
+  await asSuper();
+  assert.equal(await stockOf(BACKPACK, 'ONE SIZE'), 0, 'never negative');
+});
+await test('a size that cannot be ordered is refused when nothing is left, and nothing changes', async () => {
+  await asSuper();
+  await db.exec(`update product_sizes set stock = 1, orderable = false
+                 where label = 'ONE SIZE' and product_id = (select id from products where slug = '${CAP}')`);
+  await as('service_role');
+  await place(order([{ slug: CAP, size: 'ONE SIZE', qty: 1 }], { customer: { name: 'C', phone: '+998901110005' } }));
+  await rejects(place(order([{ slug: CAP, size: 'ONE SIZE', qty: 1 }])), /out_of_stock:lacoste-cotton-twill-cap-white:ONE SIZE/);
+  await rejects(place(order([{ slug: DENIM, size: 'XXL', qty: 1 }])), /out_of_stock:gant-denim-jacket-blue:XXL/);
+  await asSuper();
+  assert.equal(await stockOf(CAP, 'ONE SIZE'), 0);
+  await db.exec(`update product_sizes set stock = 3, orderable = true
+                 where label = 'ONE SIZE' and product_id = (select id from products where slug = '${CAP}')`);
+});
+await test('one refused line rolls back the whole order (no partial stock loss)', async () => {
+  await asSuper();
+  await db.exec(`update product_sizes set orderable = false where label = '90' and product_id = (select id from products where slug = '${BELT}')`);
   await as('service_role');
   await rejects(
-    place(order([{ slug: 'old-skool-burgundy', size: 40, qty: 1 }, { slug: 'air-max-1-sunset', size: 41, qty: 1 }])),
-    /out_of_stock/);
+    place(order([{ slug: TEE, size: 'M', qty: 1 }, { slug: BELT, size: '90', qty: 1 }])), /out_of_stock/);
   await asSuper();
-  assert.equal(await stockOf('old-skool-burgundy', 40), 3);
+  assert.equal(await stockOf(TEE, 'M'), 3);
 });
 await test('unknown product / size / hidden product are refused', async () => {
   await as('service_role');
-  await rejects(place(order([{ slug: 'nope', size: 41, qty: 1 }])), /unavailable:nope/);
-  await rejects(place(order([{ slug: 'old-skool-burgundy', size: 50, qty: 1 }])), /unavailable:old-skool-burgundy:50/);
+  await rejects(place(order([{ slug: 'nope', size: 'M', qty: 1 }])), /unavailable:nope/);
+  await rejects(place(order([{ slug: TEE, size: '3XL', qty: 1 }])), /unavailable:tommy-hilfiger-logo-crew-t-shirt-white:3XL/);
   await asSuper();
-  await db.exec(`update products set is_active = false where slug = 'old-skool-burgundy'`);
+  await db.exec(`update products set is_active = false where slug = '${TEE}'`);
   await as('service_role');
-  await rejects(place(order([{ slug: 'old-skool-burgundy', size: 40, qty: 1 }])), /unavailable:old-skool-burgundy/);
+  await rejects(place(order([{ slug: TEE, size: 'M', qty: 1 }])), /unavailable:tommy-hilfiger-logo-crew-t-shirt-white/);
   await asSuper();
-  await db.exec(`update products set is_active = true where slug = 'old-skool-burgundy'`);
+  await db.exec(`update products set is_active = true where slug = '${TEE}'`);
 });
-await test('validation: phone, name, qty, items, delivery method', async () => {
+await test('validation: phone, name, qty, items, size label, delivery method', async () => {
   await as('service_role');
-  const item = [{ slug: 'old-skool-burgundy', size: 40, qty: 1 }];
+  const item = [{ slug: TEE, size: 'M', qty: 1 }];
   await rejects(place(order(item, { customer: { name: 'A', phone: 'abc' } })), /invalid:phone/);
   await rejects(place(order(item, { customer: { name: '', phone: '+998901234567' } })), /invalid:name/);
-  await rejects(place(order([{ slug: 'old-skool-burgundy', size: 40, qty: 0 }])), /invalid:qty/);
-  await rejects(place(order([{ slug: 'old-skool-burgundy', size: 40, qty: 99 }])), /invalid:qty/);
+  await rejects(place(order([{ slug: TEE, size: 'M', qty: 0 }])), /invalid:qty/);
+  await rejects(place(order([{ slug: TEE, size: 'M', qty: 99 }])), /invalid:qty/);
   await rejects(place(order([])), /invalid:items/);
+  await rejects(place(order([{ slug: TEE, size: 'M!', qty: 1 }])), /invalid:items/);
+  await rejects(place(order([{ slug: TEE, qty: 1 }])), /invalid:items/);
+  await rejects(place(order([{ size: 'M', qty: 1 }])), /invalid:items/);
   await rejects(place(order(item, { delivery: { method: 'teleport' } })), /invalid:delivery/);
 });
 await test('free delivery above the threshold; pickup is free', async () => {
   await as('service_role');
-  const big = await place(order([
-    { slug: 'air-jordan-12-retro-gym-red', size: 41, qty: 1 }]));          // 1 890 000 ≥ 1 500 000
+  const big = await place(order([{ slug: JEANS, size: '32', qty: 1 }]));          // 1 590 000 ≥ 1 500 000
   assert.equal(big.delivery_fee, 0);
-  const pick = await place(order([{ slug: 'old-skool-burgundy', size: 40, qty: 1 }],
-    { delivery: { method: 'pickup' } }));
+  const pick = await place(order([{ slug: TEE, size: 'L', qty: 1 }], { delivery: { method: 'pickup' } }));
   assert.equal(pick.delivery_fee, 0);
-  const regions = await place(order([{ slug: 'old-skool-burgundy', size: 41, qty: 1 }],
-    { delivery: { method: 'regions' } }));
+  const regions = await place(order([{ slug: TEE, size: 'XL', qty: 1 }], { delivery: { method: 'regions' } }));
   assert.equal(regions.delivery_fee, 50000);
-  const courier = await place(order([{ slug: 'old-skool-burgundy', size: 42, qty: 1 }]));
+  const courier = await place(order([{ slug: TEE, size: 'XXL', qty: 1 }]));
   assert.equal(courier.delivery_fee, 30000);
   assert.equal(courier.total, 590000 + 30000);
 });
 await test('duplicate lines are merged before the stock check', async () => {
   await as('service_role');
-  await rejects(place(order([
-    { slug: 'x-90-pink-haze', size: 38, qty: 2 }, { slug: 'x-90-pink-haze', size: 38, qty: 2 }])), /out_of_stock/);
+  const r = await place(order([{ slug: TEE_BLACK, size: 'S', qty: 2 }, { slug: TEE_BLACK, size: 'S', qty: 2 }],
+    { customer: { name: 'M', phone: '+998901110006' } }));
+  assert.equal(r.items.length, 1);
+  assert.equal(r.items[0].qty, 4);
+  assert.equal(r.items[0].fulfilment, 'order', '4 is more than the 3 in stock');
+  assert.equal(r.subtotal, 4 * 590000);
+  await asSuper();
+  assert.equal(await stockOf(TEE_BLACK, 'S'), 3);
 });
 
 console.log('\nPromo codes');
@@ -251,59 +337,61 @@ await test('percent code applies, counts usage, respects min order', async () =>
   await db.exec(`insert into promo_codes (code, type, value, min_order, usage_limit, per_phone_limit)
                  values ('LOUNGE10', 'percent', 10, 500000, 2, 1)`);
   await as('service_role');
-  const r = await place(order([{ slug: 'chuck-70-hi-cherry', size: 38, qty: 1 }], { promo_code: 'lounge10' }));
-  assert.equal(r.discount, 69000);
-  assert.equal(r.total, 690000 - 69000 + 30000);
+  const r = await place(order([{ slug: TEE, size: 'S', qty: 1 }], { promo_code: 'lounge10' }));
+  assert.equal(r.discount, 59000);
+  assert.equal(r.total, 590000 - 59000 + 30000);
   await asSuper();
   assert.equal((await one(`select used_count from promo_codes where code = 'LOUNGE10'`)).used_count, 1);
 });
 await test('per-phone limit, unknown code and min order are refused', async () => {
   await as('service_role');
-  await rejects(place(order([{ slug: 'chuck-70-hi-cherry', size: 38, qty: 1 }], { promo_code: 'LOUNGE10' })), /invalid:promo/, 'same phone twice');
-  await rejects(place(order([{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], { promo_code: 'NOPE' })), /invalid:promo/, 'unknown');
+  await rejects(place(order([{ slug: TEE, size: 'S', qty: 1 }], { promo_code: 'LOUNGE10' })), /invalid:promo/, 'same phone twice');
+  await rejects(place(order([{ slug: TEE, size: 'M', qty: 1 }], { promo_code: 'NOPE' })), /invalid:promo/, 'unknown');
   await asSuper();
   await db.exec(`update promo_codes set min_order = 5000000 where code = 'LOUNGE10'`);
   await as('service_role');
-  await rejects(place(order([{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }],
+  await rejects(place(order([{ slug: TEE, size: 'M', qty: 1 }],
     { customer: { name: 'B', phone: '+998909999999' }, promo_code: 'LOUNGE10' })), /invalid:promo/, 'min order');
 });
-
 
 console.log('\nQuote + quick order (cart preview)');
 const quote = async (payload) => (await one('select public.quote_order($1::jsonb) as r', [JSON.stringify(payload)])).r;
 await test('quote never changes stock and matches what place_order charges', async () => {
   await asSuper();
-  const before = await stockOf('old-skool-burgundy', 41);
+  const before = await stockOf(POLO_GREY, 'M');
   await as('service_role');
-  const items = [{ slug: 'old-skool-burgundy', size: 41, qty: 2 }];
+  const items = [{ slug: POLO_GREY, size: 'M', qty: 2 }];
   const q = await quote({ items, delivery: { method: 'courier_tashkent' } });
   await asSuper();
-  assert.equal(await stockOf('old-skool-burgundy', 41), before, 'quote must not take stock');
+  assert.equal(await stockOf(POLO_GREY, 'M'), before, 'quote must not take stock');
   await as('service_role');
   const placed = await place(order(items, { customer: { name: 'Q', phone: '+998901110000' } }));
   for (const k of ['subtotal', 'discount', 'delivery_fee', 'total']) assert.equal(q[k], placed[k], k);
-  assert.equal(q.lines[0].unit_price, 590000);
+  assert.equal(q.lines[0].unit_price, 1290000);
+  assert.equal(q.lines[0].fulfilment, 'stock');
 });
 await test('quote defaults to courier delivery and reports promo problems', async () => {
   await asSuper();
   await db.exec(`insert into promo_codes (code, type, value, min_order) values ('FIX50', 'fixed', 50000, 0)`);
   await as('service_role');
-  const q = await quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'fix50' });
+  const q = await quote({ items: [{ slug: TEE, size: 'M', qty: 1 }], promo_code: 'fix50' });
   assert.equal(q.discount, 50000);
   assert.equal(q.delivery_fee, 30000);
   assert.equal(q.promo_code, 'FIX50');
-  await rejects(quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'WRONG' }), /invalid:promo/);
-  await rejects(quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 50 }] }), /invalid:qty/);
+  await rejects(quote({ items: [{ slug: TEE, size: 'M', qty: 1 }], promo_code: 'WRONG' }), /invalid:promo/);
+  await rejects(quote({ items: [{ slug: TEE, size: 'M', qty: 50 }] }), /invalid:qty/);
 });
-await test('quote reports sold-out lines', async () => {
+await test('quote tells which lines are ordered from abroad, and reports sizes that cannot be bought', async () => {
   await as('service_role');
-  await rejects(quote({ items: [{ slug: 'air-max-1-sunset', size: 41, qty: 1 }] }), /out_of_stock:air-max-1-sunset:41/);
+  const q = await quote({ items: [{ slug: JACKET, size: 'M', qty: 1 }, { slug: TEE, size: 'M', qty: 1 }] });
+  assert.deepEqual(q.lines.map((l) => l.fulfilment).sort(), ['order', 'stock']);
+  await rejects(quote({ items: [{ slug: DENIM, size: 'XXL', qty: 1 }] }), /out_of_stock:gant-denim-jacket-blue:XXL/);
 });
 await test('quote does not use up a promo code', async () => {
   await asSuper();
   const before = (await one(`select used_count from promo_codes where code = 'FIX50'`)).used_count;
   await as('service_role');
-  await quote({ items: [{ slug: 'chuck-70-hi-cherry', size: 39, qty: 1 }], promo_code: 'FIX50' });
+  await quote({ items: [{ slug: TEE, size: 'M', qty: 1 }], promo_code: 'FIX50' });
   await asSuper();
   assert.equal((await one(`select used_count from promo_codes where code = 'FIX50'`)).used_count, before);
 });
@@ -313,7 +401,7 @@ await test('quick order: "callback" delivery has no fee and needs no address', a
     customer: { name: 'Quick', phone: '+998905550000', contact_pref: 'call' },
     delivery: { method: 'callback' },
     payment: 'tbd',
-    items: [{ slug: 'x-90-pink-haze', size: 38, qty: 1 }],
+    items: [{ slug: BELT_BROWN, size: '100', qty: 1 }],
   });
   assert.equal(r.delivery_fee, 0);
   assert.equal(r.total, 890000);
@@ -334,7 +422,7 @@ console.log('\nOrder status');
 let target;
 await test('manager can confirm; event records the actor', async () => {
   await as('service_role');
-  target = await place(order([{ slug: 'prophere-aqua-pulse', size: 41, qty: 2 }],
+  target = await place(order([{ slug: BELT, size: '95', qty: 2 }],
     { customer: { name: 'C', phone: '+998907777777' }, promo_code: null }));
   await as('authenticated', MANAGER);
   const r = (await one(`select public.set_order_status($1, 'confirmed', 'called') as r`, [target.order_id])).r;
@@ -350,19 +438,33 @@ await test('non-staff users are forbidden', async () => {
 });
 await test('cancelling returns stock; cancelled orders are final', async () => {
   await asSuper();
-  assert.equal(await stockOf('prophere-aqua-pulse', 41), 1);
+  assert.equal(await stockOf(BELT, '95'), 1);
   await as('authenticated', OWNER);
   await one(`select public.set_order_status($1, 'cancelled')`, [target.order_id]);
   await asSuper();
-  assert.equal(await stockOf('prophere-aqua-pulse', 41), 3);
+  assert.equal(await stockOf(BELT, '95'), 3);
   await as('authenticated', OWNER);
   await rejects(one(`select public.set_order_status($1, 'confirmed')`, [target.order_id]), /order_cancelled/);
+});
+await test('cancelling a mixed order returns only the stock that was taken here', async () => {
+  await as('service_role');
+  const mixed = await place(order([{ slug: BELT, size: '100', qty: 1 }, { slug: JACKET, size: 'M', qty: 1 }],
+    { customer: { name: 'Mix', phone: '+998901110007' } }));
+  assert.deepEqual(mixed.items.map((l) => l.fulfilment).sort(), ['order', 'stock']);
+  await asSuper();
+  assert.equal(await stockOf(BELT, '100'), 2);
+  assert.equal(await stockOf(JACKET, 'M'), 0);
+  await as('authenticated', OWNER);
+  await one(`select public.set_order_status($1, 'cancelled')`, [mixed.order_id]);
+  await asSuper();
+  assert.equal(await stockOf(BELT, '100'), 3, 'the stock line is returned');
+  assert.equal(await stockOf(JACKET, 'M'), 0, 'the ordered line never had stock, so none appears');
 });
 await test('cancelling an order that used a promo gives the use back', async () => {
   await asSuper();
   await db.exec(`update promo_codes set min_order = 0, per_phone_limit = null, usage_limit = 5 where code = 'LOUNGE10'`);
   await as('service_role');
-  const o = await place(order([{ slug: 'chuck-70-hi-cherry', size: 40, qty: 1 }],
+  const o = await place(order([{ slug: TEE, size: 'L', qty: 1 }],
     { customer: { name: 'D', phone: '+998908888888' }, promo_code: 'LOUNGE10' }));
   await asSuper();
   const before = (await one(`select used_count from promo_codes where code='LOUNGE10'`)).used_count;
@@ -378,11 +480,11 @@ console.log('\nStaff permissions (RLS)');
 await test('manager reads orders, updates products, cannot delete or touch promo/settings/staff', async () => {
   await as('authenticated', MANAGER);
   assert.ok((await one('select count(*)::int c from orders')).c > 0);
-  await db.exec(`update products set price = 1234567 where slug = 'vans-none'`); // no row, no error
-  await db.exec(`update products set is_new = true where slug = 'old-skool-burgundy'`);
-  assert.equal((await one(`select is_new from products where slug='old-skool-burgundy'`)).is_new, true);
-  await db.exec(`delete from products where slug = 'old-skool-burgundy'`);
-  assert.equal((await one(`select count(*)::int c from products where slug='old-skool-burgundy'`)).c, 1, 'manager delete must do nothing');
+  await db.exec(`update products set price = 1234567 where slug = 'no-such-product'`); // no row, no error
+  await db.exec(`update products set is_new = true where slug = '${BELT_BROWN}'`);
+  assert.equal((await one(`select is_new from products where slug='${BELT_BROWN}'`)).is_new, true);
+  await db.exec(`delete from products where slug = '${BELT_BROWN}'`);
+  assert.equal((await one(`select count(*)::int c from products where slug='${BELT_BROWN}'`)).c, 1, 'manager delete must do nothing');
   assert.equal((await one('select count(*)::int c from promo_codes')).c, 0);
   assert.equal((await one(`select count(*)::int c from settings where key='telegram'`)).c, 0);
   assert.equal((await one('select count(*)::int c from staff')).c, 1, 'manager sees only their own staff row');
@@ -396,7 +498,7 @@ await test('owner can do everything', async () => {
   assert.equal((await one(`select count(*)::int c from settings where key='telegram'`)).c, 1);
   assert.ok((await one('select count(*)::int c from promo_codes')).c > 0);
   await db.exec(`insert into products (slug, brand_id, name, category, price)
-                 select 'temp-product', id, 'Temp', 'lifestyle', 1 from brands limit 1`);
+                 select 'temp-product', id, 'Temp', 'polos', 1 from brands limit 1`);
   await db.exec(`delete from products where slug = 'temp-product'`);
   assert.equal((await one(`select count(*)::int c from products where slug='temp-product'`)).c, 0);
 });
@@ -408,6 +510,35 @@ await test('deactivated staff lose access', async () => {
   await rejects(one(`select public.set_order_status(gen_random_uuid(), 'confirmed')`), /forbidden/);
   await asSuper();
   await db.exec(`update staff set is_active = true where user_id = '${MANAGER}'`);
+});
+
+console.log('\nCategories (owner-managed)');
+await test('only the owner can add, rename, hide, reorder and delete categories', async () => {
+  await as('authenticated', MANAGER);
+  await rejects(db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en) values ('scarves', 'accessories', 'Шарфы', 'Sharflar', 'Scarves')`),
+    /row-level security/, 'manager insert');
+  await db.exec(`update categories set name_en = 'Hacked' where slug = 'belts'`);   // matches no rows
+  await db.exec(`delete from categories where slug = 'sunglasses'`);                // matches no rows
+  await asSuper();
+  assert.equal((await one(`select name_en from categories where slug = 'belts'`)).name_en, 'Belts');
+  assert.equal((await one(`select count(*)::int c from categories where slug = 'sunglasses'`)).c, 1);
+  await as('authenticated', OWNER);
+  await db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en, size_system, sort)
+                 values ('scarves', 'accessories', 'Шарфы', 'Sharflar', 'Scarves', 'one', 21)`);
+  await db.exec(`update categories set sort = 5, is_active = false where slug = 'scarves'`);
+  await rejects(db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en) values ('Bad Slug', 'shoes', 'x', 'x', 'x')`), /check/, 'slug format');
+  await rejects(db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en) values ('hats', 'toys', 'x', 'x', 'x')`), /check/, 'department');
+  await rejects(db.exec(`insert into categories (slug, department, name_ru, name_uz, name_en, size_system) values ('hats', 'accessories', 'x', 'x', 'x', 'huge')`), /check/, 'size system');
+  await db.exec(`delete from categories where slug = 'scarves'`);
+  assert.equal((await one(`select count(*)::int c from categories where slug = 'scarves'`)).c, 0);
+});
+await test('a category that still has products cannot be deleted; renaming its slug moves the products along', async () => {
+  await as('authenticated', OWNER);
+  await rejects(db.exec(`delete from categories where slug = 'polos'`), /foreign key|violates/);
+  await db.exec(`update categories set slug = 'polo-shirts' where slug = 'polos'`);
+  assert.equal((await one(`select count(*)::int c from products where category = 'polo-shirts'`)).c, 2);
+  await db.exec(`update categories set slug = 'polos' where slug = 'polo-shirts'`);
+  assert.equal((await one(`select count(*)::int c from products where category = 'polos'`)).c, 2);
 });
 
 
@@ -466,56 +597,73 @@ const save = async (userId, payload) => {
   return (await one('select public.admin_save_product($1::jsonb) as r', [JSON.stringify(payload)])).r;
 };
 const baseProduct = (extra = {}) => ({
-  slug: 'new-balance-550-white-green', brand_name: 'New Balance', name: '550 “White Green”', colorway: 'White / Green',
-  sku: 'BB550WT1', category: 'lifestyle', gender: 'unisex', price: 1290000, old_price: 1890000,
-  description_ru: 'Классика', tags: ['nb', ' 550 ', ''], is_new: true, is_active: true,
-  sizes: [{ eu: 40, us: 7, cm: 25, stock: 3 }, { eu: 41, us: 8, cm: 26, stock: 2 }],
+  slug: 'lacoste-classic-fit-polo-navy', brand_name: 'lacoste', name: 'Classic Fit Polo', color: 'Navy',
+  color_hex: '#1F2A44', color_group: 'navy', style_code: 'LC-L1212', sku: 'L1212-166',
+  category: 'polos', price: 1290000, old_price: 1590000,
+  origin: 'fr', material: '100% cotton petit piqué', fit: 'regular', model_info: 'Model is 186 cm and wears M', order_lead: '10–18',
+  description_ru: 'Классика', tags: ['lacoste', ' polo ', ''], is_new: true, is_active: true,
+  sizes: [{ label: 'M', stock: 3 }, { label: 'L', stock: 2, orderable: false }],
   images: [{ path: 'products/a/one-1600.webp' }, { path: 'products/a/two-1600.webp' }],
   ...extra,
 });
-await test('manager creates a product: brand reused, sizes and ordered photos saved', async () => {
+await test('manager creates a product: brand reused, fields normalised, sizes and ordered photos saved', async () => {
   saved = await save(MANAGER, baseProduct());
   await asSuper();
   const p = await one(`select p.*, b.name brand from products p join brands b on b.id = p.brand_id where p.id = $1`, [saved.id]);
-  assert.equal(p.brand, 'New Balance');
-  assert.equal((await one(`select count(*)::int c from brands where lower(name) = 'new balance'`)).c, 1, 'no duplicate brand');
-  assert.deepEqual(p.tags, ['nb', '550']);
-  assert.equal(p.old_price, 1890000);
+  assert.equal(p.brand, 'Lacoste');
+  assert.equal((await one(`select count(*)::int c from brands where lower(name) = 'lacoste'`)).c, 1, 'no duplicate brand');
+  assert.deepEqual(p.tags, ['lacoste', 'polo']);
+  assert.equal(p.old_price, 1590000);
+  assert.deepEqual([p.color, p.color_hex, p.color_group, p.style_code, p.origin, p.fit, p.order_lead],
+    ['Navy', '#1F2A44', 'navy', 'LC-L1212', 'FR', 'regular', '10–18']);
   const imgs = await all('select path, sort, is_main from product_images where product_id = $1 order by sort', [saved.id]);
   assert.deepEqual(imgs.map((i) => [i.path, i.is_main]), [['products/a/one-1600.webp', true], ['products/a/two-1600.webp', false]]);
-  assert.equal((await one('select count(*)::int c from product_sizes where product_id = $1', [saved.id])).c, 2);
+  const sizes = await all('select label, sort, stock, orderable from product_sizes where product_id = $1 order by sort', [saved.id]);
+  assert.deepEqual(sizes, [{ label: 'M', sort: 0, stock: 3, orderable: true }, { label: 'L', sort: 1, stock: 2, orderable: false }]);
+  assert.equal((await one(`select count(*)::int c from products where style_code = 'LC-L1212'`)).c, 3, 'three colours of one polo share the style code');
 });
 await test('a new brand is created on the fly with a clean slug', async () => {
-  const r = await save(MANAGER, baseProduct({ slug: 'hoka-clifton-9', brand_name: 'HOKA One One', name: 'Clifton 9' }));
+  const r = await save(MANAGER, baseProduct({ slug: 'brunello-cucinelli-cashmere-polo', brand_name: 'Brunello Cucinelli', name: 'Cashmere Polo', style_code: null }));
   await asSuper();
-  assert.equal((await one(`select b.slug from brands b join products p on p.brand_id = b.id where p.id = $1`, [r.id])).slug, 'hoka-one-one');
+  assert.equal((await one(`select b.slug from brands b join products p on p.brand_id = b.id where p.id = $1`, [r.id])).slug, 'brunello-cucinelli');
 });
-await test('editing keeps size rows (and stock unless one is given); removed sizes and photos go away', async () => {
+await test('editing keeps size rows (and stock unless one is given); removed sizes and photos go away; the list order is the display order', async () => {
   await asSuper();
-  const before = await all('select id, eu from product_sizes where product_id = $1 order by eu', [saved.id]);
+  const before = await all('select id, label from product_sizes where product_id = $1 order by sort', [saved.id]);
   const r = await save(MANAGER, baseProduct({
     id: saved.id, price: 1190000,
-    sizes: [{ eu: 40, us: 7, cm: 25, stock: null }, { eu: 42, us: 9, cm: 27, stock: 5 }],   // 41 removed, 42 added
+    sizes: [{ label: 'XL', stock: 5 }, { label: 'M', stock: null }],                         // L removed, XL added first
     images: [{ path: 'products/a/two-1600.webp' }, { path: 'products/a/three-1600.webp' }], // order changed, one gone, one new
   }));
   assert.equal(r.id, saved.id);
   await asSuper();
-  const sizes = await all('select id, eu, stock from product_sizes where product_id = $1 order by eu', [saved.id]);
-  assert.deepEqual(sizes.map((s) => [Number(s.eu), s.stock]), [[40, 3], [42, 5]], 'stock kept when null');
-  assert.equal(sizes[0].id, before[0].id, 'same row — order history still points at it');
+  const sizes = await all('select id, label, sort, stock from product_sizes where product_id = $1 order by sort', [saved.id]);
+  assert.deepEqual(sizes.map((s) => [s.label, s.sort, s.stock]), [['XL', 0, 5], ['M', 1, 3]], 'stock kept when null');
+  assert.equal(sizes[1].id, before.find((s) => s.label === 'M').id, 'same row — order history still points at it');
   const imgs = await all('select path, is_main from product_images where product_id = $1 order by sort', [saved.id]);
   assert.deepEqual(imgs.map((i) => [i.path, i.is_main]), [['products/a/two-1600.webp', true], ['products/a/three-1600.webp', false]]);
   assert.equal((await one('select price from products where id = $1', [saved.id])).price, 1190000);
 });
-await test('save is validated: slug, price, old price, size, stock, brand', async () => {
+await test('save is validated: slug, price, old price, size label, stock, brand, category and the product fields', async () => {
+  const bad = (extra) => baseProduct({ slug: 'ok-slug', ...extra });
   await rejects(save(MANAGER, baseProduct({ slug: 'Bad Slug!' })), /invalid:slug/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', price: -1 })), /invalid:price/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', price: 100, old_price: 50 })), /invalid:old_price/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', sizes: [{ eu: 5, stock: 1 }] })), /invalid:size/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', sizes: [{ eu: 40, stock: -2 }] })), /invalid:stock/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', brand_name: '', brand_id: null })), /invalid:brand/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'ok-slug', gender: 'robots' })), /invalid:gender/);
-  await rejects(save(MANAGER, baseProduct({ slug: 'old-skool-burgundy' })), /duplicate key|unique/);
+  await rejects(save(MANAGER, bad({ price: -1 })), /invalid:price/);
+  await rejects(save(MANAGER, bad({ price: 100, old_price: 50 })), /invalid:old_price/);
+  await rejects(save(MANAGER, bad({ sizes: [{ label: 'M!', stock: 1 }] })), /invalid:size/);
+  await rejects(save(MANAGER, bad({ sizes: [{ label: '', stock: 1 }] })), /invalid:size/);
+  await rejects(save(MANAGER, bad({ sizes: [{ label: 'M' }, { label: 'M' }] })), /invalid:size/);
+  await rejects(save(MANAGER, bad({ sizes: [{ label: 'M', stock: -2 }] })), /invalid:stock/);
+  await rejects(save(MANAGER, bad({ brand_name: '', brand_id: null })), /invalid:brand/);
+  await rejects(save(MANAGER, bad({ category: 'running' })), /invalid:category/);
+  await rejects(save(MANAGER, bad({ category: null })), /invalid:category/);
+  await rejects(save(MANAGER, bad({ color_hex: 'navy' })), /invalid:color_hex/);
+  await rejects(save(MANAGER, bad({ color_group: 'pink' })), /invalid:color_group/);
+  await rejects(save(MANAGER, bad({ style_code: 'a b' })), /invalid:style_code/);
+  await rejects(save(MANAGER, bad({ origin: 'FRA' })), /invalid:origin/);
+  await rejects(save(MANAGER, bad({ fit: 'tight' })), /invalid:fit/);
+  await rejects(save(MANAGER, bad({ order_lead: 'soon' })), /invalid:order_lead/);
+  await rejects(save(MANAGER, bad({ material: 'x'.repeat(161) })), /invalid:text/);
+  await rejects(save(MANAGER, baseProduct({ slug: TIE })), /duplicate key|unique/);
   await asSuper();
   assert.equal((await one(`select count(*)::int c from products where slug = 'ok-slug'`)).c, 0, 'failed saves leave nothing behind');
 });
@@ -525,14 +673,16 @@ await test('strangers and anonymous visitors cannot save products or read the ov
   await rejects(one(`select public.admin_save_product('{}'::jsonb)`), /permission denied/);
   await rejects(one(`select public.admin_overview()`), /permission denied/);
 });
-await test('admin_overview: counts, revenue (cancelled excluded) and low stock', async () => {
+await test('admin_overview: counts, revenue (cancelled excluded), low stock and lines still to buy abroad', async () => {
   await as('authenticated', MANAGER);
   const o = (await one('select public.admin_overview() as r')).r;
   assert.ok(o.by_status.new >= 1);
   assert.ok(o.by_status.cancelled >= 1);
   assert.ok(o.today_orders >= 1);
   assert.ok(o.low_stock.every((x) => x.stock <= 1));
-  assert.ok(o.low_stock.some((x) => x.slug === 'air-max-1-sunset' && Number(x.eu) === 41 && x.stock === 0));
+  const bp = o.low_stock.find((x) => x.slug === BACKPACK);
+  assert.ok(bp && bp.label === 'ONE SIZE' && bp.stock === 0 && bp.orderable === true, 'sold-out sizes show their label and whether they can be ordered');
+  assert.ok(o.to_source >= 4, 'open orders with lines ordered from abroad are counted (the merged tee order alone has 4 pieces)');
   await asSuper();
   const real = await one(`select coalesce(sum(total),0)::int s from orders where status <> 'cancelled'`);
   assert.ok(o.today_revenue > 0 && o.today_revenue <= real.s);
@@ -542,10 +692,10 @@ await test('activity log: staff edits are recorded with their name, server stock
   await db.exec(`delete from activity_log`);
   await as('authenticated', MANAGER);
   await db.exec(`update products set price = 1250000 where id = '${saved.id}'`);
-  await db.exec(`update product_sizes set stock = 9 where product_id = '${saved.id}' and eu = 40`);
-  const spare = await one(`select p.slug, s.eu from product_sizes s join products p on p.id = s.product_id where s.stock >= 2 and p.is_active limit 1`);
+  await db.exec(`update product_sizes set stock = 9 where product_id = '${saved.id}' and label = 'M'`);
+  const spare = await one(`select p.slug, s.label from product_sizes s join products p on p.id = s.product_id where s.stock >= 2 and p.is_active limit 1`);
   await as('service_role');
-  await place(order([{ slug: spare.slug, size: Number(spare.eu), qty: 1 }], { customer: { name: 'L', phone: '+998906660000' } }));
+  await place(order([{ slug: spare.slug, size: spare.label, qty: 1 }], { customer: { name: 'L', phone: '+998906660000' } }));
   await asSuper();
   const log = await all('select * from activity_log order by created_at, id');
   const price = log.find((l) => l.entity === 'products');
@@ -554,8 +704,21 @@ await test('activity log: staff edits are recorded with their name, server stock
   assert.deepEqual(price.diff.changes.price, ['1190000', '1250000']);
   const stock = log.find((l) => l.entity === 'product_sizes');
   assert.deepEqual(stock.diff.changes.stock, ['3', '9']);
-  assert.equal(Number(stock.diff.eu), 40);
+  assert.equal(stock.diff.size, 'M');
+  assert.equal(stock.diff.label, 'Size M');
   assert.equal(log.length, 2, 'placing an order must not add log noise');
+});
+await test('category edits are recorded for the owner', async () => {
+  await asSuper();
+  await db.exec(`delete from activity_log`);
+  await as('authenticated', OWNER);
+  await db.exec(`update categories set name_en = 'Neckties' where slug = 'ties'`);
+  await asSuper();
+  const c = await one(`select * from activity_log where entity = 'categories'`);
+  assert.equal(c.actor, 'Owner');
+  assert.equal(c.entity_id, 'ties');
+  assert.deepEqual(c.diff.changes.name_en, ['Ties', 'Neckties']);
+  await db.exec(`update categories set name_en = 'Ties' where slug = 'ties'`);
 });
 await test('only the owner can read the activity log', async () => {
   await as('authenticated', MANAGER);
@@ -565,15 +728,14 @@ await test('only the owner can read the activity log', async () => {
 });
 await test('owner deletes a product: sizes and photos go with it, order history keeps its snapshot', async () => {
   await asSuper();
-  const used = await one(`select p.id, i.name_snapshot from products p join order_items i on i.product_id = p.id limit 1`);
+  const used = await one(`select p.id, i.id as item_id from products p join order_items i on i.product_id = p.id limit 1`);
   await as('authenticated', OWNER);
   await db.exec(`delete from products where id = '${used.id}'`);
   await asSuper();
   assert.equal((await one(`select count(*)::int c from product_sizes where product_id = '${used.id}'`)).c, 0);
-  const item = await one(`select product_id from order_items where name_snapshot = $1 limit 1`, [used.name_snapshot]);
+  const item = await one(`select product_id from order_items where id = $1`, [used.item_id]);
   assert.equal(item.product_id, null, 'order line is kept, only the link is cleared');
 });
-
 
 console.log('\nAdmin panel phase 5: usernames, owner guard, reports');
 await test('usernames are validated and unique', async () => {
@@ -689,6 +851,59 @@ await test('rate limit: visitors and staff can neither call it nor read the coun
     await rejects(one(`select public.rate_limit_hit('x', 5, 60)`), /permission denied/, `${role} call`);
     await rejects(all('select * from public.rate_limits'), /permission denied/, `${role} read`);
   }
+});
+
+
+console.log('\nUpgrade from the sneaker shop (the menswear migration on top of existing data)');
+await test('existing sneakers, sizes and orders survive; the placeholders and unused brands go; new rules work afterwards', async () => {
+  const old = new PGlite();
+  await standIns(old);
+  await defaultPrivileges(old);
+  for (const f of migrations.filter((n) => n < '20261017')) await old.exec(read(`../migrations/${f}`));
+  await old.exec(`
+    insert into brands (name, slug) values ('Nike', 'nike'), ('Adidas', 'adidas');
+    insert into products (slug, brand_id, name, colorway, category, gender, price, old_price) values
+      ('nike-pegasus-40', (select id from brands where slug = 'nike'), 'Pegasus 40', 'Black', 'running', 'men', 1900000, 2300000),
+      ('air-max-1-sunset', (select id from brands where slug = 'nike'), 'Air Max 1', null, 'running', 'unisex', 1390000, 2190000);
+    insert into product_sizes (product_id, eu, us, cm, stock) select id, 42, 8.5, 26.5, 2 from products;
+    insert into product_sizes (product_id, eu, stock) select id, 42.5, 0 from products where slug = 'nike-pegasus-40';
+    insert into settings (key, value, is_public) values
+      ('delivery', '{"methods":[{"id":"courier_tashkent","fee":30000}],"free_threshold":1500000}', true),
+      ('home', '{"hero":{"product":"air-max-1-sunset"},"deal_ends":null}', true);
+  `);
+  const oldOrder = (slug) => JSON.stringify({
+    customer: { name: 'Old', phone: '+998901234567' }, delivery: { method: 'courier_tashkent' }, payment: 'cash',
+    items: [{ slug, size: 42, qty: 1 }],
+  });
+  await old.query('select public.place_order($1::jsonb)', [oldOrder('nike-pegasus-40')]);
+  await old.query('select public.place_order($1::jsonb)', [oldOrder('air-max-1-sunset')]);
+
+  await old.exec(read('../migrations/20261017000000_menswear.sql'));
+
+  const q = async (sql, params) => (await old.query(sql, params)).rows;
+  const products = await q(`select slug, category, color from products order by slug`);
+  assert.deepEqual(products, [{ slug: 'nike-pegasus-40', category: 'sneakers', color: 'Black' }], 'real sneaker kept (colorway → color), placeholder removed');
+  assert.deepEqual((await q(`select slug from brands`)).map((b) => b.slug), ['nike'], 'unused brand removed');
+  assert.equal((await q(`select count(*)::int c from information_schema.columns where table_name = 'products' and column_name = 'gender'`))[0].c, 0);
+  assert.deepEqual(await q(`select label, sort, stock, orderable from product_sizes order by label`),
+    [{ label: '42', sort: 0, stock: 1, orderable: false }, { label: '42.5', sort: 0, stock: 0, orderable: false }],
+    'numeric EU sizes became text labels and stay un-orderable, as they were before');
+  assert.deepEqual(await q(`select size_label, fulfilment, product_id is null as gone from order_items order by gone`),
+    [{ size_label: '42', fulfilment: 'stock', gone: false }, { size_label: '42', fulfilment: 'stock', gone: true }],
+    'old order lines keep their size and stay "from stock"; the one for the removed placeholder keeps its snapshot');
+  const delivery = (await q(`select value from settings where key = 'delivery'`))[0].value;
+  assert.deepEqual([delivery.stock_days, delivery.order_days, delivery.free_threshold], ['1–3', '10–18', 1500000]);
+  assert.deepEqual((await q(`select value from settings where key = 'home'`))[0].value.hero, {}, 'the hero pointed at a removed product');
+  assert.equal((await q(`select count(*)::int c from categories`))[0].c, 20);
+
+  // the new rules work on the migrated data
+  const placed = await q(`select public.place_order($1::jsonb) as r`, [JSON.stringify({
+    customer: { name: 'New', phone: '+998901234568' }, delivery: { method: 'courier_tashkent' }, payment: 'cash',
+    items: [{ slug: 'nike-pegasus-40', size: '42', qty: 1 }] })]);
+  assert.equal(placed[0].r.items[0].fulfilment, 'stock');
+  await rejects(old.query(`select public.place_order($1::jsonb)`, [JSON.stringify({
+    customer: { name: 'New', phone: '+998901234568' }, delivery: { method: 'courier_tashkent' }, payment: 'cash',
+    items: [{ slug: 'nike-pegasus-40', size: '42.5', qty: 1 }] })]), /out_of_stock/, 'old sizes are not orderable unless the owner allows it');
 });
 
 console.log(`\n${passed} checks passed${process.exitCode ? ' — WITH FAILURES' : ''}\n`);

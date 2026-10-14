@@ -47,6 +47,6 @@ export default async function handler(req, res) {
     delivery_fee: q.delivery_fee,
     total: q.total,
     promo_code: q.promo_code || null,
-    lines: (q.lines || []).map((l) => ({ slug: l.slug, size: l.size_eu, qty: l.qty, unit_price: l.unit_price })),
+    lines: (q.lines || []).map((l) => ({ slug: l.slug, size: l.size_label, qty: l.qty, unit_price: l.unit_price, fulfilment: l.fulfilment })),
   });
 }
