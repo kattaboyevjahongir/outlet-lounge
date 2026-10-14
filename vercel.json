@@ -1,5 +1,13 @@
 {
   "regions": ["fra1"],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.outletlounge.uz" }],
+      "destination": "https://outletlounge.uz/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/admin-:fn(config|order-status|setup|staff|telegram)",
